@@ -317,14 +317,17 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.1 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.2 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
     <label>密码</label>
-    <input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">登 录</button>
     <div class="login-err" id="loginErr"></div>
+    <div style="margin-top:10px;text-align:center;">
+      <a href="javascript:void(0)" onclick="hardResetStore()" style="color:var(--gray);font-size:12px;text-decoration:underline;">重置系统数据</a>
+    </div>
   </div>
 </div>
 
@@ -1220,7 +1223,11 @@ function deleteUnit(idx) {
 // ============================================================
 window.onload = function() {
   loadStore();
-  if (!store.projects['p_2602'] && Object.keys(store.projects).length === 0) {
+  // Only create initial project on FIRST-TIME use (localStorage has zero projects)
+  // Do NOT recreate if user intentionally deleted all projects
+  var raw = localStorage.getItem(STORE_KEY);
+  if (!raw) {
+    // Truly fresh start — no localStorage data at all
     store.projects['p_2602'] = INITIAL_PROJECT;
     store.currentProject = 'p_2602';
     if (store.library.length === 0) store.library = buildInitialLibrary();
@@ -1313,7 +1320,11 @@ function showLoginScreen() {
 
 function doLogin() {
   var username = document.getElementById('loginUser').value.trim();
-  var password = document.getElementById('loginPass').value.trim();
+  var passwordEl = document.getElementById('loginPass');
+  var password = passwordEl.value;
+  // Defense: some browsers fill password field with hidden chars despite autocomplete=off
+  // Trim and also strip any non-ASCII characters that password managers might inject
+  password = password.replace(/[^\x20-\x7E]/g, '').trim();
   var errEl = document.getElementById('loginErr');
   if (!username || !password) { errEl.textContent = '请输入用户名和密码'; return; }
 
@@ -1329,13 +1340,21 @@ function doLogin() {
 
   var user = store.users.find(function(u){ return u.username === username && u.password === password; });
   if (!user) {
+    // Debug info for troubleshooting login issues across browsers
+    var dbg = '';
+    dbg += '（调试：用户表共 ' + store.users.length + ' 条记录';
+    var usernames = store.users.map(function(u){ return u.username; }).join('、');
+    if (usernames) dbg += '，现有账号：' + usernames;
+    dbg += '）';
+    errEl.innerHTML = '用户名或密码错误' + (store.users.length > 0 ? '<br><small style="color:#94a3b8;">' + dbg + '</small>' : '');
     // Fallback: if login is admin/admin123 and it failed, reset users entirely
     if (username === 'admin' && password === 'admin123') {
       store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
       saveStore();
       user = store.users.find(function(u){ return u.username === username && u.password === password; });
+      if (user) { errEl.innerHTML = ''; } // reset triggered, proceed to login
     }
-    if (!user) { errEl.textContent = '用户名或密码错误'; return; }
+    if (!user) { return; }
   }
   currentUser = user;
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1356,6 +1375,18 @@ function ensureDefaultAdmin() {
 function doLogout() {
   currentUser = null;
   showLoginScreen();
+}
+
+// Hard reset: completely wipe localStorage and reload
+function hardResetStore() {
+  if (!confirm('⚠️ 确定要重置所有系统数据？\n\n此操作将：\n• 删除所有项目、BOM清单、零件库数据\n• 重置用户表为默认管理员\n• 删除所有设置\n\n此操作不可恢复！')) return;
+  if (!confirm('再次确认：真的要删除所有数据吗？')) return;
+  localStorage.removeItem(STORE_KEY);
+  // Also clear any old migration keys
+  localStorage.removeItem('bom_tool_v4');
+  localStorage.removeItem('bom_tool_v3');
+  toast('系统数据已重置，即将刷新...', 'success');
+  setTimeout(function(){ location.reload(); }, 800);
 }
 
 function applyRoleUI() {
