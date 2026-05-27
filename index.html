@@ -1,0 +1,2813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOM 智能管理工具 v5.0</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-light: #3b82f6;
+  --primary-bg: #eff6ff;
+  --accent: #f97316;
+  --success: #16a34a;
+  --warning: #eab308;
+  --danger: #dc2626;
+  --bg: #f1f5f9;
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 8px;
+  --header-bg: #1e293b;
+  --header-text: #f8fafc;
+  --th-bg: #334155;
+  --th-text: #f1f5f9;
+  --table-stripe: #f8fafc;
+  --input-bg: #ffffff;
+  --tag-bg: #eff6ff;
+}
+
+body.dark {
+  --primary: #60a5fa;
+  --primary-light: #93bbfd;
+  --primary-bg: #1e293b;
+  --accent: #fb923c;
+  --success: #4ade80;
+  --warning: #facc15;
+  --danger: #f87171;
+  --bg: #0f172a;
+  --card-bg: #1e293b;
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: #334155;
+  --border-light: #1e293b;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --header-bg: #0f172a;
+  --header-text: #f1f5f9;
+  --th-bg: #1e293b;
+  --th-text: #e2e8f0;
+  --table-stripe: #1a2332;
+  --input-bg: #1e293b;
+  --tag-bg: #1e3a5f;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;transition:background .2s,color .2s}
+
+/* HEADER */
+.header{background:var(--header-bg);color:var(--header-text);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-title{font-size:17px;font-weight:600;letter-spacing:.5px}
+.header-title span{color:#60a5fa}
+.header-actions{display:flex;gap:8px;align-items:center}
+.dark-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:5px;transition:background .15s}
+.dark-toggle:hover{background:rgba(255,255,255,.18)}
+
+/* TABS */
+.tabs{background:var(--card-bg);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto}
+.tab{padding:13px 20px;cursor:pointer;font-weight:500;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px}
+.tab:hover{color:var(--primary)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-badge{background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px}
+
+/* MAIN */
+.main{padding:16px 20px;max-width:1600px;margin:0 auto}
+
+/* PAGE */
+.page{display:none}
+.page.active{display:block}
+
+/* CARD */
+.card{background:var(--card-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden;border:1px solid var(--border)}
+.card-header{padding:12px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+.card-header-left{display:flex;align-items:center;gap:8px}
+.card-body{padding:14px 18px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid transparent;cursor:pointer;font-size:13px;font-weight:500;transition:all .12s;user-select:none;line-height:1.4}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-light);border-color:var(--primary-light)}
+.btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+.btn-success:hover{filter:brightness(1.1)}
+.btn-warning{background:var(--warning);color:#000}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-danger:hover{filter:brightness(1.1)}
+.btn-outline{background:transparent;color:var(--primary);border-color:var(--primary)}
+.btn-outline:hover{background:var(--primary-bg)}
+.btn-gray{background:var(--border);color:var(--text-secondary);border-color:var(--border)}
+.btn-gray:hover{background:var(--text-muted);color:#fff}
+.btn-sm{padding:3px 8px;font-size:12px}
+.btn-lg{padding:8px 20px;font-size:14px}
+
+/* FORMS */
+.form-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:3px}
+.form-group label{font-size:12px;color:var(--text-secondary);font-weight:500}
+.form-control{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text);outline:none;transition:border-color .12s;background:var(--input-bg)}
+.form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.form-control::placeholder{color:var(--text-muted)}
+select.form-control{cursor:pointer}
+.form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+
+/* TABLES */
+.table-wrap{overflow-x:auto;max-height:70vh;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--th-bg);color:var(--th-text);padding:8px 10px;text-align:left;white-space:nowrap;font-weight:500;position:sticky;top:0;z-index:2}
+tbody tr{transition:background .08s}
+tbody tr:hover{background:var(--primary-bg)}
+tbody tr:nth-child(even){background:var(--table-stripe)}
+tbody tr:nth-child(even):hover{background:var(--primary-bg)}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(--text);vertical-align:middle}
+.category-row td{background:var(--primary-bg)!important;font-weight:600;color:var(--primary);font-size:12px;padding:6px 10px}
+#purchaseTable tbody td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.no-data{text-align:center;padding:36px;color:var(--text-muted);font-size:14px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge-purchase{background:#fef3c7;color:#92400e} .dark .badge-purchase{background:#451a03;color:#fcd34d}
+.badge-stock{background:#dbeafe;color:#1e40af} .dark .badge-stock{background:#172554;color:#93c5fd}
+.badge-arrived{background:#dcfce7;color:#166534} .dark .badge-arrived{background:#052e16;color:#86efac}
+.badge-pending{background:#fee2e2;color:#991b1b} .dark .badge-pending{background:#450a0a;color:#fca5a5}
+.badge-info{background:#f0f9ff;color:#0369a1} .dark .badge-info{background:#0c1929;color:#7dd3fc}
+
+.bom-status,.bom-arrival,.bom-actions{white-space:nowrap}
+.bom-actions .btn{white-space:nowrap}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.stat-card{background:var(--card-bg);border-radius:var(--radius-lg);padding:14px 16px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:3px;border:1px solid var(--border);border-left:3px solid var(--primary)}
+.stat-card.green{border-left-color:var(--success)}
+.stat-card.orange{border-left-color:var(--accent)}
+.stat-card.red{border-left-color:var(--danger)}
+.stat-value{font-size:24px;font-weight:700;color:var(--primary)}
+.stat-card.green .stat-value{color:var(--success)}
+.stat-card.orange .stat-value{color:var(--accent)}
+.stat-card.red .stat-value{color:var(--danger)}
+.stat-label{font-size:12px;color:var(--text-secondary)}
+
+/* AUTOCOMPLETE */
+.autocomplete-wrap{position:relative}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--card-bg);border:1px solid var(--primary);border-top:none;border-radius:0 0 var(--radius) var(--radius);max-height:240px;overflow-y:auto;box-shadow:var(--shadow-md)}
+.single-part-ac{left:50%;transform:translateX(-50%);right:auto;width:360px;max-width:90vw;border-top:1px solid var(--primary);border-radius:var(--radius);margin-top:2px}
+.sp-search-wrap{position:relative;flex:0 0 auto}
+.autocomplete-item{padding:7px 10px;cursor:pointer;transition:background .08s;border-bottom:1px solid var(--border-light);display:flex;flex-direction:column;gap:1px}
+.autocomplete-item:hover,.autocomplete-item.selected{background:var(--primary-bg)}
+.autocomplete-item .ac-name{font-weight:600;color:var(--text)}
+.autocomplete-item .ac-supplier{font-size:11px;color:var(--text-secondary)}
+.autocomplete-item .ac-model{font-size:11px;color:var(--primary)}
+.autocomplete-hidden{display:none!important}
+
+/* PROJECT SELECTOR */
+.proj-selector{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:14px;border:1px solid var(--border)}
+.proj-selector label{font-weight:600;color:var(--text-secondary);white-space:nowrap;font-size:13px}
+.proj-name-display{background:var(--primary-bg);border:1px solid var(--primary);color:var(--primary);padding:4px 12px;border-radius:20px;font-weight:600;font-size:12px}
+
+/* QUICK SELECT */
+.quick-panel{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:14px;box-shadow:var(--shadow-sm);overflow:hidden}
+.quick-panel-header{padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:13px}
+.quick-search-row{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg);flex-wrap:wrap}
+.quick-search-row input,.quick-search-row select{flex:1;min-width:110px}
+.quick-lib-table{width:100%;border-collapse:collapse;font-size:12px}
+.quick-lib-table thead th{background:var(--border);color:var(--text);padding:7px 10px;text-align:left;font-weight:500;border-bottom:1px solid var(--border)}
+.quick-lib-table tbody tr{cursor:pointer}
+.quick-lib-table tbody tr:hover{background:var(--primary-bg)}
+.quick-lib-table tbody td{padding:6px 10px;border-bottom:1px solid var(--border-light)}
+.quick-lib-table input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--primary)}
+.quick-lib-table input[type=number]{width:55px;padding:2px 5px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);font-size:12px}
+.quick-lib-wrap{max-height:300px;overflow-y:auto}
+.quick-selected-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--primary-bg);border-top:1px solid var(--primary);font-size:12px}
+.quick-selected-count{font-weight:700;color:var(--primary)}
+
+/* LIBRARY VIEWS */
+.lib-view-toggle{display:flex;gap:3px}
+.view-btn{padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card-bg);color:var(--text-secondary);cursor:pointer;font-size:12px;transition:all .12s}
+.view-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.lib-table{width:100%;border-collapse:collapse;font-size:13px}
+.lib-table thead th{background:var(--th-bg);color:var(--th-text);padding:7px 10px;text-align:left;font-weight:500;position:sticky;top:0}
+.lib-table tbody tr{transition:background .08s}
+.lib-table tbody tr:hover{background:var(--primary-bg)}
+.lib-table tbody tr:nth-child(even){background:var(--table-stripe)}
+.lib-table tbody tr:nth-child(even):hover{background:var(--primary-bg)}
+.lib-table tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light)}
+
+/* CATEGORY MANAGER */
+.cat-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:16px;background:var(--tag-bg);color:var(--primary);border:1px solid var(--primary);font-size:12px;font-weight:500;cursor:grab;margin:3px;transition:all .12s}
+.cat-tag:active{cursor:grabbing}
+.cat-tag.drag-over{transform:scale(1.05);border-color:var(--accent);box-shadow:0 0 6px rgba(249,115,22,.3)}
+.cat-tag .del-cat{cursor:pointer;color:var(--danger);font-size:14px;line-height:1;display:inline-flex;align-items:center;margin-left:2px}
+.cat-tag .del-cat:hover{opacity:.7}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card-bg);border-radius:var(--radius-lg);padding:22px;width:100%;max-width:560px;box-shadow:0 8px 32px rgba(0,0,0,.25);max-height:85vh;overflow-y:auto;border:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:16px;color:var(--primary)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.modal.wide{max-width:780px}
+
+/* NOTICE */
+.notice{padding:8px 14px;border-radius:var(--radius-sm);margin-bottom:10px;font-size:13px;display:flex;align-items:flex-start;gap:6px}
+.notice-info{background:#eff6ff;color:#1e40af;border-left:3px solid #3b82f6} .dark .notice-info{background:#172554;color:#93c5fd}
+.notice-success{background:#f0fdf4;color:#166534;border-left:3px solid #22c55e} .dark .notice-success{background:#052e16;color:#86efac}
+.notice-warn{background:#fefce8;color:#854d0e;border-left:3px solid #eab308} .dark .notice-warn{background:#422006;color:#fde047}
+.notice-new-items{background:#fef2f2;color:#991b1b;border-left:3px solid #ef4444;font-weight:500} .dark .notice-new-items{background:#450a0a;color:#fca5a5}
+#purchaseNewItemBanner{display:none;padding:10px 16px;background:linear-gradient(135deg,#fef2f2,#fff7ed);border:1px solid #fecaca;border-radius:var(--radius);margin-bottom:12px;font-size:13px;color:#991b1b;align-items:center;gap:8px} .dark #purchaseNewItemBanner{background:linear-gradient(135deg,#3b0a0a,#422006);border-color:#7f1d1d;color:#fca5a5}
+#purchaseNewItemBanner .banner-icon{font-size:20px}
+#purchaseNewItemBanner .banner-text{flex:1}
+#purchaseNewItemBanner .banner-close{background:none;border:none;color:inherit;cursor:pointer;font-size:16px;padding:2px 6px;opacity:.6}
+#purchaseNewItemBanner .banner-close:hover{opacity:1}
+.new-item-row{background:#fff5f5!important} .dark .new-item-row{background:#2d0a0a!important}
+.new-item-row:hover{background:#fee2e2!important} .dark .new-item-row:hover{background:#3b0a0a!important}
+.new-items-header td{background:#fecaca!important;color:#991b1b!important;font-weight:600;font-size:12px;padding:8px 10px} .dark .new-items-header td{background:#7f1d1d!important;color:#fca5a5!important}
+.arrival-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);cursor:pointer;max-width:68px}
+.arrival-select:disabled{opacity:.6;cursor:not-allowed}
+
+/* SEARCH BAR */
+.search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--bg);border-radius:var(--radius);margin-bottom:12px}
+.search-bar input,.search-bar select{flex:1;min-width:110px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* DRAG HANDLE */
+.drag-handle{cursor:grab;color:var(--text-muted);font-size:14px;padding:0 4px;user-select:none}
+.drag-handle:active{cursor:grabbing}
+
+/* GROUP BY */
+.group-by-select{display:flex;gap:8px;align-items:center}
+.group-by-select select{width:auto;min-width:100px}
+
+@media print{
+  .header,.tabs,.btn,.row-actions,.form-actions,.proj-selector,.quick-panel,.stats-row,.search-bar,.no-print{display:none!important}
+  .main{padding:0;margin:0}
+  .card{box-shadow:none;border:none;break-inside:avoid}
+  .table-wrap{max-height:none;overflow:visible}
+  body{font-size:11px}
+  table{font-size:10px}
+  thead th{padding:4px 6px;background:#ddd!important;color:#000!important}
+  tbody td{padding:3px 6px}
+  .page{display:block!important}
+}
+
+/* ===== LOGIN SCREEN ===== */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);z-index:9000;display:flex;align-items:center;justify-content:center}
+#loginScreen.hidden{display:none}
+.login-box{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px 36px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo-title{font-size:22px;font-weight:700;color:#f1f5f9;letter-spacing:.5px}
+.login-logo-title span{color:#60a5fa}
+.login-logo-sub{font-size:12px;color:#64748b;margin-top:4px}
+.login-box label{font-size:12px;color:#94a3b8;font-weight:500;display:block;margin-bottom:4px}
+.login-box input{width:100%;padding:9px 12px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:14px;outline:none;transition:border-color .15s;margin-bottom:14px}
+.login-box input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.15)}
+.login-btn{width:100%;padding:10px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:background .12s;margin-top:4px}
+.login-btn:hover{background:#3b82f6}
+.login-err{font-size:12px;color:#f87171;text-align:center;margin-top:8px;min-height:16px}
+
+/* ===== USER INFO in HEADER ===== */
+.user-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--header-text);cursor:default;user-select:none}
+.user-chip .role-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.role-dot.admin{background:#4ade80}
+.role-dot.buyer{background:#60a5fa}
+.role-dot.guest{background:#94a3b8}
+.logout-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:12px;transition:background .12s}
+.logout-btn:hover{background:rgba(255,255,255,.2)}
+
+/* ===== USER MANAGEMENT PAGE ===== */
+.user-table{width:100%;border-collapse:collapse;font-size:13px}
+.user-table thead th{background:var(--th-bg);color:var(--th-text);padding:8px 12px;text-align:left;font-weight:500}
+.user-table tbody td{padding:8px 12px;border-bottom:1px solid var(--border-light);vertical-align:middle}
+.user-table tbody tr:hover{background:var(--primary-bg)}
+.role-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.role-badge.admin{background:#dcfce7;color:#166534}
+.role-badge.buyer{background:#dbeafe;color:#1e40af}
+.role-badge.guest{background:#f1f5f9;color:#64748b}
+.dark .role-badge.admin{background:#052e16;color:#86efac}
+.dark .role-badge.buyer{background:#172554;color:#93c5fd}
+.dark .role-badge.guest{background:#1e293b;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-title">BOM <span>智能管理工具</span></div>
+      <div class="login-logo-sub">v5.0 · 请登录后使用</div>
+    </div>
+    <label>用户名</label>
+    <input type="text" id="loginUser" placeholder="请输入用户名" onkeydown="if(event.key==='Enter')doLogin()">
+    <label>密码</label>
+    <input type="password" id="loginPass" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">BOM <span>智能管理工具 v5.0</span></div>
+  <div class="header-actions">
+    <span style="font-size:12px;opacity:.75;">项目：</span>
+    <span id="headerProjectName" style="font-size:13px;font-weight:600;color:#60a5fa;">-</span>
+    <div class="user-chip" id="userChip" style="display:none;">
+      <span class="role-dot" id="userRoleDot"></span>
+      <span id="userChipName"></span>
+    </div>
+    <button class="dark-toggle" onclick="toggleDark()" id="darkToggleBtn">🌙 黑夜</button>
+    <button class="btn btn-outline" style="color:var(--header-text);border-color:rgba(255,255,255,.35);font-size:12px;" onclick="exportData()">导出JSON</button>
+    <button class="btn btn-outline" style="color:var(--header-text);border-color:rgba(255,255,255,.35);font-size:12px;" onclick="importData()">导入JSON</button>
+    <button class="logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">退出登录</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs no-print">
+  <div class="tab active" onclick="showPage('page-bom')" id="tab-bom">BOM清单 <span class="tab-badge" id="badge-bom">0</span></div>
+  <div class="tab" onclick="showPage('page-purchase')" id="tab-purchase">实采清单 <span class="tab-badge" id="badge-purchase" style="background:var(--accent)">0</span></div>
+  <div class="tab admin-only" onclick="showPage('page-library')" id="tab-library">零件库 <span class="tab-badge" id="badge-library" style="background:var(--success)">0</span></div>
+  <div class="tab admin-only" onclick="showPage('page-stats')" id="tab-stats">复用统计</div>
+  <div class="tab admin-only" onclick="showPage('page-projects')" id="tab-projects">项目管理</div>
+  <div class="tab admin-only" onclick="showPage('page-settings')" id="tab-settings">设置</div>
+  <div class="tab admin-only" onclick="showPage('page-users')" id="tab-users">👤 用户管理</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- ========== BOM PAGE ========== -->
+<div class="page active" id="page-bom">
+  <div class="proj-selector no-print">
+    <label>当前项目：</label>
+    <span id="projNameDisplay" class="proj-name-display">未选择</span>
+    <select class="form-control" style="max-width:220px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
+    <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button>
+    <div style="flex:1"></div>
+    <select class="form-control" style="max-width:140px;" id="bomGroupBy" onchange="renderBomTable()">
+      <option value="category">按分类分组</option>
+      <option value="supplier">按供应商分组</option>
+      <option value="status">按状态分组</option>
+      <option value="none">不分组</option>
+    </select>
+    <button class="btn btn-success admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()">一键生成实采清单</button>
+    <button class="btn btn-outline btn-sm" onclick="exportBomExcel()">导出Excel</button>
+    <button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a;" onclick="exportBomToTencentDocs()">导出到腾讯文档</button>
+  </div>
+
+  <div class="stats-row no-print" id="bomStats"></div>
+
+  <!-- Quick Select Panel -->
+  <div class="quick-panel no-print admin-only" id="quickPanel">
+    <div class="quick-panel-header">
+      <span>从零件库快速选件 <span style="font-size:11px;color:var(--text-muted);font-weight:400;">勾选→填数量→批量加入BOM</span></span>
+      <button class="btn btn-sm btn-gray" onclick="toggleQuickPanel()">折叠</button>
+    </div>
+    <div id="quickPanelBody">
+      <div class="quick-search-row">
+        <input class="form-control" placeholder="搜索名称/供应商/型号..." id="quickSearch" oninput="renderQuickLib()">
+        <select class="form-control" style="max-width:120px;" id="quickCatFilter" onchange="renderQuickLib()"><option value="">全部分类</option></select>
+        <button class="btn btn-sm btn-gray" onclick="quickSelectAll()">全选</button>
+        <button class="btn btn-sm btn-gray" onclick="quickDeselectAll()">取消</button>
+      </div>
+      <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
+        <th style="width:32px;">选</th><th>名称</th><th>供应商</th><th style="min-width:160px;">型号规格</th><th>分类</th><th style="width:65px;">数量</th><th>单位</th>
+      </tr></thead><tbody id="quickLibTbody"></tbody></table></div>
+      <div class="quick-selected-bar">
+        <span class="quick-selected-count" id="quickSelCount">已选 0 件</span>
+        <div style="flex:1"></div>
+        <select class="form-control" style="max-width:110px;" id="quickInpStatus">
+          <option value="auto">自动判断</option><option value="采购">全部采购</option><option value="库存">全部库存</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="batchAddFromLib()">批量加入BOM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Add -->
+  <div class="card no-print admin-only" id="manualAddCard">
+    <div class="card-header">
+      <div class="card-header-left">+ 手动添加零部件</div>
+      <button class="btn btn-sm btn-gray" onclick="toggleAddForm()">折叠</button>
+    </div>
+    <div class="card-body" id="addFormBody">
+      <div class="notice notice-info">输入名称自动从零件库匹配，选中自动填入供应商/型号。快速选件面板支持多选批量添加。</div>
+      <div class="form-row">
+        <div class="form-group"><label>分类 *</label><select class="form-control" id="inp-category"></select></div>
+        <div class="form-group"><label>名称 * <span style="font-size:10px;background:var(--text-secondary);color:#fff;padding:1px 5px;border-radius:3px;">自动补全</span></label>
+          <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="输入名称..." oninput="acSearch(this.value)" onblur="setTimeout(()=>hideAC(),200)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
+        </div>
+        <div class="form-group"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌或供应商名称..."></div>
+        <div class="form-group"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..."></div>
+        <div class="form-group"><label>数量 *</label><input class="form-control" type="number" id="inp-qty" value="1" min="1"></div>
+        <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit"></select></div>
+        <div class="form-group"><label>库存数量</label><input class="form-control" type="number" id="inp-stock" value="0" min="0"></div>
+        <div class="form-group"><label>状态</label><select class="form-control" id="inp-status"><option value="auto">自动计算</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
+        <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..."></div>
+        <div class="form-group"><label>备注</label><input class="form-control" id="inp-remark" placeholder="其他备注..."></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="addBomEntry()">确认添加</button>
+        <button class="btn btn-gray" onclick="clearAddForm()">清空</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;margin-left:8px;"><input type="checkbox" id="chk-save-lib"> 同时保存到零件库</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOM Table -->
+  <div class="card">
+    <div class="card-header no-print">
+      <div class="card-header-left">零部件清单 <span id="bomGroupLabel" style="font-size:11px;color:var(--text-muted);"></span></div>
+      <div style="display:flex;gap:6px;">
+        <input class="form-control" style="width:130px;" placeholder="搜索..." id="bomSearch" oninput="renderBomTable()">
+        <select class="form-control" style="width:100px;" id="bomFilterStatus" onchange="renderBomTable()"><option value="">全部状态</option><option value="采购">采购</option><option value="库存">库存</option></select>
+        <button class="btn btn-sm btn-gray" onclick="sortBomByCategory()">按分类排序</button>
+        <button class="btn btn-sm btn-gray" onclick="sortBomBySupplier()">按供应商排序</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="bomTable">
+        <thead>
+          <tr>
+            <th style="width:36px;">序号</th>
+            <th style="width:70px;">分类</th>
+            <th style="width:85px;">供应商</th>
+            <th>名称</th>
+            <th style="min-width:200px;">名称型号</th>
+            <th style="width:50px;">数量</th>
+            <th style="width:45px;">单位</th>
+            <th style="width:45px;">库存</th>
+            <th style="width:50px;">状态</th>
+            <th style="width:45px;">实采</th>
+            <th style="width:50px;">到货</th>
+            <th style="width:65px;">淘宝</th>
+            <th id="bomActionColHeader" style="width:80px;" class="no-print">操作</th>
+          </tr>
+        </thead>
+        <tbody id="bomTbody"><tr><td colspan="13" class="no-data">请先选择或创建项目，然后添加零部件</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PURCHASE PAGE ========== -->
+<div class="page" id="page-purchase">
+  <div class="card">
+    <div class="card-header no-print">
+      <div class="card-header-left">
+        实采清单（状态=采购的零件）
+        <span id="purchaseGenTimeLabel" style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px;"></span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span id="purchaseBomChangedWarn" style="display:none;font-size:12px;color:#f97316;font-weight:500;background:#fff7ed;border:1px solid #fed7aa;border-radius:4px;padding:3px 8px;">⚠️ BOM已变动，建议重新生成</span>
+        <button class="btn btn-success btn-sm admin-only" id="regenBtn" onclick="generatePurchaseList()">重新生成</button>
+        <button class="btn btn-outline btn-sm" onclick="exportPurchaseExcel()">导出Excel(模板)</button>
+        <button class="btn btn-gray btn-sm" onclick="exportPurchaseCSV()">导出CSV</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding-bottom:0;">
+      <div class="notice notice-info" id="purchaseNotice">管理员点击 BOM清单页的「一键生成实采清单」即可生成，采购员/访客可直接查看已生成的清单。</div>
+      <div id="purchaseNewItemBanner">
+        <span class="banner-icon">🔔</span>
+        <span class="banner-text" id="purchaseNewItemBannerText">管理员新增了 <b id="purchaseNewItemCount">0</b> 项采购需求，请注意查看顶部标红区域。</span>
+        <button class="banner-close" onclick="document.getElementById('purchaseNewItemBanner').style.display='none'" title="关闭">✕</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="purchaseTable" style="table-layout:auto;width:100%;">
+        <thead>
+          <tr>
+            <th style="width:42px;">序号</th>
+            <th style="width:130px;">供应商</th>
+            <th style="width:150px;">名称</th>
+            <th style="min-width:200px;">规格型号</th>
+            <th style="width:52px;">数量</th>
+            <th style="width:48px;">单位</th>
+            <th style="width:52px;">库存</th>
+            <th style="width:68px;">到货</th>
+            <th style="width:100px;">淘宝链接</th>
+            <th style="min-width:120px;">备注</th>
+          </tr>
+        </thead>
+        <tbody id="purchaseTbody"><tr><td colspan="10" class="no-data">尚未生成实采清单</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========== LIBRARY PAGE ========== -->
+<div class="page" id="page-library">
+  <div class="card no-print">
+    <div class="card-header">
+      <div class="card-header-left">零件库</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="lib-view-toggle">
+          <button class="view-btn" id="viewBtnList" onclick="setLibView('list')">列表</button>
+          <button class="view-btn active" id="viewBtnCard" onclick="setLibView('card')">卡片</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openLibModal()">+ 添加零件</button>
+        <button class="btn btn-outline btn-sm" onclick="exportLibTemplate()">下载导入模板</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('libFileInput').click()">批量导入Excel</button>
+        <input type="file" id="libFileInput" accept=".xlsx,.xls" style="display:none" onchange="importLibExcel(this)">
+      </div>
+    </div>
+    <div class="card-body" style="padding-bottom:8px;">
+      <div class="notice notice-info">零件库跨项目共享。点击可快速填入BOM添加表单。</div>
+      <div class="search-bar">
+        <input class="form-control" placeholder="搜索名称/供应商/型号..." id="libSearch" oninput="renderLibrary()">
+        <select class="form-control" style="max-width:120px;" id="libCatFilter" onchange="renderLibrary()"><option value="">全部分类</option></select>
+        <button class="btn btn-sm btn-gray" onclick="clearLibFilter()">清除</button>
+      </div>
+    </div>
+  </div>
+  <div id="libCardView" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;"></div>
+  <div id="libListView" style="display:none;" class="card">
+    <div class="table-wrap"><table class="lib-table"><thead><tr>
+      <th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th style="width:70px;" class="no-print">操作</th>
+    </tr></thead><tbody id="libListTbody"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ========== STATS PAGE ========== -->
+<div class="page" id="page-stats">
+  <div class="card">
+    <div class="card-header"><div class="card-header-left">零件复用统计 — 跨项目分析</div></div>
+    <div class="card-body">
+      <div class="notice notice-info">分析所有项目的BOM数据，统计每个零件被使用的次数，辅助采购决策。支持按分类筛选和图表可视化展示。</div>
+    </div>
+  </div>
+  <div class="stats-row" id="statsSummary"></div>
+
+  <!-- Chart Section -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">图表分析</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;color:var(--text-secondary);">统计维度：</span>
+        <select class="form-control" style="width:130px;" id="statsChartDim" onchange="renderStatsChart()">
+          <option value="category">按分类汇总</option>
+          <option value="supplier">按供应商汇总</option>
+        </select>
+        <select class="form-control" style="width:110px;" id="statsChartType" onchange="renderStatsChart()">
+          <option value="bar">柱状图</option>
+          <option value="pie">饼图</option>
+          <option value="doughnut">环形图</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="max-height:400px;position:relative;"><canvas id="statsChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Single Part Project Distribution -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">单一零件跨项目分布</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;color:var(--text-secondary);">选择零件：</span>
+        <div class="sp-search-wrap">
+          <input class="form-control" style="width:300px;max-width:60vw;" placeholder="搜索零件名称/供应商/型号..." id="singlePartSearch" oninput="renderSinglePartChart()">
+          <div class="autocomplete-list single-part-ac autocomplete-hidden" id="singlePartAC"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="max-height:350px;position:relative;" id="singlePartChartWrap">
+        <div style="text-align:center;padding:40px;color:var(--text-muted);" id="singlePartPlaceholder">🔍 输入零件名称搜索，查看其在不同项目中的使用分布</div>
+        <canvas id="singlePartChart" style="display:none;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Table -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">零件使用频次排行（跨所有项目）</div>
+      <div style="display:flex;gap:6px;">
+        <input class="form-control" style="width:180px;" placeholder="搜索名称/供应商..." id="statsSearch" oninput="renderStatsTable()">
+        <select class="form-control" style="width:120px;" id="statsCatFilter" onchange="renderStatsTable()"><option value="">全部分类</option></select>
+      </div>
+    </div>
+    <div class="table-wrap"><table><thead><tr>
+      <th style="width:36px;">排名</th><th>名称</th><th>供应商</th><th>分类</th><th>型号规格</th><th>使用次数</th><th>出现项目数</th><th>总需求数量</th><th>建议</th>
+    </tr></thead><tbody id="statsTbody"><tr><td colspan="9" class="no-data">暂无数据</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<!-- ========== PROJECTS PAGE ========== -->
+<div class="page" id="page-projects">
+  <div class="card">
+    <div class="card-header"><div class="card-header-left">项目管理</div><div style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a;" onclick="document.getElementById('tencentFileInput').click()">从腾讯文档导入</button><button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button><input type="file" id="tencentFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFromTencentDocsFile(this)"></div></div>
+    <div class="card-body" style="padding-bottom:0;">
+      <div class="notice notice-info" style="margin-bottom:10px;">「从腾讯文档导入」：在腾讯文档中将表格导出为 CSV 或 Excel (.xlsx)，再点击此按钮上传。格式：第1行=项目名 → 第2行="清单" → 第3行=表头（序号/供应商/名称/名称型号/数量/单位/库存/状态/实采/到货状态/备注）→ 之后为数据行。</div>
+    </div>
+    <div class="table-wrap"><table id="projectsTable"><thead><tr>
+      <th>项目名称</th><th>零件数</th><th>采购数</th><th>库存数</th><th>创建时间</th><th style="width:120px;">操作</th>
+    </tr></thead><tbody id="projectsTbody"><tr><td colspan="6" class="no-data">暂无项目</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<!-- ========== SETTINGS PAGE ========== -->
+<div class="page" id="page-settings">
+  <div class="card">
+    <div class="card-header"><div class="card-header-left">分类管理（拖拽排序）</div></div>
+    <div class="card-body">
+      <div class="notice notice-info">拖拽分类标签调整顺序，影响BOM清单分组显示。删除分类不影响已有零件。</div>
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前分类（拖拽排序）：</div>
+      <div id="catTagContainer" style="margin-bottom:14px;min-height:36px;"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-weight:600;margin-bottom:8px;font-size:13px;">添加新分类：</div>
+        <div style="display:flex;gap:8px;"><input class="form-control" id="newCatInput" placeholder="分类名称..." style="max-width:240px;"><button class="btn btn-primary" onclick="addCategory()">+ 添加</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-header-left">常用单位管理</div></div>
+    <div class="card-body">
+      <div class="notice notice-info">管理零件可选单位列表，影响所有单位下拉框。</div>
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前单位列表：</div>
+      <div id="unitTagContainer" style="margin-bottom:14px;"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px;">
+        <div style="display:flex;gap:8px;"><input class="form-control" id="newUnitInput" placeholder="单位名称..." style="max-width:160px;"><button class="btn btn-primary" onclick="addUnit()">+ 添加单位</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== USERS PAGE ========== -->
+<div class="page" id="page-users">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">👤 用户管理</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ 添加用户</button>
+    </div>
+    <div class="card-body" style="padding-bottom:0;">
+      <div class="notice notice-info">管理员可看到所有页面；采购员和访客只能访问 BOM清单 和 实采清单，且不显示手动添加、快速选件和重新生成功能。</div>
+    </div>
+    <div class="table-wrap">
+      <table class="user-table">
+        <thead><tr>
+          <th>用户名</th>
+          <th>角色</th>
+          <th>备注</th>
+          <th style="width:140px;">操作</th>
+        </tr></thead>
+        <tbody id="usersTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<!-- ========== MODALS ========== -->
+
+<!-- New Project -->
+<div class="modal-overlay" id="modal-project"><div class="modal">
+  <div class="modal-title">新建项目</div>
+  <div class="form-group" style="margin-bottom:12px;"><label>项目名称 *</label><input class="form-control" id="newProjectName" placeholder="例：2602 迅尔测控 称重法水装置"></div>
+  <div class="form-group"><label>项目描述（选填）</label><input class="form-control" id="newProjectDesc" placeholder="可选备注"></div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-project')">取消</button><button class="btn btn-primary" onclick="createProject()">创建</button></div>
+</div></div>
+
+<!-- Library Add/Edit -->
+<div class="modal-overlay" id="modal-lib"><div class="modal">
+  <div class="modal-title" id="libModalTitle">添加零件到库</div>
+  <div class="form-row">
+    <div class="form-group"><label>名称 *</label><input class="form-control" id="lib-name" placeholder="零件名称"></div>
+    <div class="form-group"><label>供应商</label><input class="form-control" id="lib-supplier" placeholder="品牌或供应商"></div>
+  </div>
+  <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="lib-model" placeholder="详细型号规格"></div>
+  <div class="form-row">
+    <div class="form-group"><label>分类</label><select class="form-control" id="lib-category"></select></div>
+    <div class="form-group"><label>常用单位</label><select class="form-control" id="lib-unit"></select></div>
+  </div>
+  <div class="form-group" style="margin-bottom:10px;"><label>淘宝链接</label><input class="form-control" id="lib-taobao" placeholder="粘贴淘宝链接..."></div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-lib')">取消</button><button class="btn btn-success" onclick="saveLibEntry()">保存到零件库</button></div>
+</div></div>
+
+<!-- Edit BOM Entry -->
+<div class="modal-overlay" id="modal-edit"><div class="modal wide">
+  <div class="modal-title">编辑零部件</div>
+  <input type="hidden" id="edit-idx">
+  <div class="form-row">
+    <div class="form-group"><label>分类组</label><select class="form-control" id="edit-category"></select></div>
+    <div class="form-group"><label>名称</label><input class="form-control" id="edit-name"></div>
+    <div class="form-group"><label>供应商</label><input class="form-control" id="edit-supplier"></div>
+  </div>
+  <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="edit-model"></div>
+  <div class="form-row">
+    <div class="form-group"><label>数量</label><input class="form-control" type="number" id="edit-qty"></div>
+    <div class="form-group"><label>单位</label><select class="form-control" id="edit-unit"></select></div>
+    <div class="form-group"><label>库存</label><input class="form-control" type="number" id="edit-stock"></div>
+    <div class="form-group"><label>状态</label><select class="form-control" id="edit-status"><option>采购</option><option>库存</option></select></div>
+    <div class="form-group"><label>到货状态</label><select class="form-control" id="edit-arrived"><option value="">-</option><option>已到</option><option>未到</option><option>部分到</option></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>淘宝链接</label><input class="form-control" id="edit-taobao"></div>
+    <div class="form-group"><label>备注</label><input class="form-control" id="edit-remark"></div>
+  </div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-edit')">取消</button><button class="btn btn-primary" onclick="saveEditEntry()">保存修改</button></div>
+</div></div>
+
+<!-- Import JSON -->
+<div class="modal-overlay" id="modal-import"><div class="modal">
+  <div class="modal-title">导入数据</div>
+  <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">粘贴之前导出的JSON数据，支持还原项目和零件库。</p>
+  <textarea class="form-control" id="importText" style="height:140px;resize:vertical;font-family:monospace;font-size:12px;" placeholder="粘贴JSON数据..."></textarea>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-import')">取消</button><button class="btn btn-primary" onclick="doImport()">导入</button></div>
+</div></div>
+
+<!-- Add/Edit User -->
+<div class="modal-overlay" id="modal-user"><div class="modal">
+  <div class="modal-title" id="userModalTitle">添加用户</div>
+  <input type="hidden" id="editUserId">
+  <div class="form-group" style="margin-bottom:12px;"><label>用户名 *</label><input class="form-control" id="user-username" placeholder="登录用户名"></div>
+  <div class="form-group" style="margin-bottom:12px;"><label>密码 *<span id="userPassHint" style="font-size:11px;color:var(--text-muted);margin-left:6px;">(编辑时留空则不修改)</span></label><input class="form-control" type="password" id="user-password" placeholder="登录密码"></div>
+  <div class="form-group" style="margin-bottom:12px;"><label>角色 *</label>
+    <select class="form-control" id="user-role">
+      <option value="admin">管理员 — 可访问所有页面和功能</option>
+      <option value="buyer">采购员 — 只能访问BOM清单和实采清单（只读+到货更新）</option>
+      <option value="guest">访客 — 只能访问BOM清单和实采清单（只读）</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin-bottom:12px;"><label>备注（选填）</label><input class="form-control" id="user-remark" placeholder="可选备注信息"></div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-user')">取消</button><button class="btn btn-primary" onclick="saveUser()">保存</button></div>
+</div></div>
+
+<script>
+// ============================================================
+// DATA STORE v4.1 — brand merged into supplier
+// ============================================================
+const DEFAULT_CATEGORIES = ['标准件','传感器仪表','气动元件','管路附件','机械部件','电气元件','结构件','其他部件'];
+const DEFAULT_UNITS = ['台','个','套','根','米','批','组','件','只','对','副','卷'];
+
+// Default admin account (stored in store.users)
+const DEFAULT_USERS = [
+  {id:'u_admin', username:'admin', password:'admin123', role:'admin', remark:'内置管理员'}
+];
+
+let store = {
+  version: 5.0,
+  currentProject: null,
+  projects: {},
+  library: [],
+  categories: [...DEFAULT_CATEGORIES],
+  units: [...DEFAULT_UNITS],
+  darkMode: false,
+  libView: 'card',
+  users: JSON.parse(JSON.stringify(DEFAULT_USERS))
+};
+
+// Current session user (NOT persisted to store, session-only)
+let currentUser = null;
+
+const STORE_KEY = 'bom_tool_v4_1';
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      store = Object.assign(store, parsed);
+      if (!store.categories || !store.categories.length) store.categories = [...DEFAULT_CATEGORIES];
+      if (!store.units || !store.units.length) store.units = [...DEFAULT_UNITS];
+      // Ensure users array exists (migration from v4.x which had no users)
+      if (!store.users || !store.users.length) store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+      // Always ensure default admin exists (defense against corrupted data)
+      ensureDefaultAdmin();
+    } else {
+      // migrate from v4
+      const raw4 = localStorage.getItem('bom_tool_v4');
+      if (raw4) {
+        const parsed4 = JSON.parse(raw4);
+        // Merge brand into supplier
+        if (parsed4.projects) {
+          Object.values(parsed4.projects).forEach(function(p) {
+            p.bom = p.bom.map(function(item) {
+              var merged = Object.assign({}, item);
+              if (!merged.supplier && merged.brand) merged.supplier = merged.brand;
+              delete merged.brand;
+              delete merged.imageUrl;
+              return merged;
+            });
+          });
+          store.projects = parsed4.projects;
+        }
+        if (parsed4.library) {
+          store.library = parsed4.library.map(function(l) {
+            var merged = Object.assign({}, l);
+            if (!merged.supplier && merged.brand) merged.supplier = merged.brand;
+            delete merged.brand;
+            delete merged.imageUrl;
+            return merged;
+          });
+        }
+        if (parsed4.categories) store.categories = parsed4.categories;
+        if (parsed4.units) store.units = parsed4.units;
+        if (parsed4.currentProject) store.currentProject = parsed4.currentProject;
+        if (parsed4.darkMode !== undefined) store.darkMode = parsed4.darkMode;
+        saveStore();
+      } else {
+        // migrate from v3
+        const raw3 = localStorage.getItem('bom_tool_v3');
+        if (raw3) {
+          const parsed3 = JSON.parse(raw3);
+          if (parsed3.projects) {
+            Object.values(parsed3.projects).forEach(function(p) {
+              p.bom = p.bom.map(function(item) {
+                var merged = Object.assign({}, item);
+                merged.supplier = item.brand || '';
+                delete merged.brand;
+                delete merged.imageUrl;
+                if (!merged.taobaoLink) merged.taobaoLink = '';
+                if (!merged.remark) merged.remark = '';
+                merged.remark = (merged.remark||'').startsWith('http') ? '' : (merged.remark||'');
+                return merged;
+              });
+            });
+            store.projects = parsed3.projects;
+          }
+          if (parsed3.library) {
+            store.library = parsed3.library.map(function(l) {
+              var merged = Object.assign({}, l);
+              merged.supplier = l.brand || '';
+              delete merged.brand;
+              delete merged.imageUrl;
+              if (!merged.taobaoLink) merged.taobaoLink = '';
+              return merged;
+            });
+          }
+          if (parsed3.categories) store.categories = parsed3.categories;
+          if (parsed3.currentProject) store.currentProject = parsed3.currentProject;
+          saveStore();
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Load store failed, using defaults:', e);
+    // Reset store to safe defaults on load failure
+    store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+  }
+}
+
+function saveStore() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+
+// ============================================================
+// HELPERS
+// ============================================================
+function e() { return Math.random().toString(36).substr(2,9); }
+function currentBom() { if (!store.currentProject) return []; const p = store.projects[store.currentProject]; return p ? p.bom : []; }
+function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, type) {
+  type = type || 'info';
+  const t = document.createElement('div');
+  const colors = {info:'var(--primary)',success:'var(--success)',warn:'var(--warning)',error:'var(--danger)'};
+  t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:'+(colors[type]||colors.info)+';color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();}, 2600);
+}
+
+function showLongToast(msg, type, duration) {
+  type = type || 'info';
+  duration = duration || 4000;
+  var t = document.createElement('div');
+  var colors = {info:'var(--primary)',success:'var(--success)',warn:'var(--warning)',error:'var(--danger)'};
+  t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:'+(colors[type]||colors.info)+';color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();}, duration);
+}
+
+// ============================================================
+// INITIAL DATA (brand field removed)
+// ============================================================
+const INITIAL_PROJECT = {"id":"p_2602","name":"2602 迅尔测控 称重法水装置 DN15-DN100","desc":"初始导入项目","created":new Date().toLocaleDateString('zh-CN'),"bom":[
+  {"id":e(),"category":"标准件","name":"电磁流量计","supplier":"迅尔","model":"DN15 PN16 四氟衬里","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"电磁流量计","supplier":"迅尔","model":"DN40 PN16 四氟衬里","qty":1,"unit":"台","stock":1,"status":"库存","actualPurchase":0,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"电磁流量计","supplier":"迅尔","model":"DN100 PN16 四氟衬里","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"温度变送器","supplier":"模数","model":"温度范围0-50度，等级0.2级，接口G1/2，4~20mA，长50mm，棒状","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"压力变送器","supplier":"指南车","model":"压力范围0-1MPa，等级0.25级，接口G1/2，4~20mA，棒状","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"电子秤","supplier":"奥豪斯","model":"容量1200kg，台面1000x1250，6000e","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"卧式单级管道泵","supplier":"凯泉","model":"125KQW160-50-37/2 Q=160m3/h H=50m W=37kw","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"立式多级泵","supplier":"凯泉","model":"KQDP50-20-58 Q=20m3/h H=58m W=5.5kw","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"光电传感器","supplier":"欧姆龙","model":"EE-SX670P","qty":6,"unit":"个","stock":6,"status":"库存","actualPurchase":0,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"标准件","name":"行程开关","supplier":"米思米","model":"D4V-8108Z-N 欧姆龙","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"","taobaoLink":"","remark":""},
+  {"id":e(),"category":"气动元件","name":"电磁阀","supplier":"亚德客","model":"4V21008B DC24","qty":22,"unit":"个","stock":0,"status":"采购","actualPurchase":22,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"气动元件","name":"电磁阀 阀岛","supplier":"亚德客","model":"200M-22F（带2个盖板片）","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"气动元件","name":"调压器","supplier":"亚德客","model":"AR2000C1","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"管路附件","name":"水箱液位计","supplier":"淘宝","model":"螺纹4分 间距800mm SUS304","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"","taobaoLink":"https://item.taobao.com/item.htm?id=726818994702","remark":""},
+  {"id":e(),"category":"机械部件","name":"伺服电机驱动","supplier":"淘宝","model":"法兰60 功率200w 扭矩0.63Nm 转速3000","qty":2,"unit":"套","stock":0,"status":"采购","actualPurchase":2,"arrived":"已到","taobaoLink":"https://item.taobao.com/item.htm?id=685171636626","remark":""},
+  {"id":e(),"category":"机械部件","name":"滑台模组","supplier":"淘宝","model":"GX120 行程150mm 丝杠1610","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"https://item.taobao.com/item.htm?id=788850719005","remark":""},
+  {"id":e(),"category":"机械部件","name":"滑台模组","supplier":"淘宝","model":"GX80 行程100mm 丝杠1610","qty":1,"unit":"台","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"https://item.taobao.com/item.htm?id=778628776153","remark":""},
+  {"id":e(),"category":"管路附件","name":"电动球阀","supplier":"淘宝","model":"DN25 XY-02 DC9-24V 三线两控 PVC","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"","taobaoLink":"https://item.taobao.com/item.htm?id=616029120563","remark":""},
+  {"id":e(),"category":"管路附件","name":"单球橡胶软连接","supplier":"埃尼斯","model":"DN50 PN16 碳钢法兰","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"管路附件","name":"对夹型 手动蝶阀","supplier":"精工","model":"DN150 SUS304","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"管路附件","name":"法兰型 气动球阀","supplier":"精工","model":"DN100 PN16 SUS304","qty":4,"unit":"个","stock":0,"status":"采购","actualPurchase":4,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"电气元件","name":"PLC","supplier":"台达","model":"DVP32ES200T","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"电气元件","name":"开关电源","supplier":"明纬","model":"NDR-120-24","qty":1,"unit":"个","stock":1,"status":"库存","actualPurchase":0,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"电气元件","name":"接触器","supplier":"正泰","model":"ZJC4 22","qty":1,"unit":"个","stock":1,"status":"库存","actualPurchase":0,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"传感器仪表","name":"环境温湿度","supplier":"建大仁科","model":"RS-WS-N01-2D-LCD","qty":1,"unit":"个","stock":1,"status":"库存","actualPurchase":0,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"结构件","name":"不锈钢水箱","supplier":"上力","model":"无盖 长8210x宽1210x高860 厚3mm","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
+  {"id":e(),"category":"结构件","name":"封头","supplier":"迦南","model":"外径1200 壁厚4mm SUS304 拉丝","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"已到","taobaoLink":"","remark":""},
+]};
+
+function buildInitialLibrary() {
+  const seen = new Set();
+  const lib = [];
+  for (const item of INITIAL_PROJECT.bom) {
+    const key = item.name + '|' + item.supplier;
+    if (!seen.has(key)) {
+      seen.add(key);
+      lib.push({ id: e(), name: item.name, supplier: item.supplier || '', model: item.model, unit: item.unit, category: item.category, taobaoLink: item.taobaoLink || '' });
+    }
+  }
+  return lib;
+}
+
+// ============================================================
+// DARK MODE
+// ============================================================
+function toggleDark() { store.darkMode = !store.darkMode; applyDark(); saveStore(); }
+function applyDark() {
+  if (store.darkMode) { document.body.classList.add('dark'); document.getElementById('darkToggleBtn').textContent = '☀ 日间'; }
+  else { document.body.classList.remove('dark'); document.getElementById('darkToggleBtn').textContent = '🌙 黑夜'; }
+  // Refresh chart colors if stats page is active
+  if (document.getElementById('page-stats').classList.contains('active')) renderStatsChart();
+}
+
+// ============================================================
+// CATEGORIES
+// ============================================================
+function getCategories() { return store.categories || DEFAULT_CATEGORIES; }
+function getUnits() { return store.units || DEFAULT_UNITS; }
+
+function populateSelects() {
+  const cats = getCategories();
+  const units = getUnits();
+  ['inp-category','edit-category','lib-category'].forEach(function(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var cur = el.value;
+    el.innerHTML = cats.map(function(c){return '<option value="'+esc(c)+'">'+esc(c)+'</option>';}).join('');
+    if (cats.indexOf(cur)>=0) el.value = cur;
+  });
+  ['inp-unit','edit-unit','lib-unit'].forEach(function(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var cur = el.value;
+    el.innerHTML = units.map(function(u){return '<option value="'+esc(u)+'">'+esc(u)+'</option>';}).join('');
+    if (units.indexOf(cur)>=0) el.value = cur;
+  });
+}
+
+function renderCategoryManager() {
+  var cats = getCategories();
+  var container = document.getElementById('catTagContainer');
+  container.innerHTML = cats.map(function(c, i) {
+    return '<span class="cat-tag" draggable="true" data-cat-idx="'+i+'" ondragstart="catDragStart(event)" ondragover="catDragOver(event)" ondragleave="catDragLeave(event)" ondrop="catDrop(event)">'+
+      '<span class="drag-handle">⋮⋮</span> '+esc(c)+
+      '<span class="del-cat" title="删除" onclick="event.stopPropagation();deleteCategory('+i+')">×</span></span>';
+  }).join('');
+}
+
+function addCategory() {
+  var val = document.getElementById('newCatInput').value.trim();
+  if (!val) { toast('请输入分类名称','error'); return; }
+  if (store.categories.indexOf(val)>=0) { toast('该分类已存在','warn'); return; }
+  store.categories.push(val); saveStore();
+  document.getElementById('newCatInput').value = '';
+  renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
+  toast('分类「'+val+'」已添加', 'success');
+}
+
+function deleteCategory(idx) {
+  var cat = store.categories[idx];
+  if (!confirm('确认删除分类「'+cat+'」？已有零件不受影响。')) return;
+  store.categories.splice(idx, 1); saveStore();
+  renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
+  toast('分类「'+cat+'」已删除');
+}
+
+// Drag & Drop for categories
+var catDragIdx = -1;
+function catDragStart(e) {
+  catDragIdx = parseInt(e.target.getAttribute('data-cat-idx'));
+  e.dataTransfer.effectAllowed = 'move';
+  e.target.style.opacity = '0.5';
+}
+function catDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  var el = e.target.closest('.cat-tag'); if (el) el.classList.add('drag-over');
+}
+function catDragLeave(e) { var el = e.target.closest('.cat-tag'); if (el) el.classList.remove('drag-over'); }
+function catDrop(e) {
+  e.preventDefault();
+  var el = e.target.closest('.cat-tag'); if (!el) return;
+  el.classList.remove('drag-over');
+  var toIdx = parseInt(el.getAttribute('data-cat-idx'));
+  if (catDragIdx < 0 || toIdx < 0 || catDragIdx === toIdx) return;
+  var cats = store.categories;
+  var item = cats.splice(catDragIdx, 1)[0];
+  cats.splice(toIdx, 0, item);
+  saveStore(); renderCategoryManager(); populateSelects();
+  toast('排序已更新', 'success');
+}
+
+// ============================================================
+// UNITS MANAGEMENT
+// ============================================================
+function renderUnitManager() {
+  var container = document.getElementById('unitTagContainer');
+  container.innerHTML = store.units.map(function(u, i) {
+    return '<span class="cat-tag" style="cursor:default;">'+esc(u)+
+      '<span class="del-cat" title="删除" onclick="deleteUnit('+i+')">×</span></span>';
+  }).join('');
+}
+function addUnit() {
+  var val = document.getElementById('newUnitInput').value.trim();
+  if (!val) { toast('请输入单位名称','error'); return; }
+  if (store.units.indexOf(val)>=0) { toast('该单位已存在','warn'); return; }
+  store.units.push(val); saveStore();
+  document.getElementById('newUnitInput').value = '';
+  renderUnitManager(); populateSelects();
+  toast('单位「'+val+'」已添加', 'success');
+}
+function deleteUnit(idx) {
+  var u = store.units[idx];
+  if (!confirm('确认删除单位「'+u+'」？')) return;
+  store.units.splice(idx, 1); saveStore();
+  renderUnitManager(); populateSelects();
+  toast('单位已删除');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = function() {
+  loadStore();
+  if (!store.projects['p_2602'] && Object.keys(store.projects).length === 0) {
+    store.projects['p_2602'] = INITIAL_PROJECT;
+    store.currentProject = 'p_2602';
+    if (store.library.length === 0) store.library = buildInitialLibrary();
+    saveStore();
+  } else if (!store.currentProject && Object.keys(store.projects).length > 0) {
+    store.currentProject = Object.keys(store.projects)[0];
+  }
+  applyDark();
+  populateSelects();
+  refreshAll();
+  // Show login screen
+  showLoginScreen();
+};
+
+function refreshAll() {
+  updateProjectSelector();
+  renderBomTable(); renderBomStats();
+  renderLibrary(); renderProjectsTable();
+  renderCategoryManager(); renderUnitManager();
+  renderQuickLib(); updateBadges();
+  populateSelects();
+  var hdr = document.getElementById('headerProjectName');
+  var pn = document.getElementById('projNameDisplay');
+  var name = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : '未选择';
+  hdr.textContent = name; pn.textContent = name;
+  // Update purchase-changed warning badge on BOM page button
+  checkPurchaseBomChanged();
+}
+
+// ============================================================
+// PAGES
+// ============================================================
+function showPage(id) {
+  // Permission check: non-admin can only access bom and purchase pages
+  if (currentUser && currentUser.role !== 'admin') {
+    if (id !== 'page-bom' && id !== 'page-purchase') {
+      toast('权限不足，无法访问该页面', 'error'); return;
+    }
+  }
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  var tabMap = {'page-bom':'tab-bom','page-purchase':'tab-purchase','page-library':'tab-library','page-stats':'tab-stats','page-projects':'tab-projects','page-settings':'tab-settings','page-users':'tab-users'};
+  if (tabMap[id]) document.getElementById(tabMap[id]).classList.add('active');
+  if (id === 'page-stats') renderStats();
+  if (id === 'page-users') renderUsersTable();
+  if (id === 'page-purchase') renderSavedPurchaseList();
+}
+
+// Check if BOM has changed since last purchase list generation
+// Updates warning indicators on both BOM page button and purchase page header
+function checkPurchaseBomChanged() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) return;
+  var savedHash = proj.purchaseBomHash;
+  var currentHash = calcBomHash(proj.bom || []);
+  var changed = savedHash && currentHash !== savedHash;
+
+  // Warning on purchase page header (only visible when on that page)
+  var warnEl = document.getElementById('purchaseBomChangedWarn');
+  if (warnEl) warnEl.style.display = changed ? '' : 'none';
+
+  // Visual hint on the BOM page "generate" button
+  var genBtn = document.getElementById('genPurchaseBtn');
+  if (genBtn) {
+    if (changed) {
+      genBtn.textContent = '⚠️ 重新生成实采清单';
+      genBtn.title = 'BOM清单有变动，建议重新生成实采清单';
+    } else if (savedHash) {
+      genBtn.textContent = '🔄 重新生成实采清单';
+      genBtn.title = '重新生成实采清单';
+    } else {
+      genBtn.textContent = '一键生成实采清单';
+      genBtn.title = '';
+    }
+  }
+}
+
+// ============================================================
+// AUTH & PERMISSIONS
+// ============================================================
+function showLoginScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').textContent = '';
+  setTimeout(function(){ document.getElementById('loginUser').focus(); }, 100);
+}
+
+function doLogin() {
+  var username = document.getElementById('loginUser').value.trim();
+  var password = document.getElementById('loginPass').value.trim();
+  var errEl = document.getElementById('loginErr');
+  if (!username || !password) { errEl.textContent = '请输入用户名和密码'; return; }
+
+  // Ensure store.users is a valid array (defense against localStorage corruption)
+  if (!Array.isArray(store.users) || !store.users.length) {
+    store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+    saveStore();
+    console.warn('Users array was corrupted, reset to defaults');
+  }
+
+  // Always ensure the default admin account exists
+  ensureDefaultAdmin();
+
+  var user = store.users.find(function(u){ return u.username === username && u.password === password; });
+  if (!user) {
+    // Fallback: if login is admin/admin123 and it failed, reset users entirely
+    if (username === 'admin' && password === 'admin123') {
+      store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+      saveStore();
+      user = store.users.find(function(u){ return u.username === username && u.password === password; });
+    }
+    if (!user) { errEl.textContent = '用户名或密码错误'; return; }
+  }
+  currentUser = user;
+  document.getElementById('loginScreen').classList.add('hidden');
+  applyRoleUI();
+  toast('欢迎，' + user.username + '！', 'success');
+}
+
+// Ensure the default admin account always exists in users
+function ensureDefaultAdmin() {
+  var hasAdmin = store.users.some(function(u){ return u.id === 'u_admin' && u.role === 'admin'; });
+  if (!hasAdmin) {
+    store.users.unshift(JSON.parse(JSON.stringify(DEFAULT_USERS[0])));
+    console.warn('Default admin account was missing, re-added');
+  }
+}
+
+function doLogout() {
+  currentUser = null;
+  showLoginScreen();
+}
+
+function applyRoleUI() {
+  if (!currentUser) return;
+  var isAdmin = currentUser.role === 'admin';
+  // Header user chip
+  var chip = document.getElementById('userChip');
+  var dot = document.getElementById('userRoleDot');
+  var nameEl = document.getElementById('userChipName');
+  var roleLabels = {admin:'管理员', buyer:'采购员', guest:'访客'};
+  chip.style.display = 'flex';
+  dot.className = 'role-dot ' + currentUser.role;
+  nameEl.textContent = currentUser.username + ' · ' + (roleLabels[currentUser.role] || currentUser.role);
+  document.getElementById('logoutBtn').style.display = '';
+  // Admin-only elements
+  document.querySelectorAll('.admin-only').forEach(function(el){
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  // Toggle BOM action column header
+  var actionHeader = document.getElementById('bomActionColHeader');
+  if (actionHeader) actionHeader.style.display = isAdmin ? '' : 'none';
+  // If non-admin is on an admin-only page, redirect to bom
+  var activePage = document.querySelector('.page.active');
+  if (!isAdmin && activePage && activePage.id !== 'page-bom' && activePage.id !== 'page-purchase') {
+    showPage('page-bom');
+  }
+
+  // Buyer notification: check for new items and alert
+  if (currentUser.role === 'buyer') {
+    var proj = store.currentProject && store.projects[store.currentProject];
+    if (proj) {
+      var newIds = proj.purchaseNewItemIds || [];
+      if (newIds.length > 0 && proj.purchaseList) {
+        // Show notification toast with longer duration
+        setTimeout(function(){
+          showLongToast('管理员新增了 ' + newIds.length + ' 项采购需求，请查看实采清单页面顶部标红区域！', 'warn', 6000);
+        }, 500);
+      }
+    }
+  }
+}
+
+// ============================================================
+// USER MANAGEMENT
+// ============================================================
+function renderUsersTable() {
+  var tbody = document.getElementById('usersTbody');
+  var roleLabels = {admin:'管理员', buyer:'采购员', guest:'访客'};
+  tbody.innerHTML = store.users.map(function(u) {
+    var isMe = currentUser && u.id === currentUser.id;
+    var roleClass = u.role === 'admin' ? 'admin' : (u.role === 'buyer' ? 'buyer' : 'guest');
+    var actions = '<div style="display:flex;gap:4px;">'
+      + '<button class="btn btn-sm btn-outline" onclick="openEditUserModal(\''+u.id+'\')">编辑</button>';
+    if (!isMe) {
+      actions += '<button class="btn btn-sm btn-danger" onclick="deleteUser(\''+u.id+'\')">删除</button>';
+    } else {
+      actions += '<span style="font-size:11px;color:var(--text-muted);padding:3px 6px;">(当前用户)</span>';
+    }
+    actions += '</div>';
+    return '<tr>'
+      + '<td><b>'+esc(u.username)+'</b></td>'
+      + '<td><span class="role-badge '+roleClass+'">'+esc(roleLabels[u.role]||u.role)+'</span></td>'
+      + '<td>'+esc(u.remark||'-')+'</td>'
+      + '<td>'+actions+'</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function openAddUserModal() {
+  document.getElementById('userModalTitle').textContent = '添加用户';
+  document.getElementById('editUserId').value = '';
+  document.getElementById('user-username').value = '';
+  document.getElementById('user-password').value = '';
+  document.getElementById('user-role').value = 'buyer';
+  document.getElementById('user-remark').value = '';
+  document.getElementById('userPassHint').style.display = 'none';
+  document.getElementById('modal-user').classList.add('show');
+  setTimeout(function(){ document.getElementById('user-username').focus(); }, 100);
+}
+
+function openEditUserModal(uid) {
+  var u = store.users.find(function(x){ return x.id === uid; });
+  if (!u) return;
+  document.getElementById('userModalTitle').textContent = '编辑用户';
+  document.getElementById('editUserId').value = uid;
+  document.getElementById('user-username').value = u.username;
+  document.getElementById('user-password').value = '';
+  document.getElementById('user-role').value = u.role;
+  document.getElementById('user-remark').value = u.remark || '';
+  document.getElementById('userPassHint').style.display = '';
+  document.getElementById('modal-user').classList.add('show');
+}
+
+function saveUser() {
+  var uid = document.getElementById('editUserId').value;
+  var username = document.getElementById('user-username').value.trim();
+  var password = document.getElementById('user-password').value;
+  var role = document.getElementById('user-role').value;
+  var remark = document.getElementById('user-remark').value.trim();
+  if (!username) { toast('请输入用户名', 'error'); return; }
+  if (!uid && !password) { toast('新用户必须设置密码', 'error'); return; }
+  if (uid) {
+    // Edit existing
+    var idx = store.users.findIndex(function(u){ return u.id === uid; });
+    if (idx < 0) return;
+    // Prevent removing the only admin
+    if (store.users[idx].role === 'admin' && role !== 'admin') {
+      var adminCount = store.users.filter(function(u){ return u.role === 'admin'; }).length;
+      if (adminCount <= 1) { toast('至少需要保留一个管理员账号', 'error'); return; }
+    }
+    // Check duplicate username (excluding self)
+    var dup = store.users.find(function(u){ return u.username === username && u.id !== uid; });
+    if (dup) { toast('用户名已存在', 'error'); return; }
+    store.users[idx].username = username;
+    if (password) store.users[idx].password = password;
+    store.users[idx].role = role;
+    store.users[idx].remark = remark;
+    // Update currentUser if editing self
+    if (currentUser && currentUser.id === uid) {
+      currentUser = store.users[idx];
+      applyRoleUI();
+    }
+    toast('用户「'+username+'」已更新', 'success');
+  } else {
+    // Add new
+    var dup2 = store.users.find(function(u){ return u.username === username; });
+    if (dup2) { toast('用户名已存在', 'error'); return; }
+    store.users.push({id:'u_'+e(), username:username, password:password, role:role, remark:remark});
+    toast('用户「'+username+'」已创建', 'success');
+  }
+  saveStore();
+  closeModal('modal-user');
+  renderUsersTable();
+}
+
+function deleteUser(uid) {
+  var u = store.users.find(function(x){ return x.id === uid; });
+  if (!u) return;
+  if (u.role === 'admin') {
+    var adminCount = store.users.filter(function(x){ return x.role === 'admin'; }).length;
+    if (adminCount <= 1) { toast('无法删除最后一个管理员账号', 'error'); return; }
+  }
+  if (!confirm('确认删除用户「'+u.username+'」？')) return;
+  store.users = store.users.filter(function(x){ return x.id !== uid; });
+  saveStore();
+  renderUsersTable();
+  toast('用户「'+u.username+'」已删除');
+}
+
+// ============================================================
+// PROJECTS
+// ============================================================
+function updateProjectSelector() {
+  var sel = document.getElementById('projSelect');
+  sel.innerHTML = '<option value="">-- 选择项目 --</option>';
+  Object.values(store.projects).forEach(function(p) {
+    var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name;
+    if (p.id === store.currentProject) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+function switchProject(id) { if (!id) return; store.currentProject = id; saveStore(); refreshAll(); toast('已切换到：'+store.projects[id].name); }
+function openNewProjectModal() { document.getElementById('newProjectName').value=''; document.getElementById('newProjectDesc').value=''; document.getElementById('modal-project').classList.add('show'); setTimeout(function(){document.getElementById('newProjectName').focus();},100); }
+function createProject() {
+  var name = document.getElementById('newProjectName').value.trim();
+  if (!name) { toast('请输入项目名称','error'); return; }
+  var id = 'p_'+e();
+  store.projects[id] = {id:id,name:name,desc:document.getElementById('newProjectDesc').value.trim(),created:new Date().toLocaleDateString('zh-CN'),bom:[]};
+  store.currentProject = id; saveStore(); closeModal('modal-project'); refreshAll();
+  toast('项目「'+name+'」创建成功', 'success');
+}
+function deleteProject(id) {
+  if (!confirm('确认删除项目「'+store.projects[id].name+'」？此操作不可恢复。')) return;
+  delete store.projects[id];
+  if (store.currentProject === id) store.currentProject = Object.keys(store.projects)[0] || null;
+  saveStore(); refreshAll(); toast('项目已删除');
+}
+function renderProjectsTable() {
+  var tbody = document.getElementById('projectsTbody');
+  var projs = Object.values(store.projects);
+  if (!projs.length) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无项目</td></tr>'; return; }
+  tbody.innerHTML = projs.map(function(p) {
+    var pc = p.bom.filter(function(i){return i.status==='采购';}).length;
+    var sc = p.bom.filter(function(i){return i.status==='库存';}).length;
+    return '<tr><td><b>'+esc(p.name)+'</b> '+(p.id===store.currentProject?'<span class="badge" style="background:#dcfce7;color:#166534;">当前</span>':'')+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+esc(p.created||'-')+'</td><td><div class="row-actions" style="display:flex;gap:4px;"><button class="btn btn-sm btn-primary" onclick="switchProject(\''+p.id+'\');showPage(\'page-bom\')">进入</button><button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">删除</button></div></td></tr>';
+  }).join('');
+}
+
+// ============================================================
+// BOM TABLE
+// ============================================================
+function renderBomTable() {
+  var bom = currentBom();
+  var tbody = document.getElementById('bomTbody');
+  var searchVal = (document.getElementById('bomSearch').value || '').toLowerCase();
+  var statusFilter = document.getElementById('bomFilterStatus').value;
+  var groupBy = document.getElementById('bomGroupBy').value;
+
+  var filtered = bom.filter(function(item) {
+    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
+    var mst = !statusFilter || item.status === statusFilter;
+    return ms && mst;
+  });
+
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="13" class="no-data">暂无数据</td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
+
+  var labelMap = {category:'按分类',supplier:'按供应商',status:'按状态',none:''};
+  document.getElementById('bomGroupLabel').textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
+
+  var html = ''; var seq = 1;
+
+  if (groupBy === 'none') {
+    filtered.forEach(function(item) { html += bomRowHtml(item, seq++); });
+  } else {
+    var groups = {};
+    filtered.forEach(function(item) {
+      var key = groupBy === 'category' ? (item.category||'未分类') : (groupBy === 'supplier' ? (item.supplier||'未知供应商') : (item.status||'未知'));
+      if (!groups[key]) groups[key] = []; groups[key].push(item);
+    });
+    var keys = Object.keys(groups).sort();
+    var catOrder = getCategories();
+    if (groupBy === 'category') {
+      keys.sort(function(a,b){
+        var ai=catOrder.indexOf(a), bi=catOrder.indexOf(b);
+        if (ai>=0 && bi>=0) return ai-bi; if (ai>=0) return -1; if (bi>=0) return 1; return a.localeCompare(b);
+      });
+    }
+    keys.forEach(function(key) {
+      html += '<tr class="category-row"><td colspan="13">▶ '+esc(key)+'（'+groups[key].length+' 项）</td></tr>';
+      groups[key].forEach(function(item) { html += bomRowHtml(item, seq++); });
+    });
+  }
+  tbody.innerHTML = html;
+  updateBadges();
+  // Refresh purchase-changed warning after BOM re-render
+  if (typeof checkPurchaseBomChanged === 'function') checkPurchaseBomChanged();
+}
+
+function bomRowHtml(item, seq) {
+  var sb = item.status==='采购' ? '<span class="badge badge-purchase">采购</span>' : '<span class="badge badge-stock">库存</span>';
+  var ab = item.arrived==='已到' ? '<span class="badge badge-arrived">已到</span>' : item.arrived ? '<span class="badge badge-pending">'+esc(item.arrived)+'</span>' : '<span style="color:var(--text-muted)">-</span>';
+  var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" style="color:var(--primary);font-size:11px;" title="'+esc(item.taobaoLink)+'">打开</a>' : '<span style="color:var(--text-muted)">-</span>';
+  var supplier = item.supplier || '-';
+  var actionCol = '';
+  if (currentUser && currentUser.role === 'admin') {
+    actionCol = '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="openEditModal(\''+item.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteBomEntry(\''+item.id+'\')">删除</button></div></td>';
+  }
+  return '<tr>'+
+    '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
+    '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
+    '<td style="font-size:12px;font-weight:500;">'+esc(supplier)+'</td>'+
+    '<td><b>'+esc(item.name)+'</b></td>'+
+    '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
+    '<td style="text-align:center;font-weight:600;">'+item.qty+'</td>'+
+    '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
+    '<td style="text-align:center;">'+(item.stock||0)+'</td>'+
+    '<td>'+sb+'</td>'+
+    '<td style="text-align:center;font-weight:600;color:var(--accent);">'+(item.actualPurchase||0)+'</td>'+
+    '<td>'+ab+'</td>'+
+    '<td style="font-size:12px;">'+tl+'</td>'+
+    actionCol+
+    '</tr>';
+}
+
+function renderBomStats() {
+  var bom = currentBom();
+  var total = bom.length;
+  var purchase = bom.filter(function(i){return i.status==='采购';}).length;
+  var stock = bom.filter(function(i){return i.status==='库存';}).length;
+  var arrived = bom.filter(function(i){return i.arrived==='已到';}).length;
+  var notArrived = bom.filter(function(i){return i.status==='采购'&&i.arrived!=='已到';}).length;
+  document.getElementById('bomStats').innerHTML =
+    '<div class="stat-card"><div class="stat-value">'+total+'</div><div class="stat-label">总零件数</div></div>'+
+    '<div class="stat-card orange"><div class="stat-value">'+purchase+'</div><div class="stat-label">需要采购</div></div>'+
+    '<div class="stat-card green"><div class="stat-value">'+stock+'</div><div class="stat-label">库存满足</div></div>'+
+    '<div class="stat-card green"><div class="stat-value">'+arrived+'</div><div class="stat-label">已到货</div></div>'+
+    '<div class="stat-card red"><div class="stat-value">'+notArrived+'</div><div class="stat-label">采购未到</div></div>';
+}
+
+function updateBadges() {
+  var bom = currentBom();
+  document.getElementById('badge-bom').textContent = bom.length;
+  document.getElementById('badge-purchase').textContent = bom.filter(function(i){return i.status==='采购';}).length;
+  document.getElementById('badge-library').textContent = store.library.length;
+}
+
+function sortBomByCategory() {
+  var bom = currentBom();
+  var catOrder = getCategories();
+  bom.sort(function(a,b) {
+    var ai=catOrder.indexOf(a.category||''), bi=catOrder.indexOf(b.category||'');
+    var aIdx=ai>=0?ai:99, bIdx=bi>=0?bi:99;
+    if (aIdx!==bIdx) return aIdx-bIdx;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  if (store.currentProject) store.projects[store.currentProject].bom = bom;
+  saveStore(); renderBomTable(); toast('已按分类排序', 'success');
+}
+
+function sortBomBySupplier() {
+  var bom = currentBom();
+  bom.sort(function(a,b) {
+    var cmp = (a.supplier||'').localeCompare(b.supplier||'');
+    if (cmp !== 0) return cmp;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  if (store.currentProject) store.projects[store.currentProject].bom = bom;
+  saveStore(); renderBomTable(); toast('已按供应商排序', 'success');
+}
+
+function toggleAddForm() { var b=document.getElementById('addFormBody'); b.style.display = b.style.display==='none'?'':'none'; }
+function toggleQuickPanel() { var b=document.getElementById('quickPanelBody'); b.style.display = b.style.display==='none'?'':'none'; }
+
+// ============================================================
+// ADD BOM ENTRY
+// ============================================================
+function addBomEntry() {
+  if (!store.currentProject) { toast('请先选择或创建项目','error'); return; }
+  var name = document.getElementById('inp-name').value.trim();
+  if (!name) { toast('请输入零件名称','error'); return; }
+  var qty = parseInt(document.getElementById('inp-qty').value) || 1;
+  var stock = parseInt(document.getElementById('inp-stock').value) || 0;
+  var status = document.getElementById('inp-status').value;
+  if (status === 'auto') status = stock >= qty ? '库存' : '采购';
+  var actualPurchase = status === '采购' ? Math.max(0, qty - stock) : 0;
+
+  var entry = {
+    id: e(), category: document.getElementById('inp-category').value, name: name,
+    supplier: document.getElementById('inp-supplier').value.trim(),
+    model: document.getElementById('inp-model').value.trim(),
+    qty: qty, unit: document.getElementById('inp-unit').value, stock: stock, status: status, actualPurchase: actualPurchase,
+    arrived: document.getElementById('inp-arrived').value,
+    taobaoLink: document.getElementById('inp-taobao').value.trim(),
+    remark: document.getElementById('inp-remark').value.trim()
+  };
+
+  store.projects[store.currentProject].bom.push(entry);
+
+  if (document.getElementById('chk-save-lib').checked) {
+    var existing = store.library.find(function(l){return l.name===name&&l.supplier===entry.supplier;});
+    if (!existing) {
+      store.library.push({id:e(),name:name,supplier:entry.supplier,model:entry.model,unit:entry.unit,category:entry.category,taobaoLink:entry.taobaoLink});
+      toast('已同时保存到零件库','success');
+    }
+  }
+  saveStore(); clearAddForm(); renderBomTable(); renderBomStats(); updateBadges();
+  toast('已添加：'+name, 'success');
+}
+
+function clearAddForm() {
+  ['inp-name','inp-supplier','inp-model','inp-taobao','inp-remark'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('inp-qty').value = 1; document.getElementById('inp-stock').value = 0;
+  document.getElementById('inp-arrived').value = ''; document.getElementById('inp-status').value = 'auto';
+}
+
+function deleteBomEntry(id) {
+  if (!store.currentProject) return;
+  store.projects[store.currentProject].bom = store.projects[store.currentProject].bom.filter(function(i){return i.id!==id;});
+  saveStore(); renderBomTable(); renderBomStats(); updateBadges(); toast('已删除');
+}
+
+// ============================================================
+// EDIT MODAL
+// ============================================================
+function openEditModal(id) {
+  var item = currentBom().find(function(i){return i.id===id;}); if (!item) return;
+  populateSelects();
+  document.getElementById('edit-idx').value = id;
+  document.getElementById('edit-category').value = item.category||getCategories()[0];
+  document.getElementById('edit-name').value = item.name||'';
+  document.getElementById('edit-supplier').value = item.supplier||'';
+  document.getElementById('edit-model').value = item.model||'';
+  document.getElementById('edit-qty').value = item.qty||1;
+  document.getElementById('edit-unit').value = item.unit||'个';
+  document.getElementById('edit-stock').value = item.stock||0;
+  document.getElementById('edit-status').value = item.status||'采购';
+  document.getElementById('edit-arrived').value = item.arrived||'';
+  document.getElementById('edit-taobao').value = item.taobaoLink||'';
+  document.getElementById('edit-remark').value = item.remark||'';
+  document.getElementById('modal-edit').classList.add('show');
+}
+
+function saveEditEntry() {
+  var id = document.getElementById('edit-idx').value;
+  var bom = currentBom(); var idx = bom.findIndex(function(i){return i.id===id;}); if (idx<0) return;
+  var qty = parseInt(document.getElementById('edit-qty').value)||1;
+  var stock = parseInt(document.getElementById('edit-stock').value)||0;
+  var status = document.getElementById('edit-status').value;
+  var actualPurchase = status==='采购' ? Math.max(0,qty-stock) : 0;
+  bom[idx] = Object.assign({}, bom[idx], {
+    category: document.getElementById('edit-category').value,
+    name: document.getElementById('edit-name').value.trim(),
+    supplier: document.getElementById('edit-supplier').value.trim(),
+    model: document.getElementById('edit-model').value.trim(),
+    qty: qty, unit: document.getElementById('edit-unit').value, stock: stock, status: status, actualPurchase: actualPurchase,
+    arrived: document.getElementById('edit-arrived').value,
+    taobaoLink: document.getElementById('edit-taobao').value.trim(),
+    remark: document.getElementById('edit-remark').value.trim()
+  });
+  store.projects[store.currentProject].bom = bom;
+  saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); toast('修改已保存', 'success');
+}
+
+// ============================================================
+// QUICK SELECT
+// ============================================================
+var quickSelectedIds = new Set();
+
+function refreshQuickCatFilter() {
+  var sel = document.getElementById('quickCatFilter'); if (!sel) return;
+  var cats = Array.from(new Set(store.library.map(function(l){return l.category||'未分类';}))).sort();
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">全部分类</option>'+cats.map(function(c){return '<option value="'+esc(c)+'" '+(c===cur?'selected':'')+'>'+esc(c)+'</option>';}).join('');
+}
+
+function renderQuickLib() {
+  refreshQuickCatFilter();
+  var kw = (document.getElementById('quickSearch').value||'').toLowerCase();
+  var catF = document.getElementById('quickCatFilter').value;
+
+  var filtered = store.library.filter(function(l) {
+    var mk = !kw || (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0;
+    var mc = !catF || l.category === catF;
+    return mk && mc;
+  });
+
+  var tbody = document.getElementById('quickLibTbody');
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data" style="padding:14px;">零件库为空或无匹配</td></tr>'; return; }
+
+  tbody.innerHTML = filtered.map(function(l) {
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()"></td><td style="font-size:12px;">'+esc(l.unit||'个')+'</td></tr>';
+  }).join('');
+  updateQuickCount();
+}
+
+function toggleQuickSelect(id, row) { var chk = document.getElementById('qchk_'+id); if (!chk) return; chk.checked = !chk.checked; onQuickCheck(id, chk); }
+function onQuickCheck(id, chk) { if (chk.checked) quickSelectedIds.add(id); else quickSelectedIds.delete(id); updateQuickCount(); }
+function updateQuickCount() { document.getElementById('quickSelCount').textContent = '已选 '+quickSelectedIds.size+' 件'; }
+function quickSelectAll() {
+  document.querySelectorAll('#quickLibTbody input[type=checkbox]').forEach(function(chk){chk.checked=true;quickSelectedIds.add(chk.id.replace('qchk_',''));}); updateQuickCount();
+}
+function quickDeselectAll() { quickSelectedIds.clear(); document.querySelectorAll('#quickLibTbody input[type=checkbox]').forEach(function(chk){chk.checked=false;}); updateQuickCount(); }
+
+function batchAddFromLib() {
+  if (!store.currentProject) { toast('请先选择或创建项目','error'); return; }
+  if (!quickSelectedIds.size) { toast('请先勾选要添加的零件','warn'); return; }
+  var statusMode = document.getElementById('quickInpStatus').value;
+  var added = 0;
+  quickSelectedIds.forEach(function(id) {
+    var l = store.library.find(function(x){return x.id===id;}); if (!l) return;
+    var qtyEl = document.getElementById('qqty_'+id);
+    var qty = qtyEl ? (parseInt(qtyEl.value)||1) : 1;
+    var status = statusMode; if (status==='auto') status = qty>0?'采购':'库存';
+    store.projects[store.currentProject].bom.push({
+      id:e(), category:l.category||getCategories()[0], name:l.name, supplier:l.supplier||'',
+      model:l.model||'', qty:qty, unit:l.unit||'个', stock:0, status:status,
+      actualPurchase: status==='采购'?qty:0, arrived:'', taobaoLink:l.taobaoLink||'', remark:''
+    });
+    added++;
+  });
+  quickSelectedIds.clear(); saveStore(); renderBomTable(); renderBomStats(); updateBadges(); renderQuickLib();
+  toast('已批量添加 '+added+' 个零件到BOM', 'success');
+}
+
+// ============================================================
+// LIBRARY
+// ============================================================
+var libView = 'card';
+
+function setLibView(v) {
+  libView = v; store.libView = v; saveStore();
+  document.getElementById('viewBtnList').classList.toggle('active', v==='list');
+  document.getElementById('viewBtnCard').classList.toggle('active', v==='card');
+  document.getElementById('libCardView').style.display = v==='card'?'grid':'none';
+  document.getElementById('libListView').style.display = v==='list'?'block':'none';
+  renderLibrary();
+}
+
+function renderLibrary() {
+  var sel = document.getElementById('libCatFilter');
+  var kw = (document.getElementById('libSearch').value||'').toLowerCase();
+  var catFilter = document.getElementById('libCatFilter').value;
+
+  var cats = Array.from(new Set(store.library.map(function(l){return l.category||'未分类';}))).sort();
+  var curVal = sel.value;
+  sel.innerHTML = '<option value="">全部分类</option>'+cats.map(function(c){return '<option value="'+esc(c)+'" '+(c===curVal?'selected':'')+'>'+esc(c)+'</option>';}).join('');
+
+  var filtered = store.library.filter(function(l) {
+    var mk = !kw || (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0;
+    var mc = !catFilter || l.category === catFilter;
+    return mk && mc;
+  });
+
+  var cv = store.libView || libView;
+  var cardEl = document.getElementById('libCardView');
+
+  if (cv === 'card') {
+    cardEl.style.display = 'grid'; document.getElementById('libListView').style.display = 'none';
+    document.getElementById('viewBtnCard').classList.add('active'); document.getElementById('viewBtnList').classList.remove('active');
+    if (!filtered.length) { cardEl.innerHTML = '<div class="no-data" style="grid-column:1/-1;padding:36px;">没有匹配的零件</div>'; return; }
+    cardEl.innerHTML = filtered.map(function(l) {
+      return '<div style="background:var(--card-bg);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);">'+
+        '<div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:3px;">'+esc(l.name)+'</div>'+
+        '<div style="font-size:11px;color:var(--text-secondary);">供应商：'+esc(l.supplier||'未知')+'</div>'+
+        '<div style="font-size:11px;color:var(--primary);">'+esc(l.model||'-')+'</div>'+
+        '<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">单位：'+esc(l.unit||'-')+' | 分类：'+esc(l.category||'-')+'</div>'+
+        '<div style="display:flex;gap:4px;margin-top:6px;"><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();editLib(\''+l.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteLib(\''+l.id+'\')">删除</button></div></div>';
+    }).join('');
+  } else {
+    cardEl.style.display = 'none'; document.getElementById('libListView').style.display = 'block';
+    document.getElementById('viewBtnList').classList.add('active'); document.getElementById('viewBtnCard').classList.remove('active');
+    var tbody = document.getElementById('libListTbody');
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">没有匹配的零件</td></tr>'; return; }
+    tbody.innerHTML = filtered.map(function(l,i) {
+      return '<tr>'+
+        '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
+        '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
+        '<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td>'+
+        '<td style="font-size:12px;">'+esc(l.unit||'-')+'</td>'+
+        '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="editLib(\''+l.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteLib(\''+l.id+'\')">删除</button></div></td></tr>';
+    }).join('');
+  }
+}
+
+function clearLibFilter() { document.getElementById('libSearch').value=''; document.getElementById('libCatFilter').value=''; renderLibrary(); }
+
+function prefillFromLib(id) {
+  var l = store.library.find(function(x){return x.id===id;}); if (!l) return;
+  document.getElementById('inp-name').value = l.name||'';
+  document.getElementById('inp-supplier').value = l.supplier||'';
+  document.getElementById('inp-model').value = l.model||'';
+  document.getElementById('inp-category').value = l.category||getCategories()[0];
+  document.getElementById('inp-unit').value = l.unit||'个';
+  document.getElementById('inp-taobao').value = l.taobaoLink||'';
+  showPage('page-bom'); toast('已填入：'+l.name+'，请补充数量后添加', 'info');
+  document.getElementById('inp-qty').focus();
+}
+
+function openLibModal(id) {
+  populateSelects();
+  document.getElementById('libModalTitle').textContent = id ? '编辑零件' : '添加零件到库';
+  var l = id ? store.library.find(function(x){return x.id===id;}) : null;
+  document.getElementById('lib-name').value = l ? l.name : '';
+  document.getElementById('lib-supplier').value = l ? (l.supplier||'') : '';
+  document.getElementById('lib-model').value = l ? (l.model||'') : '';
+  document.getElementById('lib-category').value = l ? (l.category||getCategories()[0]) : getCategories()[0];
+  document.getElementById('lib-unit').value = l ? (l.unit||'个') : '个';
+  document.getElementById('lib-taobao').value = l ? (l.taobaoLink||'') : '';
+  document.getElementById('modal-lib')._editId = id || null;
+  document.getElementById('modal-lib').classList.add('show');
+}
+
+function editLib(id) { openLibModal(id); }
+
+function saveLibEntry() {
+  var name = document.getElementById('lib-name').value.trim();
+  if (!name) { toast('请输入零件名称','error'); return; }
+  var editId = document.getElementById('modal-lib')._editId;
+  var entry = {
+    id: editId || e(), name: name,
+    supplier: document.getElementById('lib-supplier').value.trim(),
+    model: document.getElementById('lib-model').value.trim(),
+    category: document.getElementById('lib-category').value,
+    unit: document.getElementById('lib-unit').value,
+    taobaoLink: document.getElementById('lib-taobao').value.trim()
+  };
+  if (editId) { var idx = store.library.findIndex(function(l){return l.id===editId;}); if (idx>=0) store.library[idx] = entry; }
+  else store.library.push(entry);
+  saveStore(); closeModal('modal-lib'); renderLibrary(); updateBadges(); renderQuickLib();
+  toast('零件「'+name+'」已保存', 'success');
+}
+
+function deleteLib(id) {
+  var l = store.library.find(function(x){return x.id===id;});
+  if (!l || !confirm('确认从零件库删除「'+l.name+'」？')) return;
+  store.library = store.library.filter(function(x){return x.id!==id;});
+  saveStore(); renderLibrary(); updateBadges(); renderQuickLib(); toast('已删除');
+}
+
+// ============================================================
+// PURCHASE LIST
+// ============================================================
+
+// Calculate a simple hash of current BOM to detect changes
+function calcBomHash(bom) {
+  var purchaseItems = bom.filter(function(i){return i.status==='采购';});
+  return purchaseItems.map(function(i){
+    return i.id+'|'+(i.name||'')+'|'+(i.model||'')+'|'+(i.qty||0)+'|'+(i.supplier||'');
+  }).join(';');
+}
+
+// Build the purchase list HTML rows (shared by generate & render)
+// newItemIds: array of item IDs that were added after the last generation
+function buildPurchaseHTML(bom, newItemIds) {
+  var purchaseItems = bom.filter(function(i){return i.status==='采购';});
+  if (!purchaseItems.length) return {html:'<tr><td colspan="10" class="no-data">当前项目无需采购的零件</td></tr>', count:0, supplierCount:0, newCount:0};
+
+  newItemIds = newItemIds || [];
+  var newIdSet = {};
+  newItemIds.forEach(function(id){ newIdSet[id] = true; });
+
+  var newItems = [];
+  var existingItems = [];
+  purchaseItems.forEach(function(item){
+    if (newIdSet[item.id]) newItems.push(item);
+    else existingItems.push(item);
+  });
+
+  var html = ''; var seq = 1;
+
+  // --- Render new items section at the top ---
+  if (newItems.length > 0) {
+    html += '<tr class="new-items-header"><td colspan="10">🆕 本次新增采购项（管理员上次生成后追加，共 '+newItems.length+' 项）</td></tr>';
+    newItems.forEach(function(item) {
+      html += buildPurchaseRow(item, seq++, true);
+    });
+  }
+
+  // --- Render existing items grouped by supplier ---
+  if (existingItems.length > 0) {
+    if (newItems.length > 0) {
+      html += '<tr class="category-row"><td colspan="10" style="background:var(--bg)!important;color:var(--text-secondary)!important;">━━━ 已有采购项 ━━━</td></tr>';
+    }
+    var groups = {};
+    existingItems.forEach(function(item) {
+      var key = item.supplier || '未知供应商';
+      if (!groups[key]) groups[key] = []; groups[key].push(item);
+    });
+    Object.keys(groups).sort().forEach(function(key) {
+      var items = groups[key];
+      html += '<tr class="category-row"><td colspan="10">🏭 供应商：'+esc(key)+'（'+items.length+' 项）</td></tr>';
+      items.forEach(function(item) {
+        html += buildPurchaseRow(item, seq++, false);
+      });
+    });
+  }
+
+  var allSupplierCount = 0;
+  if (existingItems.length > 0) {
+    var g2 = {};
+    existingItems.forEach(function(i){ g2[i.supplier||'未知供应商'] = 1; });
+    allSupplierCount = Object.keys(g2).length;
+  }
+  if (newItems.length > 0) {
+    var gn = {};
+    newItems.forEach(function(i){ gn[i.supplier||'未知供应商'] = 1; });
+    allSupplierCount += Object.keys(gn).length;
+  }
+
+  return {html:html, count:purchaseItems.length, supplierCount: allSupplierCount, newCount:newItems.length};
+}
+
+// Build a single purchase table row
+function buildPurchaseRow(item, seq, isNew) {
+  var rowClass = isNew ? 'new-item-row' : '';
+  var ab = buildArrivalSelect(item);
+  var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" title="打开淘宝链接：'+esc(item.taobaoLink)+'" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#ff6b2b,#ff4400);color:#fff;text-decoration:none;font-size:14px;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'scale(1.1)\';this.style.boxShadow=\'0 2px 8px rgba(255,68,0,.4)\'" onmouseout="this.style.transform=\'scale(1)\';this.style.boxShadow=\'none\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></a>' : '<span style="color:var(--text-muted);font-size:14px;">-</span>';
+  return '<tr class="'+rowClass+'" data-item-id="'+item.id+'">'+
+    '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
+    '<td>'+esc(item.supplier||'')+'</td>'+
+    '<td><b>'+esc(item.name)+'</b></td>'+
+    '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
+    '<td style="text-align:center;font-weight:600;color:var(--accent);">'+(item.actualPurchase||item.qty)+'</td>'+
+    '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
+    '<td style="text-align:center;">'+(item.stock||0)+'</td>'+
+    '<td>'+ab+'</td>'+
+    '<td style="font-size:12px;">'+tl+'</td>'+
+    '<td style="font-size:11px;color:var(--text-secondary);">'+esc(item.remark||'')+'</td>'+
+    '</tr>';
+}
+
+// Build an interactive arrival status dropdown
+function buildArrivalSelect(item) {
+  var currentVal = item.arrived || '';
+  var options = [
+    {v:'', label:'- 待到货'},
+    {v:'已到', label:'✓ 已到'},
+    {v:'未到', label:'✗ 未到'},
+    {v:'部分到', label:'◐ 部分到'}
+  ];
+  var html = '<select class="arrival-select" onchange="updatePurchaseArrival(\''+item.id+'\',this.value)" data-prev="'+esc(currentVal)+'"';
+  // Guests cannot modify arrival
+  if (currentUser && currentUser.role === 'guest') html += ' disabled';
+  html += '>';
+  options.forEach(function(opt){
+    html += '<option value="'+opt.v+'"'+(opt.v===currentVal?' selected':'')+'>'+opt.label+'</option>';
+  });
+  html += '</select>';
+  return html;
+}
+
+// Called when buyer/admin changes arrival status on the purchase list
+function updatePurchaseArrival(itemId, newStatus) {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj || !proj.bom) return;
+
+  // Only buyer and admin can modify (guest select is disabled, but double-check)
+  if (currentUser && currentUser.role === 'guest') return;
+
+  var item = proj.bom.find(function(i){ return i.id === itemId; });
+  if (!item) return;
+  item.arrived = newStatus;
+  saveStore();
+
+  // Re-render the purchase list to reflect the change
+  renderSavedPurchaseList();
+  toast('到货状态已更新', 'success');
+}
+
+// Render the saved purchase list (called when switching to purchase page)
+function renderSavedPurchaseList() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) return;
+  var saved = proj.purchaseList;
+  var genTime = proj.purchaseGenTime;
+  var savedHash = proj.purchaseBomHash;
+  var currentHash = calcBomHash(proj.bom || []);
+
+  // Time label
+  var timeLabel = document.getElementById('purchaseGenTimeLabel');
+  if (genTime) {
+    timeLabel.textContent = '最后生成：' + new Date(genTime).toLocaleString('zh-CN');
+  } else {
+    timeLabel.textContent = '';
+  }
+
+  // BOM changed warning
+  var warnEl = document.getElementById('purchaseBomChangedWarn');
+  if (savedHash && currentHash !== savedHash) {
+    warnEl.style.display = '';
+  } else {
+    warnEl.style.display = 'none';
+  }
+
+  // New item banner for non-admin users
+  var newItemIds = proj.purchaseNewItemIds || [];
+  var newItemBanner = document.getElementById('purchaseNewItemBanner');
+  if (newItemIds.length > 0 && currentUser && currentUser.role !== 'admin') {
+    newItemBanner.style.display = 'flex';
+    document.getElementById('purchaseNewItemCount').textContent = newItemIds.length;
+  } else {
+    newItemBanner.style.display = 'none';
+  }
+
+  if (!saved) {
+    // No saved list yet
+    document.getElementById('purchaseTbody').innerHTML = '<tr><td colspan="10" class="no-data">尚未生成实采清单，请管理员点击「一键生成实采清单」</td></tr>';
+    document.getElementById('purchaseNotice').innerHTML = '管理员点击 BOM清单页的「一键生成实采清单」即可生成，采购员/访客可直接查看已生成的清单。';
+    document.getElementById('purchaseNotice').className = 'notice notice-info';
+    document.getElementById('badge-purchase').textContent = '0';
+    return;
+  }
+
+  // Rebuild HTML dynamically from current BOM data (so arrival selects use latest values)
+  var bom = proj.bom || [];
+  var result = buildPurchaseHTML(bom, newItemIds);
+
+  // Save updated HTML (but NOT the item IDs — those are only updated on "generate")
+  proj.purchaseList = result;
+  saveStore();
+
+  // Render
+  document.getElementById('purchaseTbody').innerHTML = result.html;
+
+  // Show new item count in banner
+  if (newItemIds.length > 0) {
+    document.getElementById('purchaseNewItemBannerText').innerHTML = '管理员新增了 <b>'+newItemIds.length+'</b> 项采购需求，请注意查看顶部<em style="background:#fecaca;padding:1px 4px;border-radius:2px;">🆕 标红区域</em>。';
+    document.getElementById('purchaseNewItemCount').textContent = newItemIds.length;
+  }
+
+  if (result.count === 0) {
+    document.getElementById('purchaseNotice').innerHTML = '✅ 所有零件均为库存满足，无需采购。';
+    document.getElementById('purchaseNotice').className = 'notice notice-success';
+    document.getElementById('badge-purchase').textContent = '0';
+  } else {
+    var noticeHtml = '✅ 实采清单已生成：共 <b>'+result.count+'</b> 项需采购，涉及 <b>'+result.supplierCount+'</b> 个供应商。';
+    if (result.newCount > 0) {
+      noticeHtml += ' 其中 <b style="color:#dc2626;">'+result.newCount+'</b> 项为新增。';
+    }
+    document.getElementById('purchaseNotice').innerHTML = noticeHtml;
+    document.getElementById('purchaseNotice').className = result.newCount > 0 ? 'notice notice-new-items' : 'notice notice-success';
+    document.getElementById('badge-purchase').textContent = result.count;
+  }
+}
+
+function generatePurchaseList() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) { toast('请先选择项目', 'warn'); return; }
+  var bom = proj.bom || [];
+
+  // Detect new items since last generation
+  var prevItemIds = proj.purchaseGenItemIds || [];
+  var isFirstGeneration = prevItemIds.length === 0;
+  var prevIdSet = {};
+  prevItemIds.forEach(function(id){ prevIdSet[id] = true; });
+
+  var purchaseItems = bom.filter(function(i){return i.status==='采购';});
+  var currentItemIds = purchaseItems.map(function(i){ return i.id; });
+
+  // New items = in current but not in previous (skip for first generation)
+  var newItemIds = isFirstGeneration ? [] : currentItemIds.filter(function(id){ return !prevIdSet[id]; });
+
+  // Build HTML with new items highlighted
+  var result = buildPurchaseHTML(bom, newItemIds);
+
+  // Persist to store
+  proj.purchaseList = result;
+  proj.purchaseGenTime = Date.now();
+  proj.purchaseBomHash = calcBomHash(bom);
+  proj.purchaseGenItemIds = currentItemIds;
+  proj.purchaseNewItemIds = newItemIds;
+  saveStore();
+
+  // Render
+  document.getElementById('purchaseTbody').innerHTML = result.html;
+  var timeLabel = document.getElementById('purchaseGenTimeLabel');
+  timeLabel.textContent = '最后生成：' + new Date(proj.purchaseGenTime).toLocaleString('zh-CN');
+  document.getElementById('purchaseBomChangedWarn').style.display = 'none';
+
+  if (result.count === 0) {
+    document.getElementById('purchaseNotice').innerHTML = '✅ 所有零件均为库存满足，无需采购。';
+    document.getElementById('purchaseNotice').className = 'notice notice-success';
+    document.getElementById('badge-purchase').textContent = '0';
+  } else {
+    var noticeHtml = '✅ 实采清单已生成：共 <b>'+result.count+'</b> 项需采购，涉及 <b>'+result.supplierCount+'</b> 个供应商。';
+    if (result.newCount > 0) {
+      noticeHtml += ' 其中 <b style="color:#dc2626;">'+result.newCount+'</b> 项为新增。';
+    }
+    document.getElementById('purchaseNotice').innerHTML = noticeHtml;
+    document.getElementById('purchaseNotice').className = result.newCount > 0 ? 'notice notice-new-items' : 'notice notice-success';
+    document.getElementById('badge-purchase').textContent = result.count;
+  }
+  // Hide new item banner for admin (admin doesn't need the notification)
+  document.getElementById('purchaseNewItemBanner').style.display = 'none';
+  showPage('page-purchase');
+  var toastMsg = '实采清单已生成并保存';
+  if (result.newCount > 0) toastMsg += '，检测到 '+result.newCount+' 项新增采购需求';
+  toast(toastMsg, 'success');
+}
+
+function exportPurchaseCSV() {
+  var rows = document.querySelectorAll('#purchaseTable tbody tr:not(.category-row):not(.new-items-header)');
+  var lines = ['序号,供应商,名称,规格型号,数量,单位,库存,到货状态,淘宝链接,备注'];
+  rows.forEach(function(row) {
+    var cells = row.querySelectorAll('td'); if (cells.length<6) return;
+    var rowData = Array.from(cells).map(function(c, idx){
+      // For arrival column (index 7), extract selected option text from <select>
+      if (idx === 7) {
+        var sel = c.querySelector('select');
+        if (sel) return sel.options[sel.selectedIndex].text.replace(/^[✓✗◐-]\s*/, '');
+        return c.textContent.trim();
+      }
+      // For link column (index 8), extract href
+      if (idx === 8) {
+        var a = c.querySelector('a');
+        if (a) return a.href;
+        return c.textContent.trim();
+      }
+      return c.textContent.trim();
+    });
+    lines.push(rowData.map(function(v){return '"'+(v||'').replace(/"/g,'""')+'"';}).join(','));
+  });
+  var blob = new Blob(['\ufeff'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='实采清单.csv'; a.click();
+  toast('CSV已下载', 'success');
+}
+
+// ============================================================
+// EXCEL EXPORT (using SheetJS)
+// ============================================================
+function exportBomToTencentDocs() {
+  var bom = currentBom();
+  if (!bom.length) { toast('BOM清单为空','warn'); return; }
+
+  var projName = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : 'BOM清单';
+
+  // Build data in the exact reference format
+  var data = [];
+  
+  // Row 1: Project title (spans all columns, will be merged)
+  data.push([projName]);
+  
+  // Row 2: "清单"
+  data.push(['清单']);
+  
+  // Row 3: Headers
+  data.push(['序号','供应商','名称','名称型号','数量','单位','库存','状态','实采','到货状态','备注']);
+  
+  // Group by category, ordered by user's category sequence
+  var groups = {};
+  bom.forEach(function(item){
+    var cat = item.category || '未分类';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(item);
+  });
+
+  var catOrder = getCategories();
+  var sortedKeys = Object.keys(groups).sort(function(a,b){
+    var ai=catOrder.indexOf(a), bi=catOrder.indexOf(b);
+    if (ai>=0 && bi>=0) return ai-bi;
+    if (ai>=0) return -1; if (bi>=0) return 1;
+    return a.localeCompare(b);
+  });
+
+  var seq = 1;
+  sortedKeys.forEach(function(cat){
+    // Category header row (will be styled separately)
+    data.push([cat]);
+    groups[cat].forEach(function(item){
+      data.push([
+        seq++, 
+        item.supplier||'', 
+        item.name||'', 
+        item.model||'',
+        item.qty, 
+        item.unit||'', 
+        item.stock||0, 
+        item.status||'',
+        item.actualPurchase||0, 
+        item.arrived||'', 
+        item.remark||''
+      ]);
+    });
+  });
+
+  // Create workbook
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Column widths matching reference
+  ws['!cols'] = [
+    {wch:6},   // 序号
+    {wch:14},  // 供应商
+    {wch:20},  // 名称
+    {wch:55},  // 名称型号
+    {wch:6},   // 数量
+    {wch:6},   // 单位
+    {wch:6},   // 库存
+    {wch:6},   // 状态
+    {wch:6},   // 实采
+    {wch:8},   // 到货状态
+    {wch:30}   // 备注
+  ];
+
+  // Merged cells: title row (merge across all 11 columns, row 0)
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:10}}];
+
+  // Style the title row (A1: bold, larger, centered)
+  if (!ws['A1']) ws['A1'] = {};
+  if (!ws['A1'].s) ws['A1'].s = {};
+  ws['A1'].s = {font:{bold:true,sz:16}, alignment:{horizontal:'center',vertical:'center'}};
+
+  // Style "清单" row (A2)
+  if (!ws['A2']) ws['A2'] = {};
+  if (!ws['A2'].s) ws['A2'].s = {};
+  ws['A2'].s = {font:{bold:true,sz:11}};
+
+  // Style header row (row 3)
+  var headerRow = 2; // 0-based
+  for (var c = 0; c < 11; c++) {
+    var cellRef = XLSX.utils.encode_cell({r:headerRow,c:c});
+    if (!ws[cellRef]) ws[cellRef] = {};
+    if (!ws[cellRef].s) ws[cellRef].s = {};
+    ws[cellRef].s = {font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'4472C4'}}, alignment:{horizontal:'center'}};
+  }
+
+  // Style category header rows
+  var rowNum = 3; // 0-based, after headers
+  sortedKeys.forEach(function(cat){
+    var cellRef = XLSX.utils.encode_cell({r:rowNum,c:0});
+    if (!ws[cellRef]) ws[cellRef] = {};
+    if (!ws[cellRef].s) ws[cellRef].s = {};
+    ws[cellRef].s = {font:{bold:true,sz:10,color:{rgb:'4472C4'}}, fill:{fgColor:{rgb:'D9E2F3'}}};
+    // Merge category row across all columns
+    ws['!merges'].push({s:{r:rowNum,c:0},e:{r:rowNum,c:10}});
+    rowNum += groups[cat].length + 1; // +1 for header row
+  });
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '零部件统计清单');
+  XLSX.writeFile(wb, 'BOM_腾讯文档格式.xlsx');
+  toast('已按腾讯文档格式导出Excel，可直接导入腾讯文档', 'success');
+}
+
+function exportPurchaseExcel() {
+  var bom = currentBom();
+  var purItems = bom.filter(function(i){return i.status==='采购';});
+  if (!purItems.length) { toast('无采购项','warn'); return; }
+  var data = [['序号','供应商','名称','规格型号','数量','单位','项目编号','备注']];
+  var projName = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : '';
+  // v4.1: 项目编号只取项目名称前4位数字字符
+  var projNum = (projName.match(/\d/g)||[]).slice(0,4).join('');
+  purItems.forEach(function(item,i) {
+    data.push([i+1, item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:6},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}}];
+  XLSX.utils.sheet_add_aoa(ws, [['实采清单','','','','','','下单日期',new Date().toLocaleDateString('zh-CN')]], {origin:'A1'});
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '实采清单');
+  XLSX.writeFile(wb, '实采清单_按模板.xlsx');
+  toast('实采清单已按模板格式导出Excel', 'success');
+}
+
+function exportLibTemplate() {
+  // v4.1: 去掉品牌和图片URL字段
+  var data = [['名称','供应商','型号规格','分类','单位','淘宝链接']];
+  data.push(['示例：电磁阀','亚德客','4V21008B DC24','气动元件','个','https://item.taobao.com/...']);
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:18},{wch:16},{wch:30},{wch:12},{wch:6},{wch:35}];
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '零件库导入模板');
+  XLSX.writeFile(wb, '零件库导入模板.xlsx');
+  toast('导入模板已下载', 'success');
+}
+
+function importLibExcel(input) {
+  var file = input.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      var wb = XLSX.read(evt.target.result, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      if (!rows || rows.length < 2) { toast('Excel文件为空或格式不符','error'); return; }
+      var headers = rows[0].map(function(h){return String(h||'').trim();});
+      var nameCol = headers.findIndex(function(h){return h.indexOf('名称')===0;});
+      if (nameCol < 0) { toast('未找到"名称"列，请使用导入模板','error'); return; }
+      var supplierCol = headers.findIndex(function(h){return h==='供应商'||h.indexOf('供应商')>=0;});
+      var modelCol = headers.findIndex(function(h){return h.indexOf('型号')>=0||h.indexOf('规格')>=0;});
+      var catCol = headers.findIndex(function(h){return h.indexOf('分类')>=0;});
+      var unitCol = headers.findIndex(function(h){return h==='单位';});
+      var taobaoCol = headers.findIndex(function(h){return h.indexOf('淘宝')>=0||h.indexOf('链接')>=0;});
+
+      var added = 0, skipped = 0;
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i]; if (!row || !row[nameCol]) { skipped++; continue; }
+        var name = String(row[nameCol]||'').trim(); if (!name) { skipped++; continue; }
+        var supplier = supplierCol>=0 ? String(row[supplierCol]||'').trim() : '';
+        var existing = store.library.find(function(l){return l.name===name&&l.supplier===supplier;});
+        if (existing) { skipped++; continue; }
+        store.library.push({
+          id: e(), name: name,
+          supplier: supplier,
+          model: modelCol>=0 ? String(row[modelCol]||'').trim() : '',
+          category: catCol>=0 ? String(row[catCol]||'').trim() : getCategories()[0],
+          unit: unitCol>=0 ? String(row[unitCol]||'').trim() : '个',
+          taobaoLink: taobaoCol>=0 ? String(row[taobaoCol]||'').trim() : ''
+        });
+        added++;
+      }
+      saveStore(); renderLibrary(); updateBadges(); renderQuickLib();
+      toast('导入完成：新增 '+added+' 个，跳过 '+skipped+' 个（重复或空行）', 'success');
+    } catch(err) { toast('导入失败：'+err.message, 'error'); }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+// ============================================================
+// STATS PAGE (with Chart)
+// ============================================================
+var statsChartInstance = null;
+
+function collectAllBomData() {
+  var all = [];
+  Object.values(store.projects).forEach(function(p) {
+    p.bom.forEach(function(item) { all.push(Object.assign({}, item, {projectName: p.name, projectId: p.id})); });
+  });
+  return all;
+}
+
+function buildFreqMap(allBom) {
+  var freqMap = {};
+  allBom.forEach(function(item) {
+    var key = (item.name||'')+'|||'+(item.supplier||'')+'|||'+(item.model||'');
+    if (!freqMap[key]) freqMap[key] = {name:item.name,supplier:item.supplier||'',model:item.model,category:item.category||'',count:0,projects:new Set(),totalQty:0};
+    freqMap[key].count++; freqMap[key].projects.add(item.projectId); freqMap[key].totalQty += item.qty||0;
+  });
+  return freqMap;
+}
+
+function renderStats() {
+  var allBom = collectAllBomData();
+  var totalProjects = Object.keys(store.projects).length;
+  var totalParts = allBom.length;
+  var totalPurchase = allBom.filter(function(i){return i.status==='采购';}).length;
+
+  document.getElementById('statsSummary').innerHTML =
+    '<div class="stat-card"><div class="stat-value">'+totalProjects+'</div><div class="stat-label">项目总数</div></div>'+
+    '<div class="stat-card orange"><div class="stat-value">'+totalParts+'</div><div class="stat-label">总零件条目</div></div>'+
+    '<div class="stat-card green"><div class="stat-value">'+totalPurchase+'</div><div class="stat-label">采购项总计</div></div>'+
+    '<div class="stat-card"><div class="stat-value">'+store.library.length+'</div><div class="stat-label">零件库种类</div></div>';
+
+  // Populate category filter
+  var sel = document.getElementById('statsCatFilter');
+  var cats = Array.from(new Set(allBom.map(function(i){return i.category||'未分类';}))).sort();
+  sel.innerHTML = '<option value="">全部分类</option>'+cats.map(function(c){return '<option value="'+esc(c)+'">'+esc(c)+'</option>';}).join('');
+
+  renderStatsTable();
+  renderStatsChart();
+  // Reset single part chart
+  if (singlePartChartInstance) { singlePartChartInstance.destroy(); singlePartChartInstance = null; }
+  document.getElementById('singlePartChart').style.display = 'none';
+  document.getElementById('singlePartPlaceholder').style.display = 'block';
+  document.getElementById('singlePartPlaceholder').textContent = '🔍 输入零件名称搜索，查看其在不同项目中的使用分布';
+  document.getElementById('singlePartSearch').value = '';
+}
+
+function renderStatsTable() {
+  var allBom = collectAllBomData();
+  var freqMap = buildFreqMap(allBom);
+  var searchVal = (document.getElementById('statsSearch').value||'').toLowerCase();
+  var catFilter = document.getElementById('statsCatFilter').value;
+
+  var ranked = Object.values(freqMap).filter(function(r){
+    var ms = !searchVal || (r.name||'').toLowerCase().indexOf(searchVal)>=0 || (r.supplier||'').toLowerCase().indexOf(searchVal)>=0;
+    var mc = !catFilter || r.category === catFilter;
+    return ms && mc;
+  }).sort(function(a,b){return b.count-a.count;}).slice(0,50);
+
+  var tbody = document.getElementById('statsTbody');
+  if (!ranked.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">暂无匹配数据</td></tr>'; return; }
+
+  tbody.innerHTML = ranked.map(function(r,i) {
+    var sug = r.count >= 3 ? '<span class="badge badge-stock">建议备库存</span>' : r.count >= 2 ? '<span class="badge badge-purchase">常用件</span>' : '<span style="font-size:11px;color:var(--text-muted);">按需采购</span>';
+    return '<tr><td style="text-align:center;font-weight:700;color:var(--primary);">'+(i+1)+'</td><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.supplier||'-')+'</td><td style="font-size:12px;">'+esc(r.category||'-')+'</td><td style="font-size:12px;">'+esc(r.model||'-')+'</td><td style="text-align:center;font-weight:600;">'+r.count+'</td><td style="text-align:center;">'+r.projects.size+'</td><td style="text-align:center;font-weight:600;color:var(--accent);">'+r.totalQty+'</td><td>'+sug+'</td></tr>';
+  }).join('');
+}
+
+function renderStatsChart() {
+  var allBom = collectAllBomData();
+  var dim = document.getElementById('statsChartDim').value;
+  var chartType = document.getElementById('statsChartType').value;
+
+  var groups = {};
+  allBom.forEach(function(item){
+    var key = dim === 'category' ? (item.category||'未分类') : (item.supplier||'未知供应商');
+    if (!groups[key]) groups[key] = 0;
+    groups[key] += 1;
+  });
+
+  // Sort by count desc; move small slices (<5%) to "其他"
+  var entries = Object.entries(groups).sort(function(a,b){return b[1]-a[1];});
+  var total = entries.reduce(function(s,e){return s+e[1];}, 0);
+  var labels = [], data = [], colors = [];
+  var colorPalette = ['#2563eb','#f97316','#16a34a','#eab308','#dc2626','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f43f5e','#3b82f6','#a855f7','#14b8a6','#e11d48','#6366f1'];
+  var otherCount = 0;
+  entries.forEach(function(e, i){
+    if (e[1]/total < 0.03 && labels.length >= 8) { otherCount += e[1]; return; }
+    labels.push(e[0]); data.push(e[1]); colors.push(colorPalette[i % colorPalette.length]);
+  });
+  if (otherCount > 0) { labels.push('其他'); data.push(otherCount); colors.push('#94a3b8'); }
+
+  // Destroy previous chart
+  if (statsChartInstance) { statsChartInstance.destroy(); statsChartInstance = null; }
+
+  var ctx = document.getElementById('statsChart').getContext('2d');
+  var isPie = chartType === 'pie' || chartType === 'doughnut';
+
+  statsChartInstance = new Chart(ctx, {
+    type: chartType,
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: colors,
+        borderColor: isPie ? '#fff' : colors,
+        borderWidth: isPie ? 1 : 0,
+        borderRadius: isPie ? 0 : 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: isPie ? 'right' : 'top',
+          labels: { color: getComputedStyle(document.body).getPropertyValue('--text'), font: {size:12}, padding: 12, usePointStyle: true }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var pct = isPie ? ' ('+(ctx.parsed/total*100).toFixed(1)+'%)' : '';
+              return ctx.label + ': ' + ctx.parsed + ' 次' + pct;
+            }
+          }
+        }
+      },
+      scales: isPie ? {} : {
+        x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary'), font:{size:11} }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } },
+        y: { beginAtZero: true, ticks: { precision:0, color: getComputedStyle(document.body).getPropertyValue('--text-secondary'), font:{size:11} }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') }, title: { display: true, text: '零件出现次数' } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// SINGLE PART CROSS-PROJECT CHART
+// ============================================================
+var singlePartChartInstance = null;
+var singlePartACData = [];
+
+function renderSinglePartChart() {
+  var val = document.getElementById('singlePartSearch').value.trim().toLowerCase();
+  var allBom = collectAllBomData();
+  
+  // Build autocomplete suggestions
+  var freqMap = buildFreqMap(allBom);
+  var ranked = Object.values(freqMap).filter(function(r){
+    return !val || (r.name||'').toLowerCase().indexOf(val)>=0 || (r.supplier||'').toLowerCase().indexOf(val)>=0 || (r.model||'').toLowerCase().indexOf(val)>=0;
+  }).slice(0, 10);
+  
+  var acList = document.getElementById('singlePartAC');
+  if (val && ranked.length) {
+    singlePartACData = ranked;
+    acList.innerHTML = ranked.map(function(r,i){
+      return '<div class="autocomplete-item" onmousedown="selectSinglePart('+i+')"><div class="ac-name">'+esc(r.name)+'</div><div class="ac-supplier">供应商：'+esc(r.supplier||'-')+' | 分类：'+esc(r.category||'-')+'</div><div class="ac-model">使用 '+r.count+' 次 / '+r.projects.size+' 个项目</div></div>';
+    }).join('');
+    acList.classList.remove('autocomplete-hidden');
+  } else {
+    acList.classList.add('autocomplete-hidden');
+    // If searching but no results, show placeholder
+    if (val && !ranked.length) {
+      document.getElementById('singlePartPlaceholder').style.display = 'block';
+      document.getElementById('singlePartPlaceholder').textContent = '❌ 未找到匹配的零件';
+    }
+    if (singlePartChartInstance) { singlePartChartInstance.destroy(); singlePartChartInstance = null; }
+    document.getElementById('singlePartChart').style.display = 'none';
+  }
+  
+  // Don't auto-draw chart on input - only on selection
+}
+
+function selectSinglePart(idx) {
+  var r = singlePartACData[idx];
+  if (!r) return;
+  
+  document.getElementById('singlePartAC').classList.add('autocomplete-hidden');
+  document.getElementById('singlePartSearch').value = r.name + ' / ' + (r.supplier||'-');
+  
+  // Collect data: which projects this part appears in
+  var allBom = collectAllBomData();
+  var projMap = {};
+  allBom.forEach(function(item){
+    var key = (item.name||'')+'|||'+(item.supplier||'')+'|||'+(item.model||'');
+    if (key === r.name+'|||'+r.supplier+'|||'+r.model) {
+      var pn = item.projectName || '未知项目';
+      if (!projMap[pn]) projMap[pn] = 0;
+      projMap[pn] += item.qty || 0;
+    }
+  });
+  
+  var entries = Object.entries(projMap).sort(function(a,b){return b[1]-a[1];});
+  
+  if (singlePartChartInstance) { singlePartChartInstance.destroy(); singlePartChartInstance = null; }
+  
+  document.getElementById('singlePartPlaceholder').style.display = 'none';
+  var chartCanvas = document.getElementById('singlePartChart');
+  chartCanvas.style.display = 'block';
+  
+  if (!entries.length) {
+    document.getElementById('singlePartPlaceholder').style.display = 'block';
+    document.getElementById('singlePartPlaceholder').textContent = '该零件尚未在任何项目中使用';
+    chartCanvas.style.display = 'none';
+    return;
+  }
+  
+  var colorPalette = ['#2563eb','#f97316','#16a34a','#eab308','#dc2626','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f43f5e','#3b82f6','#a855f7'];
+  
+  var ctx = chartCanvas.getContext('2d');
+  singlePartChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: entries.map(function(e){return e[0];}),
+      datasets: [{
+        label: r.name + ' 各项目用量',
+        data: entries.map(function(e){return e[1];}),
+        backgroundColor: entries.map(function(_,i){return colorPalette[i%colorPalette.length];}),
+        borderRadius: 4,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        title: {
+          display: true,
+          text: '「' + r.name + '」(' + (r.supplier||'-') + ') 在各项目中的使用量',
+          color: getComputedStyle(document.body).getPropertyValue('--text'),
+          font: {size:13,weight:'bold'}
+        },
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return '合计：' + ctx.parsed.x + ' 个'; }
+          }
+        }
+      },
+      scales: {
+        x: { 
+          beginAtZero: true, 
+          ticks: { precision:0, stepSize:1, color: getComputedStyle(document.body).getPropertyValue('--text-secondary'), font:{size:11} },
+          grid: { color: getComputedStyle(document.body).getPropertyValue('--border') },
+          title: { display: true, text: '数量', color: getComputedStyle(document.body).getPropertyValue('--text-secondary') }
+        },
+        y: {
+          ticks: { color: getComputedStyle(document.body).getPropertyValue('--text'), font:{size:11,weight:'500'} },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+  
+  toast('已显示「'+r.name+'」的跨项目分布', 'success');
+}
+
+// Hide AC on blur
+document.addEventListener('click', function(e){
+  var acEl = document.getElementById('singlePartAC');
+  var inputEl = document.getElementById('singlePartSearch');
+  if (acEl && inputEl && !inputEl.contains(e.target) && !acEl.contains(e.target)) {
+    acEl.classList.add('autocomplete-hidden');
+  }
+});
+
+// ============================================================
+// AUTOCOMPLETE
+// ============================================================
+var acSelected = -1;
+
+function acSearch(val) {
+  hideAC(); if (!val||val.length<1) return;
+  var kw = val.toLowerCase();
+  var matches = store.library.filter(function(l){return (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0;}).slice(0,12);
+  if (!matches.length) return;
+  var list = document.getElementById('acList');
+  list.innerHTML = matches.map(function(m,i){return '<div class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')"><div class="ac-name">'+esc(m.name)+'</div><div class="ac-supplier">供应商：'+esc(m.supplier||'-')+' | 分类：'+esc(m.category||'-')+'</div><div class="ac-model">型号：'+esc(m.model||'-')+'</div></div>';}).join('');
+  list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
+}
+
+function hideAC() { document.getElementById('acList').classList.add('autocomplete-hidden'); }
+
+function selectAC(idx) {
+  var list = document.getElementById('acList'); var m = list._data && list._data[idx]; if (!m) return;
+  document.getElementById('inp-name').value = m.name||'';
+  document.getElementById('inp-supplier').value = m.supplier||'';
+  document.getElementById('inp-model').value = m.model||'';
+  document.getElementById('inp-category').value = m.category||getCategories()[0];
+  document.getElementById('inp-unit').value = m.unit||'个';
+  document.getElementById('inp-taobao').value = m.taobaoLink||'';
+  hideAC(); toast('已填入：'+m.name, 'success');
+}
+
+document.addEventListener('keydown', function(e) {
+  var list = document.getElementById('acList'); if (list.classList.contains('autocomplete-hidden')) return;
+  var items = list.querySelectorAll('.autocomplete-item'); if (!items.length) return;
+  if (e.key==='ArrowDown') { acSelected=Math.min(acSelected+1,items.length-1); highlightAC(items); e.preventDefault(); }
+  if (e.key==='ArrowUp') { acSelected=Math.max(acSelected-1,0); highlightAC(items); e.preventDefault(); }
+  if (e.key==='Enter'&&acSelected>=0) { selectAC(acSelected); e.preventDefault(); }
+  if (e.key==='Escape') hideAC();
+});
+
+function highlightAC(items) {
+  items.forEach(function(el,i){el.classList.toggle('selected',i===acSelected);});
+  if (acSelected>=0) items[acSelected].scrollIntoView({block:'nearest'});
+}
+
+// ============================================================
+// IMPORT / EXPORT JSON
+// ============================================================
+function exportData() {
+  var blob = new Blob([JSON.stringify(store,null,2)],{type:'application/json'});
+  var a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='BOM数据备份_v4_1.json'; a.click();
+  toast('数据已导出', 'success');
+}
+function importData() { document.getElementById('importText').value=''; document.getElementById('modal-import').classList.add('show'); }
+function doImport() {
+  try {
+    var parsed = JSON.parse(document.getElementById('importText').value.trim());
+    // v4.1: normalize imported data (merge brand→supplier if from old version)
+    if (parsed.projects) {
+      Object.values(parsed.projects).forEach(function(p) {
+        p.bom = p.bom.map(function(item) {
+          if (item.brand && !item.supplier) item.supplier = item.brand;
+          delete item.brand; delete item.imageUrl;
+          return item;
+        });
+      });
+      Object.assign(store.projects, parsed.projects);
+    }
+    if (parsed.library&&Array.isArray(parsed.library)) {
+      parsed.library.forEach(function(l){
+        if (l.brand && !l.supplier) l.supplier = l.brand;
+        delete l.brand; delete l.imageUrl;
+        if(!store.library.find(function(x){return x.name===l.name&&x.supplier===l.supplier;}))store.library.push(l);
+      });
+    }
+    if (parsed.categories&&Array.isArray(parsed.categories)) store.categories = parsed.categories;
+    if (parsed.units&&Array.isArray(parsed.units)) store.units = parsed.units;
+    if (parsed.currentProject&&parsed.projects&&parsed.projects[parsed.currentProject]) store.currentProject = parsed.currentProject;
+    saveStore(); closeModal('modal-import'); refreshAll(); toast('导入成功', 'success');
+  } catch(err) { toast('导入失败：JSON格式错误', 'error'); }
+}
+
+// ============================================================
+// CSV PARSER (Tencent Docs exports CSV in GBK encoding)
+// ============================================================
+function parseCSVText(text) {
+  var rows = [];
+  var lines = text.split(/\r?\n/);
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    var cells = [];
+    var cell = '';
+    var inQuote = false;
+    for (var j = 0; j < line.length; j++) {
+      var ch = line[j];
+      if (ch === '"') { inQuote = !inQuote; }
+      else if (ch === ',' && !inQuote) { cells.push(cell); cell = ''; }
+      else { cell += ch; }
+    }
+    cells.push(cell);
+    rows.push(cells);
+  }
+  return rows;
+}
+
+// ============================================================
+// IMPORT FROM TENCENT DOCS EXCEL
+// ============================================================
+function importFromTencentDocsFile(input) {
+  var file = input.files[0]; if (!file) return;
+
+  var isCSV = /\.csv$/i.test(file.name);
+  var reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      var rows;
+      if (isCSV) {
+        // CSV: Tencent Docs exports in GBK encoding. Decode bytes with TextDecoder('gbk'),
+        // then parse CSV manually (SheetJS corrupts Chinese characters with type:'string').
+        var bytes = new Uint8Array(evt.target.result);
+        var text = new TextDecoder('gbk').decode(bytes);
+        rows = parseCSVText(text);
+      } else {
+        // XLSX: use SheetJS binary parser
+        var wb = XLSX.read(evt.target.result, {type:'array'});
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      }
+
+      if (!rows || rows.length < 4) { toast('文件格式不符，至少需要4行（项目名/清单/表头/数据）','error'); input.value=''; return; }
+
+      // Step 1: Find header row — scan for "序号"
+      var headerIdx = -1;
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i]; if (!r) continue;
+        for (var j = 0; j < r.length; j++) {
+          if (String(r[j]||'').trim() === '序号') { headerIdx = i; break; }
+        }
+        if (headerIdx >= 0) break;
+      }
+      if (headerIdx < 0) { toast('未找到表头行（缺少"序号"列），请检查格式','error'); input.value=''; return; }
+
+      // Step 2: Find project name — walk backwards from header row
+      var projName = '';
+      for (var i = headerIdx - 1; i >= 0; i--) {
+        var rowI = rows[i]; if (!rowI) continue;
+        var firstCell = String(rowI[0]||'').trim();
+        if (!firstCell) continue;
+        // Skip known non-project rows
+        if (/^-+$/.test(firstCell)) continue;
+        if (firstCell === '清单' || firstCell === '零部件统计清单' || firstCell === 'MERKRJ') continue;
+        // Project names typically start with a 4-digit code like "2607 "
+        if (/^\d{4}\s/.test(firstCell)) { projName = firstCell; break; }
+        // Fallback: take the first non-skippable row
+        if (!projName) { projName = firstCell; break; }
+      }
+      if (!projName) { toast('未找到项目名称，请检查第一列中是否有项目号','error'); input.value=''; return; }
+
+      // Step 3: Map header columns
+      var headerRow = rows[headerIdx];
+      var colMap = {};
+      headerRow.forEach(function(h, i) {
+        var hdr = String(h||'').trim();
+        if (hdr.indexOf('序号')===0 || hdr==='序号') colMap.seq = i;
+        else if (hdr==='供应商') colMap.supplier = i;
+        else if (hdr==='名称' && hdr!=='名称型号') colMap.name = i;
+        else if (hdr==='名称型号' || hdr.indexOf('规格型号')>=0) colMap.model = i;
+        else if (hdr==='数量') colMap.qty = i;
+        else if (hdr==='单位') colMap.unit = i;
+        else if (hdr==='库存') colMap.stock = i;
+        else if (hdr==='状态') colMap.status = i;
+        else if (hdr==='实采' || hdr==='实采数量') colMap.actualPurchase = i;
+        else if (hdr==='到货' || hdr==='到货状态') colMap.arrived = i;
+        else if (hdr==='备注') colMap.remark = i;
+        else if (hdr.indexOf('淘宝')>=0 || hdr.indexOf('链接')>=0) colMap.taobao = i;
+      });
+
+      if (colMap.name===undefined) { toast('未找到"名称"列，请检查表格格式','error'); input.value=''; return; }
+
+      // Step 3.5: Detect taobao link column from data (CSV exports may have a 12th column)
+      if (colMap.taobao===undefined) {
+        var headerColCount = headerRow.length;
+        for (var dr = headerIdx + 1; dr < Math.min(headerIdx + 10, rows.length); dr++) {
+          var drow = rows[dr]; if (!drow || drow.length <= headerColCount) continue;
+          var extra = String(drow[headerColCount]||'').trim();
+          if (extra && (extra.indexOf('taobao.com')>=0 || extra.indexOf('tmall.com')>=0 || extra.indexOf('item.taobao')>=0)) {
+            colMap.taobao = headerColCount; break;
+          }
+        }
+      }
+
+      // Step 4: Parse data rows (from headerIdx+1 onwards)
+      var bom = [];
+      var currentCategory = '';
+
+      for (var r = headerIdx + 1; r < rows.length; r++) {
+        var row = rows[r];
+        if (!row || !row.length) continue;
+
+        var firstCell = String(row[0]||'').trim();
+
+        // Category header detection: first cell has text, all other columns empty
+        var hasOtherCols = false;
+        for (var c = 1; c < Math.min(row.length, 12); c++) {
+          if (String(row[c]||'').trim()) { hasOtherCols = true; break; }
+        }
+
+        if (firstCell && !hasOtherCols) {
+          currentCategory = firstCell;
+          continue;
+        }
+
+        // Skip rows without a name value
+        var entryName = colMap.name!==undefined ? String(row[colMap.name]||'').trim() : '';
+        if (!entryName) continue;
+
+        var entry = {
+          id: e(),
+          category: currentCategory || getCategories()[0],
+          name: entryName,
+          supplier: colMap.supplier!==undefined ? String(row[colMap.supplier]||'').trim() : '',
+          model: colMap.model!==undefined ? String(row[colMap.model]||'').trim() : '',
+          qty: parseInt(row[colMap.qty]) || 1,
+          unit: colMap.unit!==undefined ? String(row[colMap.unit]||'').trim() : '个',
+          stock: parseInt(row[colMap.stock]) || 0,
+          status: colMap.status!==undefined ? String(row[colMap.status]||'').trim() : '采购',
+          actualPurchase: parseInt(row[colMap.actualPurchase]) || 0,
+          arrived: colMap.arrived!==undefined ? String(row[colMap.arrived]||'').trim() : '',
+          taobaoLink: colMap.taobao!==undefined ? String(row[colMap.taobao]||'').trim() : '',
+          remark: colMap.remark!==undefined ? String(row[colMap.remark]||'').trim() : ''
+        };
+
+        // Auto-set status & actualPurchase
+        if (!entry.status || entry.status==='') {
+          entry.status = entry.stock >= entry.qty ? '库存' : '采购';
+        }
+        if (!entry.actualPurchase && entry.status==='采购') {
+          entry.actualPurchase = Math.max(0, entry.qty - entry.stock);
+        }
+
+        bom.push(entry);
+      }
+
+      if (!bom.length) { toast('未解析到数据行，请检查表格格式','error'); input.value=''; return; }
+
+      // Check for duplicate project name
+      var existingId = null;
+      Object.keys(store.projects).forEach(function(k) {
+        if (store.projects[k].name === projName) existingId = k;
+      });
+      if (existingId) {
+        if (!confirm('项目「'+projName+'」已存在，是否覆盖其BOM清单？')) { input.value=''; return; }
+        store.projects[existingId].bom = bom;
+        store.currentProject = existingId;
+      } else {
+        var pid = e();
+        store.projects[pid] = {id: pid, name: projName, bom: bom, createdAt: new Date().toISOString()};
+        store.currentProject = pid;
+      }
+
+      saveStore(); refreshAll();
+      // Also add unique parts to library
+      var libAdded = 0;
+      bom.forEach(function(item) {
+        if (!store.library.find(function(l){return l.name===item.name&&l.supplier===item.supplier;})) {
+          store.library.push({id:e(),name:item.name,supplier:item.supplier,model:item.model,unit:item.unit,category:item.category,taobaoLink:item.taobaoLink});
+          libAdded++;
+        }
+      });
+      saveStore(); refreshAll();
+      showPage('page-bom');
+      toast('导入成功：「'+projName+'」共 '+bom.length+' 个零件'+(libAdded>0?' （新增 '+libAdded+' 个零件到库）':''), 'success');
+    } catch(err) { toast('导入失败：'+err.message, 'error'); }
+    input.value = '';
+  };
+  // CSV: read as binary (GBK), decoded manually; XLSX: read as binary
+  reader.readAsArrayBuffer(file);
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+  overlay.addEventListener('click', function(e) { if (e.target===this) this.classList.remove('show'); });
+});
+</script>
+</body>
+</html>
