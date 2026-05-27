@@ -652,7 +652,27 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       </div>
     </div>
   </div>
+  <div class="card">
+    <div class="card-header"><div class="card-header-left">💾 数据备份与恢复</div></div>
+    <div class="card-body">
+      <div class="notice notice-warn">⚠️ 恢复备份将覆盖当前所有数据（项目、零件库、用户、设置等），请谨慎操作。建议恢复前先备份当前数据。</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="backupStore()" style="min-width:120px;">📥 导出备份</button>
+        <button class="btn btn-outline" onclick="document.getElementById('restoreFileInput').click()" style="min-width:120px;">📤 恢复备份</button>
+        <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="handleRestoreFile(this)">
+      </div>
+      <div id="backupInfo" style="margin-top:10px;font-size:12px;color:var(--text-secondary);"></div>
+    </div>
+  </div>
 </div>
+
+<!-- ========== RESTORE CONFIRM MODAL ========== -->
+<div class="modal-overlay" id="modal-restore"><div class="modal">
+  <div class="modal-title">⚠️ 确认恢复备份？</div>
+  <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;" id="restoreConfirmInfo"></div>
+  <div class="notice notice-warn" style="margin-top:10px;font-size:12px;">此操作将覆盖当前所有数据，不可撤销！<br>建议先 <a href="javascript:closeModal('modal-restore');backupStore();" style="color:var(--primary);text-decoration:underline;">导出当前数据备份</a>。</div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-restore')">取消</button><button class="btn btn-danger" onclick="confirmRestore()">确认恢复</button></div>
+</div></div>
 
 <!-- ========== USERS PAGE ========== -->
 <div class="page" id="page-users">
@@ -872,6 +892,109 @@ function loadStore() {
 }
 
 function saveStore() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+
+// ============================================================
+// BACKUP & RESTORE
+// ============================================================
+function backupStore() {
+  var raw = localStorage.getItem(STORE_KEY);
+  if (!raw) { toast('没有可备份的数据', 'warn'); return; }
+  try {
+    var data = JSON.parse(raw);
+    // Add backup metadata
+    data._backupMeta = {
+      version: data.version || '5.0',
+      backupTime: new Date().toISOString(),
+      projectCount: Object.keys(data.projects || {}).length,
+      libCount: (data.lib || []).length,
+      userCount: (data.users || []).length
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'BOM_backup_' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('备份已下载', 'success');
+    // Update info text
+    var el = document.getElementById('backupInfo');
+    if (el) el.textContent = '上次备份：' + new Date().toLocaleString('zh-CN') + ' | 项目数：' + data._backupMeta.projectCount;
+  } catch(e) {
+    toast('备份失败：' + e.message, 'error');
+  }
+}
+
+var pendingRestoreData = null;
+
+function handleRestoreFile(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (!file.name.endsWith('.json')) { toast('请选择 .json 格式的备份文件', 'warn'); input.value = ''; return; }
+
+  var reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      var data = JSON.parse(evt.target.result);
+      if (!data.version && !data.projects && !data.categories) {
+        toast('无效的备份文件格式', 'error'); input.value = ''; return;
+      }
+      pendingRestoreData = data;
+
+      var meta = data._backupMeta || {};
+      var infoEl = document.getElementById('restoreConfirmInfo');
+      var info = '备份信息：<br>';
+      info += '• 数据版本：' + (data.version || '未知') + '<br>';
+      if (meta.backupTime) info += '• 备份时间：' + new Date(meta.backupTime).toLocaleString('zh-CN') + '<br>';
+      info += '• 项目数量：' + (meta.projectCount !== undefined ? meta.projectCount : Object.keys(data.projects||{}).length) + '<br>';
+      info += '• 零件库：' + (meta.libCount !== undefined ? meta.libCount : (data.lib||[]).length) + ' 条<br>';
+      info += '• 用户数：' + (meta.userCount !== undefined ? meta.userCount : (data.users||[]).length) + ' 人';
+      infoEl.innerHTML = info;
+
+      document.getElementById('modal-restore').classList.add('show');
+    } catch(e) {
+      toast('备份文件解析失败：' + e.message, 'error');
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function confirmRestore() {
+  if (!pendingRestoreData) return;
+  try {
+    // Clean metadata before saving
+    var clean = JSON.parse(JSON.stringify(pendingRestoreData));
+    delete clean._backupMeta;
+    // Ensure users exist (migration safety)
+    if (!clean.users || !clean.users.length) {
+      clean.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+    }
+    localStorage.setItem(STORE_KEY, JSON.stringify(clean));
+    closeModal('modal-restore');
+    toast('数据已恢复，即将刷新页面...', 'success');
+    setTimeout(function(){ location.reload(); }, 1500);
+  } catch(e) {
+    toast('恢复失败：' + e.message, 'error');
+  }
+  pendingRestoreData = null;
+}
+
+// Update backup info when settings page is shown
+function updateBackupInfo() {
+  var el = document.getElementById('backupInfo');
+  if (!el) return;
+  var raw = localStorage.getItem(STORE_KEY);
+  if (!raw) { el.textContent = ''; return; }
+  try {
+    var data = JSON.parse(raw);
+    var projCount = Object.keys(data.projects || {}).length;
+    var libCount = (data.lib || []).length;
+    el.textContent = '当前数据：版本 v' + (data.version||'?') + ' | ' + projCount + ' 个项目 | ' + libCount + ' 条零件库';
+  } catch(e) {
+    el.textContent = '';
+  }
+}
 
 // ============================================================
 // HELPERS
@@ -1111,6 +1234,7 @@ function showPage(id) {
   if (tabMap[id]) document.getElementById(tabMap[id]).classList.add('active');
   if (id === 'page-stats') renderStats();
   if (id === 'page-users') renderUsersTable();
+  if (id === 'page-settings') updateBackupInfo();
   if (id === 'page-purchase') renderSavedPurchaseList();
 }
 
