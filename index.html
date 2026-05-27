@@ -317,12 +317,12 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.0 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.1 · 请登录后使用</div>
     </div>
     <label>用户名</label>
-    <input type="text" id="loginUser" placeholder="请输入用户名" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
     <label>密码</label>
-    <input type="password" id="loginPass" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">登 录</button>
     <div class="login-err" id="loginErr"></div>
   </div>
@@ -896,13 +896,35 @@ function loadStore() {
       }
     }
   } catch(e) {
-    console.warn('Load store failed, using defaults:', e);
-    // Reset store to safe defaults on load failure
-    store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+    console.warn('Load store failed, resetting to defaults:', e);
+    // Fully reset store on any load failure, then persist clean state
+    store = {
+      version: 5.0,
+      currentProject: null,
+      projects: {},
+      library: [],
+      categories: [...DEFAULT_CATEGORIES],
+      units: [...DEFAULT_UNITS],
+      darkMode: false,
+      libView: 'card',
+      users: JSON.parse(JSON.stringify(DEFAULT_USERS))
+    };
+    saveStore();
+    toast('检测到数据异常，已重置为初始状态', 'warn');
   }
 }
 
-function saveStore() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+function saveStore() {
+  try {
+    var json = JSON.stringify(store);
+    localStorage.setItem(STORE_KEY, json);
+    return true;
+  } catch(e) {
+    console.error('Save store failed:', e);
+    toast('数据保存失败：' + (e.name === 'QuotaExceededError' ? '存储空间不足，请清理浏览器数据' : e.message), 'error');
+    return false;
+  }
+}
 
 // ============================================================
 // BACKUP & RESTORE
@@ -1326,7 +1348,8 @@ function ensureDefaultAdmin() {
   var hasAdmin = store.users.some(function(u){ return u.id === 'u_admin' && u.role === 'admin'; });
   if (!hasAdmin) {
     store.users.unshift(JSON.parse(JSON.stringify(DEFAULT_USERS[0])));
-    console.warn('Default admin account was missing, re-added');
+    saveStore();
+    console.warn('Default admin account was missing, re-added and persisted');
   }
 }
 
@@ -1505,10 +1528,24 @@ function createProject() {
   toast('项目「'+name+'」创建成功', 'success');
 }
 function deleteProject(id) {
-  if (!confirm('确认删除项目「'+store.projects[id].name+'」？此操作不可恢复。')) return;
+  var projName = store.projects[id] ? store.projects[id].name : '未知项目';
+  if (!confirm('确认删除项目「'+projName+'」？此操作不可恢复。')) return;
   delete store.projects[id];
   if (store.currentProject === id) store.currentProject = Object.keys(store.projects)[0] || null;
-  saveStore(); refreshAll(); toast('项目已删除');
+  if (!saveStore()) { toast('删除失败：数据保存异常，请重试', 'error'); return; }
+  // Verify deletion was actually persisted
+  var savedRaw = localStorage.getItem(STORE_KEY);
+  if (savedRaw) {
+    try {
+      var saved = JSON.parse(savedRaw);
+      if (saved.projects && saved.projects[id]) {
+        toast('删除失败：数据未能持久化，请重试', 'error');
+        store.projects[id] = saved.projects[id]; // restore in memory
+        return;
+      }
+    } catch(verr) { /* verification parse error, trust the save */ }
+  }
+  refreshAll(); toast('项目已删除');
 }
 function renderProjectsTable() {
   var tbody = document.getElementById('projectsTbody');
