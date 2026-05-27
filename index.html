@@ -195,6 +195,13 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .lib-view-toggle{display:flex;gap:3px}
 .view-btn{padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card-bg);color:var(--text-secondary);cursor:pointer;font-size:12px;transition:all .12s}
 .view-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.lib-check{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);margin:0}
+.lib-check-cell{width:30px;text-align:center;padding:8px 4px!important}
+.lib-card-check{position:absolute;top:8px;right:8px;width:18px;height:18px;cursor:pointer;accent-color:var(--primary);z-index:1}
+.lib-card-wrap{position:relative}
+#batchDeleteBtn{display:none;gap:4px;align-items:center}
+#batchDeleteBtn.show{display:inline-flex}
+#batchDeleteCount{font-size:12px;background:var(--danger);color:#fff;border-radius:10px;padding:0 7px;height:18px;line-height:18px;font-weight:600}
 .lib-table{width:100%;border-collapse:collapse;font-size:13px}
 .lib-table thead th{background:var(--th-bg);color:var(--th-text);padding:7px 10px;text-align:left;font-weight:500;position:sticky;top:0}
 .lib-table tbody tr{transition:background .08s}
@@ -525,6 +532,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           <button class="view-btn active" id="viewBtnCard" onclick="setLibView('card')">卡片</button>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openLibModal()">+ 添加零件</button>
+        <button class="btn btn-outline btn-sm" onclick="batchDeleteLib()">
+          🗑 批量删除
+          <span id="batchDeleteCount" style="display:none;">0</span>
+        </button>
         <button class="btn btn-outline btn-sm" onclick="exportLibTemplate()">下载导入模板</button>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('libFileInput').click()">批量导入Excel</button>
         <input type="file" id="libFileInput" accept=".xlsx,.xls" style="display:none" onchange="importLibExcel(this)">
@@ -542,7 +553,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div id="libCardView" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;"></div>
   <div id="libListView" style="display:none;" class="card">
     <div class="table-wrap"><table class="lib-table"><thead><tr>
-      <th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th style="width:70px;" class="no-print">操作</th>
+      <th style="width:32px;" class="no-print"><input type="checkbox" class="lib-check" id="libSelectAll" onchange="toggleLibSelectAll(this)" title="全选"></th><th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th style="width:70px;" class="no-print">操作</th>
     </tr></thead><tbody id="libListTbody"></tbody></table></div>
   </div>
 </div>
@@ -1823,8 +1834,9 @@ function renderLibrary() {
     document.getElementById('viewBtnCard').classList.add('active'); document.getElementById('viewBtnList').classList.remove('active');
     if (!filtered.length) { cardEl.innerHTML = '<div class="no-data" style="grid-column:1/-1;padding:36px;">没有匹配的零件</div>'; return; }
     cardEl.innerHTML = filtered.map(function(l) {
-      return '<div style="background:var(--card-bg);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);">'+
-        '<div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:3px;">'+esc(l.name)+'</div>'+
+      return '<div class="lib-card-wrap" style="background:var(--card-bg);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);">'+
+        '<input type="checkbox" class="lib-card-check" data-lib-id="'+l.id+'" onclick="event.stopPropagation();updateBatchDeleteBtn()" title="选择此零件">'+
+        '<div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:3px;padding-right:24px;">'+esc(l.name)+'</div>'+
         '<div style="font-size:11px;color:var(--text-secondary);">供应商：'+esc(l.supplier||'未知')+'</div>'+
         '<div style="font-size:11px;color:var(--primary);">'+esc(l.model||'-')+'</div>'+
         '<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">单位：'+esc(l.unit||'-')+' | 分类：'+esc(l.category||'-')+'</div>'+
@@ -1834,9 +1846,10 @@ function renderLibrary() {
     cardEl.style.display = 'none'; document.getElementById('libListView').style.display = 'block';
     document.getElementById('viewBtnList').classList.add('active'); document.getElementById('viewBtnCard').classList.remove('active');
     var tbody = document.getElementById('libListTbody');
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">没有匹配的零件</td></tr>'; return; }
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data">没有匹配的零件</td></tr>'; return; }
     tbody.innerHTML = filtered.map(function(l,i) {
       return '<tr>'+
+        '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
         '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
         '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
         '<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td>'+
@@ -1844,6 +1857,10 @@ function renderLibrary() {
         '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="editLib(\''+l.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteLib(\''+l.id+'\')">删除</button></div></td></tr>';
     }).join('');
   }
+  // Reset selection state after render
+  var sa = document.getElementById('libSelectAll');
+  if (sa) { sa.checked = false; sa.indeterminate = false; }
+  updateBatchDeleteBtn();
 }
 
 function clearLibFilter() { document.getElementById('libSearch').value=''; document.getElementById('libCatFilter').value=''; renderLibrary(); }
@@ -1899,6 +1916,61 @@ function deleteLib(id) {
   if (!l || !confirm('确认从零件库删除「'+l.name+'」？')) return;
   store.library = store.library.filter(function(x){return x.id!==id;});
   saveStore(); renderLibrary(); updateBadges(); renderQuickLib(); toast('已删除');
+}
+
+// Multi-select delete for library
+var _libSelected = {};
+
+function getLibSelectedIds() {
+  var ids = [];
+  var cb = document.querySelectorAll('[data-lib-id]');
+  cb.forEach(function(el) { if (el.checked) ids.push(el.getAttribute('data-lib-id')); });
+  return ids;
+}
+
+function toggleLibSelectAll(el) {
+  var cb = document.querySelectorAll('#libListTbody .lib-check');
+  cb.forEach(function(c) { c.checked = el.checked; });
+  updateBatchDeleteBtn();
+}
+
+function updateBatchDeleteBtn() {
+  var ids = getLibSelectedIds();
+  var countEl = document.getElementById('batchDeleteCount');
+  if (ids.length > 0) {
+    countEl.style.display = 'inline';
+    countEl.textContent = ids.length;
+  } else {
+    countEl.style.display = 'none';
+    countEl.textContent = '0';
+  }
+  // Sync header checkbox state
+  var selectAll = document.getElementById('libSelectAll');
+  if (selectAll) {
+    var allCb = document.querySelectorAll('#libListTbody .lib-check');
+    var checkedCb = document.querySelectorAll('#libListTbody .lib-check:checked');
+    if (allCb.length > 0 && checkedCb.length === allCb.length) {
+      selectAll.checked = true;
+      selectAll.indeterminate = false;
+    } else if (checkedCb.length > 0) {
+      selectAll.checked = false;
+      selectAll.indeterminate = true;
+    } else {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    }
+  }
+}
+
+function batchDeleteLib() {
+  var ids = getLibSelectedIds();
+  if (!ids.length) { toast('请先勾选要删除的零件', 'warn'); return; }
+  if (!confirm('确认批量删除零件库中的 ' + ids.length + ' 个零件？\n此操作不可撤销！')) return;
+  var idSet = {};
+  ids.forEach(function(id) { idSet[id] = true; });
+  store.library = store.library.filter(function(x) { return !idSet[x.id]; });
+  saveStore(); renderLibrary(); updateBadges(); renderQuickLib();
+  toast('已批量删除 ' + ids.length + ' 个零件', 'success');
 }
 
 // ============================================================
