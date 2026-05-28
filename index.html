@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.4.1</title>
+<title>BOM 智能管理工具 v5.4.2</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -331,10 +331,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .drag-list{list-style:none;padding:0;margin:0}
 .drag-list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:4px;transition:all .12s;cursor:default;font-size:13px}
 .drag-list-item:hover{background:var(--primary-bg)}
-.drag-list-item .drag-grip{cursor:grab;color:var(--text-muted);font-size:16px;line-height:1;user-select:none;padding:0 2px}
-.drag-list-item .drag-grip:active{cursor:grabbing}
-.drag-list-item.dragging{opacity:.4;border-style:dashed}
-.drag-list-item.drag-over{border-color:var(--accent);box-shadow:0 0 6px rgba(249,115,22,.2);transform:translateY(1px)}
+.drag-list-item .item-no{display:inline-block;width:24px;text-align:center;font-size:11px;color:var(--text-muted);flex-shrink:0}
+.drag-list-item .sort-btns{display:inline-flex;flex-direction:column;gap:0;margin-right:4px;flex-shrink:0}
+.drag-list-item .sort-btn{width:16px;height:14px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-secondary);cursor:pointer;font-size:9px;line-height:1;display:flex;align-items:center;justify-content:center;border-radius:2px;transition:all .1s}
+.drag-list-item .sort-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.drag-list-item .sort-btn:disabled{opacity:.2;cursor:default;pointer-events:none}
 .drag-list-item .item-name{flex:1;font-weight:500}
 .drag-list-item .del-btn{color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px;opacity:.7;transition:opacity .12s}
 .drag-list-item .del-btn:hover{opacity:1}
@@ -353,12 +354,12 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .lib-checkboxes input[type=checkbox]{width:14px;height:14px;accent-color:var(--primary);cursor:pointer}
 
 /* AUTOCOMPLETE TABLE */
-.ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:auto;box-shadow:var(--shadow-md);min-width:580px}
-.ac-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
-.ac-table thead th{background:var(--primary);color:#fff;padding:6px 8px;text-align:left;font-weight:500;position:sticky;top:0;z-index:1;font-size:11px}
-.ac-table tbody td{padding:6px 8px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .08s}
+.ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md);min-width:360px}
+.ac-table{width:100%;border-collapse:collapse;font-size:13px}
+.ac-table thead th{background:var(--primary);color:#fff;padding:5px 10px;text-align:left;font-weight:500;position:sticky;top:0;z-index:1;font-size:12px}
+.ac-table tbody td{padding:5px 10px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .08s;white-space:nowrap}
 .ac-table tbody tr:hover,.ac-table tbody tr.selected{background:var(--primary-bg)}
-.ac-table tbody tr .ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px}
+.ac-table tbody tr .ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;margin-left:6px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -1248,9 +1249,16 @@ function populateSelects() {
 function renderCategoryManager() {
   var cats = getCategories();
   var container = document.getElementById('catDragList');
+  if (!cats.length) { container.innerHTML = '<li class="drag-list-item" style="justify-content:center;color:var(--text-muted);">暂无分类，请添加</li>'; return; }
   container.innerHTML = cats.map(function(c, i) {
-    return '<li class="drag-list-item" draggable="true" data-cat-idx="'+i+'" ondragstart="listDragStart(event)" ondragover="listDragOver(event)" ondragleave="listDragLeave(event)" ondrop="listDrop(event,\'category\')">'+
-      '<span class="drag-grip" title="拖拽排序">⋮⋮</span>'+
+    var upDisabled = i===0 ? ' disabled' : '';
+    var downDisabled = i===cats.length-1 ? ' disabled' : '';
+    return '<li class="drag-list-item">'+
+      '<span class="item-no">'+(i+1)+'</span>'+
+      '<span class="sort-btns">'+
+        '<button class="sort-btn" title="上移" onclick="moveCategory(-1,'+i+')"'+upDisabled+'>▲</button>'+
+        '<button class="sort-btn" title="下移" onclick="moveCategory(1,'+i+')"'+downDisabled+'>▼</button>'+
+      '</span>'+
       '<span class="item-name">'+esc(c)+'</span>'+
       '<span class="del-btn" title="删除" onclick="deleteCategory('+i+')">×</span></li>';
   }).join('');
@@ -1258,44 +1266,39 @@ function renderCategoryManager() {
 
 function renderUnitManager() {
   var container = document.getElementById('unitDragList');
+  if (!store.units.length) { container.innerHTML = '<li class="drag-list-item" style="justify-content:center;color:var(--text-muted);">暂无单位，请添加</li>'; return; }
   container.innerHTML = store.units.map(function(u, i) {
-    return '<li class="drag-list-item" draggable="true" data-unit-idx="'+i+'" ondragstart="listDragStart(event)" ondragover="listDragOver(event)" ondragleave="listDragLeave(event)" ondrop="listDrop(event,\'unit\')">'+
-      '<span class="drag-grip" title="拖拽排序">⋮⋮</span>'+
+    var upDisabled = i===0 ? ' disabled' : '';
+    var downDisabled = i===store.units.length-1 ? ' disabled' : '';
+    return '<li class="drag-list-item">'+
+      '<span class="item-no">'+(i+1)+'</span>'+
+      '<span class="sort-btns">'+
+        '<button class="sort-btn" title="上移" onclick="moveUnit(-1,'+i+')"'+upDisabled+'>▲</button>'+
+        '<button class="sort-btn" title="下移" onclick="moveUnit(1,'+i+')"'+downDisabled+'>▼</button>'+
+      '</span>'+
       '<span class="item-name">'+esc(u)+'</span>'+
       '<span class="del-btn" title="删除" onclick="deleteUnit('+i+')">×</span></li>';
   }).join('');
 }
 
-// Generic list drag for both categories and units
-var listDragIdx = -1;
-function listDragStart(e) {
-  var el = e.target.closest('.drag-list-item'); if (!el) return;
-  listDragIdx = Array.from(el.parentNode.children).indexOf(el);
-  e.dataTransfer.setData('text/plain', el.querySelector('.item-name').textContent);
-  e.dataTransfer.effectAllowed = 'move';
-  el.classList.add('dragging');
-}
-function listDragOver(e) {
-  e.preventDefault();
-  var el = e.target.closest('.drag-list-item'); if (el) el.classList.add('drag-over');
-}
-function listDragLeave(e) {
-  var el = e.target.closest('.drag-list-item'); if (el) el.classList.remove('drag-over');
-}
-function listDrop(e, type) {
-  e.preventDefault();
-  var el = e.target.closest('.drag-list-item'); if (!el) return;
-  el.classList.remove('drag-over');
-  document.querySelectorAll('.drag-list-item').forEach(function(li){li.classList.remove('dragging');});
-  var toIdx = Array.from(el.parentNode.children).indexOf(el);
-  if (listDragIdx < 0 || toIdx < 0 || listDragIdx === toIdx) return;
-  var arr = type === 'category' ? store.categories : store.units;
-  var item = arr.splice(listDragIdx, 1)[0];
-  arr.splice(toIdx, 0, item);
+// Numbered sort for categories and units
+function moveCategory(dir, idx) {
+  var arr = store.categories;
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  var item = arr.splice(idx, 1)[0];
+  arr.splice(newIdx, 0, item);
   saveStore();
-  if (type === 'category') { renderCategoryManager(); populateSelects(); refreshQuickCatFilter(); }
-  else { renderUnitManager(); populateSelects(); }
-  toast('排序已更新', 'success');
+  renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
+}
+function moveUnit(dir, idx) {
+  var arr = store.units;
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  var item = arr.splice(idx, 1)[0];
+  arr.splice(newIdx, 0, item);
+  saveStore();
+  renderUnitManager(); populateSelects();
 }
 
 function addCategory() {
@@ -3171,17 +3174,13 @@ function acSearch(val) {
   matches = matches.slice(0, 30);
   if (!matches.length) return;
   var list = document.getElementById('acList');
-  // Wide table showing complete part info
-  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:25%;">名称</th><th style="width:14%;">供应商</th><th style="width:28%;">型号规格</th><th style="width:12%;">分类</th><th style="width:8%;">单位</th><th style="width:13%;">来源</th></tr></thead><tbody>'+
+  // Compact table: name + model only, one line per part
+  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:45%;">名称</th><th style="width:55%;">型号规格</th></tr></thead><tbody>'+
     matches.map(function(m,i){
-      var srcLabel = m._src==='local' ? '<span class="ac-local-badge">本项目</span>' : '<span style="font-size:11px;color:var(--text-muted);">通用库</span>';
+      var srcBadge = m._src==='local' ? ' <span class="ac-local-badge">本项目</span>' : '';
       return '<tr class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')">'+
-        '<td style="font-weight:600;font-size:13px;">'+esc(m.name)+'</td>'+
-        '<td style="font-size:12px;">'+esc(m.supplier||'-')+'</td>'+
-        '<td style="font-size:12px;color:var(--primary);">'+esc(m.model||'-')+'</td>'+
-        '<td style="font-size:12px;">'+esc(m.category||'-')+'</td>'+
-        '<td style="text-align:center;font-size:12px;">'+esc(m.unit||'个')+'</td>'+
-        '<td>'+srcLabel+'</td></tr>';
+        '<td style="font-weight:600;">'+esc(m.name)+srcBadge+'</td>'+
+        '<td style="color:var(--primary);">'+esc(m.model||'-')+'</td></tr>';
     }).join('')+'</tbody></table>';
   list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
 }
