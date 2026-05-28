@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.8</title>
+<title>BOM 智能管理工具 v5.9</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -369,22 +369,33 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .drag-list-item .del-btn{color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px;opacity:.7;transition:opacity .12s}
 .drag-list-item .del-btn:hover{opacity:1}
 
-/* OPTIMIZED ADD FORM */
-.add-form-sections{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width:900px){.add-form-sections{grid-template-columns:1fr}}
-.add-form-section{background:var(--bg);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
-.add-form-section h4{font-size:12px;font-weight:600;color:var(--primary);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
-.add-form-section h4 .sec-icon{font-size:14px}
-.add-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.add-form-grid .form-group label{font-size:11px}
-.add-form-grid .form-control{font-size:12px;padding:5px 8px}
-.add-form-col{display:flex;flex-direction:column;gap:0}
-@media (max-width:640px) {
-  .add-form-grid{grid-template-columns:1fr;gap:0}
+/* OPTIMIZED ADD FORM — Plan C: Horizontal Labels */
+.add-form-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.add-form-row+.add-form-row{margin-top:6px}
+.add-form-field{display:flex;align-items:center;gap:3px;min-width:0}
+.add-form-field label{font-size:11px;color:var(--text-secondary);white-space:nowrap;font-weight:500;flex-shrink:0}
+.add-form-field .form-control{font-size:12px;padding:3px 6px;height:28px;min-width:0}
+.add-form-field select.form-control{padding:3px 4px}
+.form-field-name{flex:2.2;min-width:150px}
+.form-field-supplier{flex:1.2;min-width:100px}
+.form-field-model{flex:2;min-width:150px}
+.form-field-category{flex:0.8;min-width:70px}
+.form-field-unit{flex:0.6;min-width:55px}
+.form-field-qty{flex:0.5;min-width:55px}
+.form-field-stock{flex:0.5;min-width:55px}
+.form-field-status{flex:0.8;min-width:75px}
+.form-field-arrived{flex:0.8;min-width:75px}
+.form-field-taobao{flex:1.8;min-width:140px}
+.form-field-remark{flex:1.4;min-width:110px}
+.form-field-lib{flex:1.2;min-width:140px}
+.form-field-lib .lib-inline{display:flex;align-items:center;gap:8px;height:28px}
+.lib-inline label{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--text-secondary);cursor:pointer;white-space:nowrap}
+.lib-inline input[type=checkbox]{width:13px;height:13px;accent-color:var(--primary);cursor:pointer;margin:0}
+.add-form-field .autocomplete-wrap{position:relative;flex:1;min-width:0}
+.add-form-field .autocomplete-wrap .form-control{width:100%}
+@media (max-width:900px){
+  .add-form-field{flex:1 1 auto;min-width:90px}
 }
-.lib-checkboxes{display:flex;flex-direction:column;gap:3px;margin-top:4px}
-.lib-checkboxes label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer}
-.lib-checkboxes input[type=checkbox]{width:14px;height:14px;accent-color:var(--primary);cursor:pointer}
 
 /* AUTOCOMPLETE TABLE */
 .ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md);min-width:360px}
@@ -526,42 +537,65 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <div class="card-header-left">✏️ 手动添加零件</div>
           </div>
           <div class="card-body" id="addFormBody" style="font-size:12px;">
-            <div class="notice notice-info" style="font-size:11px;padding:6px 10px;margin-bottom:10px;">输入名称首字母即可从零件库匹配</div>
-            <div class="add-form-grid">
-              <!-- LEFT COLUMN -->
-              <div class="add-form-col">
-                <div class="form-group" style="margin-bottom:8px;"><label>名称 *</label>
-                  <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="首字母快速检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off" style="font-size:12px;"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
-                </div>
-                <div class="form-group" style="margin-bottom:8px;"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商..." style="font-size:12px;"></div>
-                <div class="form-group" style="margin-bottom:8px;"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..." style="font-size:12px;"></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                  <div class="form-group"><label>分类</label><select class="form-control" id="inp-category" style="font-size:12px;"></select></div>
-                  <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit" style="font-size:12px;"></select></div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                  <div class="form-group"><label>数量</label><input class="form-control" type="number" id="inp-qty" value="1" min="1" style="font-size:12px;"></div>
-                  <div class="form-group"><label>库存</label><input class="form-control" type="number" id="inp-stock" value="0" min="0" style="font-size:12px;"></div>
-                </div>
-                <div class="form-group" style="margin-bottom:8px;"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..." style="font-size:12px;"></div>
+            <div class="notice notice-info" style="font-size:11px;padding:5px 10px;margin-bottom:8px;">输入名称首字母即可从零件库匹配</div>
+            <!-- Row 1 -->
+            <div class="add-form-row">
+              <div class="add-form-field form-field-name">
+                <label>名称 *</label>
+                <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="首字母检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
               </div>
-              <!-- RIGHT COLUMN -->
-              <div class="add-form-col">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                  <div class="form-group"><label>状态</label><select class="form-control" id="inp-status" style="font-size:12px;"><option value="auto">自动</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
-                  <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived" style="font-size:12px;"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
-                </div>
-                <div class="form-group" style="margin-bottom:8px;"><label>备注</label><input class="form-control" id="inp-remark" placeholder="零件独有信息..." style="font-size:12px;"></div>
-                <div style="margin-top:28px;margin-bottom:8px;padding:8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border);">
-                  <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">保存到零件库</div>
-                  <div class="lib-checkboxes">
-                    <label><input type="checkbox" id="chk-save-lib-global"> 通用库</label>
-                    <label><input type="checkbox" id="chk-save-lib-local"> 本项目库</label>
-                  </div>
+              <div class="add-form-field form-field-supplier">
+                <label>供应商</label>
+                <input class="form-control" id="inp-supplier" placeholder="品牌/供应商">
+              </div>
+              <div class="add-form-field form-field-model">
+                <label>名称型号</label>
+                <input class="form-control" id="inp-model" placeholder="详细型号规格">
+              </div>
+              <div class="add-form-field form-field-category">
+                <label>分类</label>
+                <select class="form-control" id="inp-category"></select>
+              </div>
+              <div class="add-form-field form-field-unit">
+                <label>单位</label>
+                <select class="form-control" id="inp-unit"></select>
+              </div>
+            </div>
+            <!-- Row 2 -->
+            <div class="add-form-row">
+              <div class="add-form-field form-field-qty">
+                <label>数量</label>
+                <input class="form-control" type="number" id="inp-qty" value="1" min="1">
+              </div>
+              <div class="add-form-field form-field-stock">
+                <label>库存</label>
+                <input class="form-control" type="number" id="inp-stock" value="0" min="0">
+              </div>
+              <div class="add-form-field form-field-status">
+                <label>状态</label>
+                <select class="form-control" id="inp-status"><option value="auto">自动</option><option value="采购">采购</option><option value="库存">库存</option></select>
+              </div>
+              <div class="add-form-field form-field-arrived">
+                <label>到货</label>
+                <select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select>
+              </div>
+              <div class="add-form-field form-field-taobao">
+                <label>淘宝链接</label>
+                <input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接...">
+              </div>
+              <div class="add-form-field form-field-remark">
+                <label>备注</label>
+                <input class="form-control" id="inp-remark" placeholder="零件备注...">
+              </div>
+              <div class="add-form-field form-field-lib">
+                <label style="font-size:10px;color:var(--primary);">保存到库</label>
+                <div class="lib-inline">
+                  <label><input type="checkbox" id="chk-save-lib-global">通用</label>
+                  <label><input type="checkbox" id="chk-save-lib-local">本项目</label>
                 </div>
               </div>
             </div>
-            <div class="form-actions">
+            <div class="form-actions" style="margin-top:6px;">
               <button class="btn btn-primary" onclick="addBomEntry()" style="flex:1;">确认添加</button>
               <button class="btn btn-ghost" onclick="clearAddForm()">清空</button>
             </div>
