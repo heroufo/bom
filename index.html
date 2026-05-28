@@ -30,8 +30,8 @@
   --radius-lg: 8px;
   --header-bg: #1e293b;
   --header-text: #f8fafc;
-  --th-bg: #334155;
-  --th-text: #f1f5f9;
+  --th-bg: #f1f5f9;
+  --th-text: #475569;
   --table-stripe: #f8fafc;
   --input-bg: #ffffff;
   --tag-bg: #eff6ff;
@@ -73,19 +73,28 @@ body.font-xl { zoom: 1.3; }
 body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;transition:background .2s,color .2s}
 
 /* HEADER */
-.header{background:var(--header-bg);color:var(--header-text);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.header-title{font-size:17px;font-weight:600;letter-spacing:.5px}
+.header{background:var(--header-bg);color:var(--header-text);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:0}
+.header-left{display:flex;align-items:center;gap:14px;min-width:0}
+.header-title{font-size:17px;font-weight:600;letter-spacing:.5px;white-space:nowrap}
 .header-title span{color:#60a5fa}
+.header-project{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.header-project-name{font-size:13px;font-weight:600;color:#60a5fa}
+.header-center{display:flex;align-items:center;gap:4px}
+.header-right{display:flex;align-items:center;gap:8px}
+.header-divider{width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 6px;flex-shrink:0}
 .header-actions{display:flex;gap:8px;align-items:center}
 .dark-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:5px;transition:background .15s}
 .dark-toggle:hover{background:rgba(255,255,255,.18)}
+.btn-ghost-header{background:transparent;border:1px solid transparent;color:rgba(255,255,255,.55);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;transition:all .12s}
+.btn-ghost-header:hover{color:var(--header-text);background:rgba(255,255,255,.08)}
 
 /* TABS */
-.tabs{background:var(--card-bg);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;overflow-x:auto}
-.tab{padding:13px 20px;cursor:pointer;font-weight:500;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px}
-.tab:hover{color:var(--primary)}
-.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
-.tab-badge{background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px}
+.tabs{background:var(--bg);padding:12px 20px 0;display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap}
+.tab{padding:9px 18px;cursor:pointer;font-weight:500;color:var(--text-secondary);border-radius:8px 8px 0 0;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;background:transparent;border:1px solid transparent;border-bottom:none;position:relative}
+.tab:hover{color:var(--primary);background:var(--card-bg)}
+.tab.active{color:var(--primary);background:var(--card-bg);border-color:var(--border);font-weight:600;box-shadow:0 -2px 8px rgba(0,0,0,.04)}
+.tab.active::after{content:'';position:absolute;bottom:-1px;left:1px;right:1px;height:2px;background:var(--card-bg)}
+.tab-badge{background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:500}
 
 /* MAIN */
 .main{padding:16px 20px;max-width:1600px;margin:0 auto}
@@ -115,7 +124,14 @@ body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;backgr
 .btn-gray{background:var(--border);color:var(--text-secondary);border-color:var(--border)}
 .btn-gray:hover{background:var(--text-muted);color:#fff}
 .btn-sm{padding:3px 8px;font-size:12px}
-.btn-lg{padding:8px 20px;font-size:14px}
+.btn-lg{padding:10px 24px;font-size:15px;font-weight:600;border-radius:var(--radius)}
+.btn-ghost{background:transparent;color:var(--text-secondary);border-color:transparent;font-weight:400}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-icon{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--text-secondary);background:var(--card-bg);transition:all .12s;text-decoration:none;line-height:1.4}
+.btn-icon:hover{color:var(--primary);border-color:var(--primary);background:var(--primary-bg)}
+.btn-icon.danger{color:var(--danger);border-color:transparent}
+.btn-icon.danger:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-separator{width:1px;height:22px;background:var(--border);display:inline-block;margin:0 2px;flex-shrink:0;align-self:center}
 
 /* FORMS */
 .form-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:10px}
@@ -130,7 +146,7 @@ select.form-control{cursor:pointer}
 /* TABLES */
 .table-wrap{overflow-x:auto;max-height:70vh;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{background:var(--th-bg);color:var(--th-text);padding:8px 10px;text-align:left;white-space:nowrap;font-weight:500;position:sticky;top:0;z-index:2}
+thead th{background:var(--th-bg);color:var(--th-text);padding:9px 10px;text-align:left;white-space:nowrap;font-weight:600;position:sticky;top:0;z-index:2;font-size:12px;text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid var(--border)}
 tbody tr{transition:background .08s}
 tbody tr:hover{background:var(--primary-bg)}
 tbody tr:nth-child(even){background:var(--table-stripe)}
@@ -139,6 +155,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .category-row td{background:var(--primary-bg)!important;font-weight:600;color:var(--primary);font-size:12px;padding:6px 10px}
 #purchaseTable tbody td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .no-data{text-align:center;padding:36px;color:var(--text-muted);font-size:14px}
+.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-state .empty-title{font-size:15px;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+.empty-state .empty-desc{font-size:13px;margin-bottom:16px;line-height:1.6}
+.empty-state .empty-action{display:inline-flex;gap:8px}
 
 /* BADGES */
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
@@ -175,10 +196,12 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .autocomplete-item .ac-model{font-size:11px;color:var(--primary)}
 .autocomplete-hidden{display:none!important}
 
-/* PROJECT SELECTOR */
-.proj-selector{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:14px;border:1px solid var(--border)}
-.proj-selector label{font-weight:600;color:var(--text-secondary);white-space:nowrap;font-size:13px}
-.proj-name-display{background:var(--primary-bg);border:1px solid var(--primary);color:var(--primary);padding:4px 12px;border-radius:20px;font-weight:600;font-size:12px}
+/* PROJECT BAR (new two-row) */
+.proj-bar{background:var(--card-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;border:1px solid var(--border);overflow:hidden}
+.proj-bar-main{display:flex;gap:8px;align-items:center;padding:10px 14px;flex-wrap:wrap}
+.proj-bar-main label{font-weight:600;color:var(--text-secondary);white-space:nowrap;font-size:13px}
+.proj-bar-tools{display:flex;gap:6px;align-items:center;padding:7px 14px;border-top:1px solid var(--border-light);background:var(--bg);flex-wrap:wrap}
+.proj-bar-tools .btn-icon{font-size:11px;padding:3px 8px}
 
 /* QUICK SELECT */
 .quick-panel{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:14px;box-shadow:var(--shadow-sm);overflow:hidden}
@@ -186,7 +209,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .quick-search-row{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg);flex-wrap:wrap}
 .quick-search-row input,.quick-search-row select{flex:1;min-width:110px}
 .quick-lib-table{width:100%;border-collapse:collapse;font-size:12px}
-.quick-lib-table thead th{background:var(--border);color:var(--text);padding:7px 10px;text-align:left;font-weight:500;border-bottom:1px solid var(--border)}
+.quick-lib-table thead th{background:var(--th-bg);color:var(--th-text);padding:7px 10px;text-align:left;font-weight:600;border-bottom:2px solid var(--border);font-size:11px}
 .quick-lib-table tbody tr{cursor:pointer}
 .quick-lib-table tbody tr:hover{background:var(--primary-bg)}
 .quick-lib-table tbody td{padding:6px 10px;border-bottom:1px solid var(--border-light)}
@@ -203,7 +226,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 #batchDeleteBtn.show{display:inline-flex}
 #batchDeleteCount{font-size:12px;background:var(--danger);color:#fff;border-radius:10px;padding:0 7px;height:18px;line-height:18px;font-weight:600}
 .lib-table{width:100%;border-collapse:collapse;font-size:13px}
-.lib-table thead th{background:var(--th-bg);color:var(--th-text);padding:7px 10px;text-align:left;font-weight:500;position:sticky;top:0}
+.lib-table thead th{background:var(--th-bg);color:var(--th-text);padding:7px 10px;text-align:left;font-weight:600;position:sticky;top:0;font-size:12px;border-bottom:2px solid var(--border)}
 .lib-table tbody tr{transition:background .08s}
 .lib-table tbody tr:hover{background:var(--primary-bg)}
 .lib-table tbody tr:nth-child(even){background:var(--table-stripe)}
@@ -252,6 +275,27 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
 
+/* THREE-COLUMN BOM LAYOUT */
+.bom-layout{display:flex;gap:14px;align-items:flex-start}
+.bom-sidebar{flex:0 0 320px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.bom-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.bom-drawer{flex:0 0 340px;min-width:0;display:flex;flex-direction:column;gap:10px;transition:all .3s}
+.bom-drawer.collapsed{flex:0 0 40px;min-width:40px}
+.bom-drawer-toggle{display:none;position:sticky;top:70px;z-index:5;width:40px;height:40px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-size:18px;color:var(--primary);align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:all .15s}
+.bom-drawer-toggle:hover{background:var(--primary-bg)}
+.bom-drawer-toggle.show{display:flex}
+.bom-drawer.collapsed .bom-drawer-toggle{display:flex}
+.bom-drawer.collapsed .bom-drawer-content{display:none}
+
+@media (max-width:1200px) {
+  .bom-layout{flex-direction:column}
+  .bom-sidebar{flex:auto;width:100%}
+  .bom-drawer{flex:auto;width:100%}
+  .bom-drawer-toggle{display:none!important}
+  .bom-drawer.collapsed{flex:auto}
+  .bom-drawer.collapsed .bom-drawer-content{display:block}
+}
+
 /* DRAG HANDLE */
 .drag-handle{cursor:grab;color:var(--text-muted);font-size:14px;padding:0 4px;user-select:none}
 .drag-handle:active{cursor:grabbing}
@@ -261,7 +305,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .group-by-select select{width:auto;min-width:100px}
 
 @media print{
-  .header,.tabs,.btn,.row-actions,.form-actions,.proj-selector,.quick-panel,.stats-row,.search-bar,.no-print{display:none!important}
+  .header,.tabs,.btn,.row-actions,.form-actions,.proj-bar,.quick-panel,.stats-row,.search-bar,.no-print,.bom-drawer{display:none!important}
   .main{padding:0;margin:0}
   .card{box-shadow:none;border:none;break-inside:avoid}
   .table-wrap{max-height:none;overflow:visible}
@@ -351,7 +395,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 /* AUTOCOMPLETE TABLE */
 .ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md);min-width:360px}
 .ac-table{width:100%;border-collapse:collapse;font-size:13px}
-.ac-table thead th{background:var(--primary);color:#fff;padding:5px 10px;text-align:left;font-weight:500;position:sticky;top:0;z-index:1;font-size:12px}
+.ac-table thead th{background:var(--primary);color:#fff;padding:6px 10px;text-align:left;font-weight:600;position:sticky;top:0;z-index:1;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
 .ac-table tbody td{padding:5px 10px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .08s;white-space:nowrap}
 .ac-table tbody tr:hover,.ac-table tbody tr.selected{background:var(--primary-bg)}
 .ac-table tbody tr .ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;margin-left:6px;vertical-align:middle}
@@ -380,22 +424,27 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 <!-- HEADER -->
 <div class="header">
-  <div class="header-title">BOM <span>智能管理工具 v5.5</span></div>
-  <div class="header-actions">
-    <span style="font-size:12px;opacity:.75;">项目：</span>
-    <span id="headerProjectName" style="font-size:13px;font-weight:600;color:#60a5fa;">-</span>
+  <div class="header-left">
+    <div class="header-title">BOM <span>智能管理工具 v5.5</span></div>
+    <div class="header-divider"></div>
+    <div class="header-project">
+      项目：<span class="header-project-name" id="headerProjectName">-</span>
+    </div>
+  </div>
+  <div class="header-center">
+    <button class="dark-toggle" onclick="toggleDark()" id="darkToggleBtn">🌙</button>
+    <button class="font-size-btn" onclick="changeFontSize(-1)" title="缩小字号">A⁻</button>
+    <span class="font-size-label" id="fontSizeLabel">标准</span>
+    <button class="font-size-btn" onclick="changeFontSize(1)" title="放大字号">A⁺</button>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-ghost-header btn-sm" onclick="exportData()">导出</button>
+    <button class="btn btn-ghost-header btn-sm" onclick="importData()">导入</button>
     <div class="user-chip" id="userChip" style="display:none;">
       <span class="role-dot" id="userRoleDot"></span>
       <span id="userChipName"></span>
     </div>
-    <button class="dark-toggle" onclick="toggleDark()" id="darkToggleBtn">🌙 黑夜</button>
-    <button class="btn btn-outline" style="color:var(--header-text);border-color:rgba(255,255,255,.35);font-size:12px;" onclick="exportData()">导出JSON</button>
-    <button class="btn btn-outline" style="color:var(--header-text);border-color:rgba(255,255,255,.35);font-size:12px;" onclick="importData()">导入JSON</button>
     <button class="logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">退出登录</button>
-    <span style="margin:0 4px;width:1px;height:20px;background:rgba(255,255,255,.2);display:inline-block;"></span>
-    <button class="font-size-btn" onclick="changeFontSize(-1)" title="缩小字号">A⁻</button>
-    <span class="font-size-label" id="fontSizeLabel">标准</span>
-    <button class="font-size-btn" onclick="changeFontSize(1)" title="放大字号">A⁺</button>
   </div>
 </div>
 
@@ -415,21 +464,25 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 <!-- ========== BOM PAGE ========== -->
 <div class="page active" id="page-bom">
-  <div class="proj-selector no-print">
-    <label>当前项目：</label>
-    <span id="projNameDisplay" class="proj-name-display">未选择</span>
-    <select class="form-control" style="max-width:220px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
-    <button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button>
-    <div style="flex:1"></div>
-    <select class="form-control" style="max-width:140px;" id="bomGroupBy" onchange="renderBomTable()">
-      <option value="category">按分类分组</option>
-      <option value="supplier">按供应商分组</option>
-      <option value="status">按状态分组</option>
-      <option value="none">不分组</option>
-    </select>
-    <button class="btn btn-success admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()">一键生成实采清单</button>
-    <button class="btn btn-outline btn-sm" onclick="exportBomExcel()">导出Excel</button>
-    <button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a;" onclick="exportBomToTencentDocs()">导出到腾讯文档</button>
+  <!-- Project Selector Bar -->
+  <div class="proj-bar no-print">
+    <div class="proj-bar-main">
+      <label>当前项目</label>
+      <select class="form-control" style="max-width:280px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
+      <span id="projNameDisplay" class="proj-name-display" style="display:none;"></span>
+      <button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button>
+      <button class="btn btn-success btn-lg admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()" style="margin-left:auto;">📋 一键生成实采清单</button>
+    </div>
+    <div class="proj-bar-tools">
+      <select class="form-control" style="max-width:130px;" id="bomGroupBy" onchange="renderBomTable()">
+        <option value="category">按分类分组</option>
+        <option value="supplier">按供应商分组</option>
+        <option value="status">按状态分组</option>
+        <option value="none">不分组</option>
+      </select>
+      <button class="btn btn-icon" onclick="exportBomExcel()">📥 导出Excel</button>
+      <button class="btn btn-icon" onclick="exportBomToTencentDocs()">📄 导出文档</button>
+    </div>
   </div>
 
   <div class="archived-banner" id="archivedBanner">
@@ -440,115 +493,117 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
   <div class="stats-row no-print" id="bomStats"></div>
 
-  <!-- Quick Select Panel -->
-  <div class="quick-panel no-print admin-only" id="quickPanel">
-    <div class="quick-panel-header">
-      <span>从零件库快速选件 <span style="font-size:11px;color:var(--text-muted);font-weight:400;">勾选→填数量→批量加入BOM</span></span>
-      <button class="btn btn-sm btn-gray" onclick="toggleQuickPanel()">折叠</button>
-    </div>
-    <div id="quickPanelBody">
-      <div class="quick-search-row">
-        <input class="form-control" placeholder="搜索名称/供应商/型号..." id="quickSearch" oninput="renderQuickLib()">
-        <select class="form-control" style="max-width:120px;" id="quickCatFilter" onchange="renderQuickLib()"><option value="">全部分类</option></select>
-        <button class="btn btn-sm btn-gray" onclick="quickSelectAll()">全选</button>
-        <button class="btn btn-sm btn-gray" onclick="quickDeselectAll()">取消</button>
-      </div>
-      <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
-        <th style="width:32px;">选</th><th>名称</th><th>供应商</th><th style="min-width:160px;">型号规格</th><th>分类</th><th style="width:65px;">数量</th><th>单位</th>
-      </tr></thead><tbody id="quickLibTbody"></tbody></table></div>
-      <div class="quick-selected-bar">
-        <span class="quick-selected-count" id="quickSelCount">已选 0 件</span>
-        <div style="flex:1"></div>
-        <select class="form-control" style="max-width:110px;" id="quickInpStatus">
-          <option value="auto">自动判断</option><option value="采购">全部采购</option><option value="库存">全部库存</option>
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="batchAddFromLib()">批量加入BOM</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Manual Add -->
-  <div class="card no-print admin-only" id="manualAddCard">
-    <div class="card-header">
-      <div class="card-header-left">+ 手动添加零部件</div>
-      <button class="btn btn-sm btn-gray" onclick="toggleAddForm()">折叠</button>
-    </div>
-    <div class="card-body" id="addFormBody">
-      <div class="notice notice-info">输入名称首字母即可从零件库匹配，选中自动填入信息。快速选件面板支持多选批量添加。</div>
-      <div class="add-form-sections">
-        <!-- Left: Core Info -->
-        <div class="add-form-section">
-          <h4><span class="sec-icon">📋</span>基本信息</h4>
-          <div class="add-form-grid">
-            <div class="form-group"><label>分类 *</label><select class="form-control" id="inp-category"></select></div>
-            <div class="form-group"><label>名称 * <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 4px;border-radius:3px;">首字母匹配</span></label>
-              <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="输入首字母快速检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
-            </div>
-            <div class="form-group"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商..."></div>
-            <div class="form-group"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..."></div>
-            <div class="form-group"><label>备注</label><input class="form-control" id="inp-remark" placeholder="该零件独有信息..."></div>
-          </div>
+  <div class="bom-layout">
+    <!-- LEFT: Quick Select -->
+    <div class="bom-sidebar admin-only" id="bomSidebar">
+      <div class="quick-panel no-print" id="quickPanel">
+        <div class="quick-panel-header">
+          <span>📦 从零件库快速选件</span>
+          <button class="btn btn-sm btn-ghost" onclick="toggleQuickPanel()" style="font-size:18px;line-height:1;padding:0 4px;">−</button>
         </div>
-        <!-- Right: Quantity & Status -->
-        <div class="add-form-section">
-          <h4><span class="sec-icon">🔢</span>数量与状态</h4>
-          <div class="add-form-grid">
-            <div class="form-group"><label>数量 *</label><input class="form-control" type="number" id="inp-qty" value="1" min="1"></div>
-            <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit"></select></div>
-            <div class="form-group"><label>库存数量</label><input class="form-control" type="number" id="inp-stock" value="0" min="0"></div>
-            <div class="form-group"><label>状态</label><select class="form-control" id="inp-status"><option value="auto">自动计算</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
-            <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
-            <div class="form-group"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..."></div>
+        <div id="quickPanelBody">
+          <div class="quick-search-row">
+            <input class="form-control" placeholder="搜索名称/供应商/型号..." id="quickSearch" oninput="renderQuickLib()">
+            <select class="form-control" style="max-width:100px;" id="quickCatFilter" onchange="renderQuickLib()"><option value="">全部分类</option></select>
           </div>
-          <div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">
-            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">💾 保存到零件库</div>
-            <div class="lib-checkboxes">
-              <label><input type="checkbox" id="chk-save-lib-global"> 🌐 保存到通用零件库（跨项目共享）</label>
-              <label><input type="checkbox" id="chk-save-lib-local"> 📁 保存到本项目零件库（仅本项目可见）</label>
-            </div>
+          <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
+            <th style="width:28px;">选</th><th>名称</th><th>型号</th><th style="width:52px;">数量</th>
+          </tr></thead><tbody id="quickLibTbody"></tbody></table></div>
+          <div class="quick-selected-bar">
+            <span class="quick-selected-count" id="quickSelCount">已选 0 件</span>
+            <button class="btn btn-sm btn-ghost" onclick="quickSelectAll()">全选</button>
+            <button class="btn btn-sm btn-ghost" onclick="quickDeselectAll()">取消</button>
+            <div style="flex:1"></div>
+            <select class="form-control" style="max-width:100px;font-size:11px;" id="quickInpStatus">
+              <option value="auto">自动判断</option><option value="采购">全部采购</option><option value="库存">全部库存</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="batchAddFromLib()">加入BOM</button>
           </div>
         </div>
       </div>
-      <div class="form-actions" style="margin-top:12px;">
-        <button class="btn btn-primary" onclick="addBomEntry()">确认添加</button>
-        <button class="btn btn-gray" onclick="clearAddForm()">清空</button>
-      </div>
     </div>
-  </div>
 
-  <!-- BOM Table -->
-  <div class="card">
-    <div class="card-header no-print">
-      <div class="card-header-left">零部件清单 <span id="bomGroupLabel" style="font-size:11px;color:var(--text-muted);"></span></div>
-      <div style="display:flex;gap:6px;">
-        <input class="form-control" style="width:130px;" placeholder="搜索..." id="bomSearch" oninput="renderBomTable()">
-        <select class="form-control" style="width:100px;" id="bomFilterStatus" onchange="renderBomTable()"><option value="">全部状态</option><option value="采购">采购</option><option value="库存">库存</option></select>
-        <button class="btn btn-sm btn-gray" onclick="sortBomByCategory()">按分类排序</button>
-        <button class="btn btn-sm btn-gray" onclick="sortBomBySupplier()">按供应商排序</button>
+    <!-- CENTER: BOM Table -->
+    <div class="bom-main">
+      <div class="card">
+        <div class="card-header no-print">
+          <div class="card-header-left">📋 零部件清单 <span id="bomGroupLabel" style="font-size:11px;color:var(--text-muted);font-weight:400;"></span></div>
+          <div style="display:flex;gap:6px;">
+            <input class="form-control" style="width:120px;font-size:12px;" placeholder="搜索..." id="bomSearch" oninput="renderBomTable()">
+            <select class="form-control" style="width:90px;font-size:12px;" id="bomFilterStatus" onchange="renderBomTable()"><option value="">全部状态</option><option value="采购">采购</option><option value="库存">库存</option></select>
+            <button class="btn btn-sm btn-ghost" onclick="sortBomByCategory()">按分类</button>
+            <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="bomTable">
+            <thead>
+              <tr>
+                <th style="width:36px;">#</th>
+                <th style="width:64px;">分类</th>
+                <th style="width:80px;">供应商</th>
+                <th>名称</th>
+                <th style="min-width:180px;">名称型号</th>
+                <th style="width:48px;">数量</th>
+                <th style="width:42px;">单位</th>
+                <th style="width:44px;">库存</th>
+                <th style="width:48px;">状态</th>
+                <th style="width:42px;">实采</th>
+                <th style="width:48px;">到货</th>
+                <th style="width:56px;">淘宝</th>
+                <th style="min-width:90px;">备注</th>
+                <th id="bomActionColHeader" style="width:70px;" class="no-print">操作</th>
+              </tr>
+            </thead>
+            <tbody id="bomTbody"><tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从左侧零件库选件<br>或通过右侧表单手动添加零件</div></div></td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="table-wrap">
-      <table id="bomTable">
-        <thead>
-          <tr>
-            <th style="width:36px;">序号</th>
-            <th style="width:70px;">分类</th>
-            <th style="width:85px;">供应商</th>
-            <th>名称</th>
-            <th style="min-width:200px;">名称型号</th>
-            <th style="width:50px;">数量</th>
-            <th style="width:45px;">单位</th>
-            <th style="width:45px;">库存</th>
-            <th style="width:50px;">状态</th>
-            <th style="width:45px;">实采</th>
-            <th style="width:50px;">到货</th>
-            <th style="width:65px;">淘宝</th>
-            <th style="min-width:100px;">备注</th>
-            <th id="bomActionColHeader" style="width:80px;" class="no-print">操作</th>
-          </tr>
-        </thead>
-        <tbody id="bomTbody"><tr><td colspan="14" class="no-data">请先选择或创建项目，然后添加零部件</td></tr></tbody>
-      </table>
+
+    <!-- RIGHT: Manual Add Form -->
+    <div class="bom-drawer admin-only" id="bomDrawer">
+      <button class="bom-drawer-toggle" id="bomDrawerToggle" onclick="toggleBomDrawer()" title="展开/折叠添加表单">+</button>
+      <div class="bom-drawer-content" id="bomDrawerContent">
+        <div class="card no-print" id="manualAddCard">
+          <div class="card-header">
+            <div class="card-header-left">✏️ 手动添加零件</div>
+          </div>
+          <div class="card-body" id="addFormBody" style="font-size:12px;">
+            <div class="notice notice-info" style="font-size:11px;padding:6px 10px;margin-bottom:10px;">输入名称首字母即可从零件库匹配</div>
+            <div class="form-group" style="margin-bottom:8px;"><label>名称 *</label>
+              <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="首字母快速检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off" style="font-size:12px;"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商..." style="font-size:12px;"></div>
+            <div class="form-group" style="margin-bottom:8px;"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..." style="font-size:12px;"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div class="form-group"><label>分类</label><select class="form-control" id="inp-category" style="font-size:12px;"></select></div>
+              <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit" style="font-size:12px;"></select></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div class="form-group"><label>数量</label><input class="form-control" type="number" id="inp-qty" value="1" min="1" style="font-size:12px;"></div>
+              <div class="form-group"><label>库存</label><input class="form-control" type="number" id="inp-stock" value="0" min="0" style="font-size:12px;"></div>
+              <div class="form-group"><label>状态</label><select class="form-control" id="inp-status" style="font-size:12px;"><option value="auto">自动</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived" style="font-size:12px;"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
+              <div class="form-group"><label>备注</label><input class="form-control" id="inp-remark" placeholder="零件独有信息..." style="font-size:12px;"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..." style="font-size:12px;"></div>
+            <div style="margin-bottom:10px;padding:8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border);">
+              <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">保存到零件库</div>
+              <div class="lib-checkboxes">
+                <label><input type="checkbox" id="chk-save-lib-global"> 通用库</label>
+                <label><input type="checkbox" id="chk-save-lib-local"> 本项目库</label>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addBomEntry()" style="flex:1;">确认添加</button>
+              <button class="btn btn-ghost" onclick="clearAddForm()">清空</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -563,9 +618,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
         <span id="purchaseBomChangedWarn" style="display:none;font-size:12px;color:#f97316;font-weight:500;background:#fff7ed;border:1px solid #fed7aa;border-radius:4px;padding:3px 8px;">⚠️ BOM已变动，建议重新生成</span>
-        <button class="btn btn-success btn-sm admin-only" id="regenBtn" onclick="generatePurchaseList()">重新生成</button>
-        <button class="btn btn-outline btn-sm" onclick="exportPurchaseExcel()">导出Excel(模板)</button>
-        <button class="btn btn-gray btn-sm" onclick="exportPurchaseCSV()">导出CSV</button>
+        <button class="btn btn-primary btn-sm admin-only" id="regenBtn" onclick="generatePurchaseList()">重新生成</button>
+        <span style="width:1px;height:20px;background:var(--border);display:inline-block;margin:0 2px;"></span>
+        <button class="btn btn-icon" onclick="exportPurchaseExcel()">📥 导出Excel</button>
+        <button class="btn btn-icon" onclick="exportPurchaseCSV()">📄 导出CSV</button>
       </div>
     </div>
     <div class="card-body" style="padding-bottom:0;">
@@ -592,7 +648,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <th style="min-width:120px;">备注</th>
           </tr>
         </thead>
-        <tbody id="purchaseTbody"><tr><td colspan="10" class="no-data">尚未生成实采清单</td></tr></tbody>
+        <tbody id="purchaseTbody"><tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未生成实采清单</div><div class="empty-desc">请在 BOM 清单页点击「一键生成实采清单」</div></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -611,13 +667,14 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
         <button class="btn btn-primary btn-sm" onclick="openLibModal()">+ 添加零件</button>
-        <button class="btn btn-outline btn-sm" onclick="batchDeleteLib()">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('libFileInput').click()">📥 批量导入</button>
+        <button class="btn btn-outline btn-sm" onclick="exportLibExcel()">📤 导出Excel</button>
+        <span class="btn-separator"></span>
+        <button class="btn btn-icon" onclick="exportLibTemplate()">下载模板</button>
+        <button class="btn btn-icon danger" onclick="batchDeleteLib()">
           🗑 批量删除
-          <span id="batchDeleteCount" style="display:none;">0</span>
+          <span id="batchDeleteCount" style="display:none;margin-left:2px;">0</span>
         </button>
-        <button class="btn btn-outline btn-sm" onclick="exportLibTemplate()">下载导入模板</button>
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('libFileInput').click()">批量导入Excel</button>
-        <button class="btn btn-outline btn-sm" onclick="exportLibExcel()">📥 导出Excel</button>
         <input type="file" id="libFileInput" accept=".xlsx,.xls" style="display:none" onchange="importLibExcel(this)">
       </div>
     </div>
@@ -626,8 +683,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <div class="search-bar">
         <input class="form-control" placeholder="搜索名称/供应商/型号..." id="libSearch" oninput="renderLibrary()">
         <select class="form-control" style="max-width:120px;" id="libCatFilter" onchange="renderLibrary()"><option value="">全部分类</option></select>
-        <button class="btn btn-sm btn-gray" onclick="toggleLibSort()" title="按名称排序" id="libSortBtn">🔤 名称排序</button>
-        <button class="btn btn-sm btn-gray" onclick="clearLibFilter()">清除</button>
+        <button class="btn btn-sm btn-ghost" onclick="toggleLibSort()" title="按名称排序" id="libSortBtn">🔤 排序</button>
+        <button class="btn btn-sm btn-ghost" onclick="clearLibFilter()">清除</button>
       </div>
     </div>
   </div>
@@ -658,7 +715,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           <option value="category">按分类汇总</option>
           <option value="supplier">按供应商汇总</option>
         </select>
-        <select class="form-control" style="width:110px;" id="statsChartType" onchange="renderStatsChart()">
+        <select class="form-control" style="width:100px;" id="statsChartType" onchange="renderStatsChart()">
           <option value="bar">柱状图</option>
           <option value="pie">饼图</option>
           <option value="doughnut">环形图</option>
@@ -701,20 +758,20 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     </div>
     <div class="table-wrap"><table><thead><tr>
       <th style="width:36px;">排名</th><th>名称</th><th>供应商</th><th>分类</th><th>型号规格</th><th>使用次数</th><th>出现项目数</th><th>总需求数量</th><th>建议</th>
-    </tr></thead><tbody id="statsTbody"><tr><td colspan="9" class="no-data">暂无数据</td></tr></tbody></table></div>
+    </tr></thead><tbody id="statsTbody"><tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">暂无统计数据</div><div class="empty-desc">请在项目中添加零件后查看复用分析</div></div></td></tr></tbody></table></div>
   </div>
 </div>
 
 <!-- ========== PROJECTS PAGE ========== -->
 <div class="page" id="page-projects">
   <div class="card">
-    <div class="card-header"><div class="card-header-left">项目管理</div><div style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a;" onclick="document.getElementById('tencentFileInput').click()">从腾讯文档导入</button><button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button><input type="file" id="tencentFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFromTencentDocsFile(this)"></div></div>
+    <div class="card-header"><div class="card-header-left">项目管理</div><div style="display:flex;gap:6px;"><button class="btn btn-icon" onclick="document.getElementById('tencentFileInput').click()">📄 从腾讯文档导入</button><button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button><input type="file" id="tencentFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFromTencentDocsFile(this)"></div></div>
     <div class="card-body" style="padding-bottom:0;">
       <div class="notice notice-info" style="margin-bottom:10px;">「从腾讯文档导入」：在腾讯文档中将表格导出为 CSV 或 Excel (.xlsx)，再点击此按钮上传。格式：第1行=项目名 → 第2行="清单" → 第3行=表头（序号/供应商/名称/名称型号/数量/单位/库存/状态/实采/到货状态/备注）→ 之后为数据行。</div>
     </div>
     <div class="table-wrap"><table id="projectsTable"><thead><tr>
       <th>项目名称</th><th>零件数</th><th>采购数</th><th>库存数</th><th>状态</th><th>创建时间</th><th style="width:180px;">操作</th>
-    </tr></thead><tbody id="projectsTbody"><tr><td colspan="7" class="no-data">暂无项目</td></tr></tbody></table></div>
+    </tr></thead><tbody id="projectsTbody"><tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">暂无项目</div><div class="empty-desc">点击「新建项目」开始管理您的BOM清单</div><div class="empty-action"><button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button></div></div></td></tr></tbody></table></div>
   </div>
 </div>
 
@@ -748,8 +805,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="card-body">
       <div class="notice notice-warn">⚠️ 恢复备份将覆盖当前所有数据（项目、零件库、用户、设置等），请谨慎操作。建议恢复前先备份当前数据。</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-primary" onclick="backupStore()" style="min-width:120px;">📥 导出备份</button>
-        <button class="btn btn-outline" onclick="document.getElementById('restoreFileInput').click()" style="min-width:120px;">📤 恢复备份</button>
+        <button class="btn btn-primary" onclick="backupStore()">📥 导出备份</button>
+        <button class="btn btn-outline" onclick="document.getElementById('restoreFileInput').click()">📤 恢复备份</button>
         <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="handleRestoreFile(this)">
       </div>
       <div id="backupInfo" style="margin-top:10px;font-size:12px;color:var(--text-secondary);"></div>
@@ -1785,7 +1842,7 @@ function applyFontSize() {
 function renderProjectsTable() {
   var tbody = document.getElementById('projectsTbody');
   var projs = Object.values(store.projects);
-  if (!projs.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">暂无项目</td></tr>'; return; }
+  if (!projs.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">暂无项目</div><div class="empty-desc">点击「新建项目」开始管理您的BOM清单</div><div class="empty-action"><button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button></div></div></td></tr>'; return; }
   tbody.innerHTML = projs.map(function(p) {
     var pc = p.bom.filter(function(i){return i.status==='采购';}).length;
     var sc = p.bom.filter(function(i){return i.status==='库存';}).length;
@@ -1821,7 +1878,7 @@ function renderBomTable() {
     return ms && mst;
   });
 
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14" class="no-data">暂无数据</td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从左侧零件库选件加入，或通过右侧表单手动添加</div></div></td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
 
   var labelMap = {category:'按分类',supplier:'按供应商',status:'按状态',none:''};
   document.getElementById('bomGroupLabel').textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
@@ -1930,6 +1987,7 @@ function sortBomBySupplier() {
 
 function toggleAddForm() { var b=document.getElementById('addFormBody'); b.style.display = b.style.display==='none'?'':'none'; }
 function toggleQuickPanel() { var b=document.getElementById('quickPanelBody'); b.style.display = b.style.display==='none'?'':'none'; }
+function toggleBomDrawer() { var d=document.getElementById('bomDrawer'); d.classList.toggle('collapsed'); var t=document.getElementById('bomDrawerToggle'); t.textContent = d.classList.contains('collapsed') ? '+' : '−'; }
 
 // ============================================================
 // ADD BOM ENTRY
@@ -2080,11 +2138,11 @@ function renderQuickLib() {
   });
 
   var tbody = document.getElementById('quickLibTbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="no-data" style="padding:14px;">零件库为空或无匹配</td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">暂无匹配零件</div><div class="empty-desc">零件库为空或没有匹配的搜索结果</div></td></tr>'; return; }
 
   tbody.innerHTML = filtered.map(function(l) {
     var srcBadge = l._src==='local' ? '<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px;">本项目</span>' : '';
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()"></td><td style="font-size:12px;">'+esc(l.unit||'个')+'</td></tr>';
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -2196,10 +2254,8 @@ function renderLibrary() {
     });
   }
 
-  var noDataMsg = isLocal ? '本项目暂无私有零件' : '没有匹配的零件';
-
   var tbody = document.getElementById('libListTbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">'+noDataMsg+(isLocal?'<br><small style="color:var(--text-muted)">在BOM录入时选择「保存到本项目零件库」即可添加</small>':'')+'</td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">零件库为空</div><div class="empty-desc">'+(isLocal?'在BOM录入时勾选「保存到本项目零件库」即可添加':'点击上方「添加零件」或导入Excel开始构建零件库')+'</div></div></td></tr>'; return; }
   tbody.innerHTML = filtered.map(function(l,i) {
     var promoteBtnHtml = isLocal
       ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
@@ -2407,7 +2463,7 @@ function calcBomHash(bom) {
 // newItemIds: array of item IDs that were added after the last generation
 function buildPurchaseHTML(bom, newItemIds) {
   var purchaseItems = bom.filter(function(i){return i.status==='采购';});
-  if (!purchaseItems.length) return {html:'<tr><td colspan="10" class="no-data">当前项目无需采购的零件</td></tr>', count:0, supplierCount:0, newCount:0};
+  if (!purchaseItems.length) return {html:'<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">无需采购</div><div class="empty-desc">当前项目所有零件均为库存状态</div></div></td></tr>', count:0, supplierCount:0, newCount:0};
 
   newItemIds = newItemIds || [];
   var newIdSet = {};
@@ -2558,7 +2614,7 @@ function renderSavedPurchaseList() {
 
   if (!saved) {
     // No saved list yet
-    document.getElementById('purchaseTbody').innerHTML = '<tr><td colspan="10" class="no-data">尚未生成实采清单，请管理员点击「一键生成实采清单」</td></tr>';
+    document.getElementById('purchaseTbody').innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未生成实采清单</div><div class="empty-desc">请在 BOM 清单页点击「一键生成实采清单」</div></div></td></tr>';
     document.getElementById('purchaseNotice').innerHTML = '管理员点击 BOM清单页的「一键生成实采清单」即可生成，采购员/访客可直接查看已生成的清单。';
     document.getElementById('purchaseNotice').className = 'notice notice-info';
     document.getElementById('badge-purchase').textContent = '0';
@@ -3000,7 +3056,7 @@ function renderStatsTable() {
   }).sort(function(a,b){return b.count-a.count;}).slice(0,50);
 
   var tbody = document.getElementById('statsTbody');
-  if (!ranked.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">暂无匹配数据</td></tr>'; return; }
+  if (!ranked.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">暂无统计数据</div><div class="empty-desc">请在项目中添加零件后查看复用分析</div></div></td></tr>'; return; }
 
   tbody.innerHTML = ranked.map(function(r,i) {
     var sug = r.count >= 3 ? '<span class="badge badge-stock">建议备库存</span>' : r.count >= 2 ? '<span class="badge badge-purchase">常用件</span>' : '<span style="font-size:11px;color:var(--text-muted);">按需采购</span>';
