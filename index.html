@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.4</title>
+<title>BOM 智能管理工具 v5.4.1</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -64,20 +64,20 @@ body.dark {
   --tag-bg: #1e3a5f;
 }
 
-body { --font-scale: 1; }
-body.font-sm { --font-scale: 0.85; }
-body.font-lg { --font-scale: 1.15; }
-body.font-xl { --font-scale: 1.3; }
+/* Global font size scaling via zoom */
+body.font-sm { zoom: 0.85; }
+body.font-lg { zoom: 1.15; }
+body.font-xl { zoom: 1.3; }
 
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:calc(14px * var(--font-scale));min-height:100vh;transition:background .2s,color .2s}
+body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;transition:background .2s,color .2s}
 
 /* HEADER */
 .header{background:var(--header-bg);color:var(--header-text);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.header-title{font-size:calc(17px * var(--font-scale));font-weight:600;letter-spacing:.5px}
+.header-title{font-size:17px;font-weight:600;letter-spacing:.5px}
 .header-title span{color:#60a5fa}
 .header-actions{display:flex;gap:8px;align-items:center}
-.dark-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:calc(13px * var(--font-scale));display:flex;align-items:center;gap:5px;transition:background .15s}
+.dark-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:5px;transition:background .15s}
 .dark-toggle:hover{background:rgba(255,255,255,.18)}
 
 /* TABS */
@@ -353,8 +353,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .lib-checkboxes input[type=checkbox]{width:14px;height:14px;accent-color:var(--primary);cursor:pointer}
 
 /* AUTOCOMPLETE TABLE */
-.ac-table-wrap{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:380px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md)}
-.ac-table{width:100%;border-collapse:collapse;font-size:12px}
+.ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:auto;box-shadow:var(--shadow-md);min-width:580px}
+.ac-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
 .ac-table thead th{background:var(--primary);color:#fff;padding:6px 8px;text-align:left;font-weight:500;position:sticky;top:0;z-index:1;font-size:11px}
 .ac-table tbody td{padding:6px 8px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .08s}
 .ac-table tbody tr:hover,.ac-table tbody tr.selected{background:var(--primary-bg)}
@@ -640,7 +640,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div id="libCardView" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;"></div>
   <div id="libListView" style="display:none;" class="card">
     <div class="table-wrap"><table class="lib-table"><thead><tr>
-      <th style="width:32px;" class="no-print"><input type="checkbox" class="lib-check" id="libSelectAll" onchange="toggleLibSelectAll(this)" title="全选"></th><th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th style="width:100px;" class="no-print">操作</th>
+      <th style="width:32px;" class="no-print"><input type="checkbox" class="lib-check" id="libSelectAll" onchange="toggleLibSelectAll(this)" title="全选"></th><th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th>备注</th><th style="width:100px;" class="no-print">操作</th>
     </tr></thead><tbody id="libListTbody"></tbody></table></div>
   </div>
 </div>
@@ -830,6 +830,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="form-group"><label>常用单位</label><select class="form-control" id="lib-unit"></select></div>
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>淘宝链接</label><input class="form-control" id="lib-taobao" placeholder="粘贴淘宝链接..."></div>
+  <div class="form-group" style="margin-bottom:10px;"><label>备注</label><input class="form-control" id="lib-remark" placeholder="该零件的专有信息或备注..."></div>
   <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-lib')">取消</button><button class="btn btn-success" onclick="saveLibEntry()">保存到零件库</button></div>
 </div></div>
 
@@ -1270,6 +1271,7 @@ var listDragIdx = -1;
 function listDragStart(e) {
   var el = e.target.closest('.drag-list-item'); if (!el) return;
   listDragIdx = Array.from(el.parentNode.children).indexOf(el);
+  e.dataTransfer.setData('text/plain', el.querySelector('.item-name').textContent);
   e.dataTransfer.effectAllowed = 'move';
   el.classList.add('dragging');
 }
@@ -1532,6 +1534,9 @@ function applyRoleUI() {
   if (!isAdmin && activePage && activePage.id !== 'page-bom' && activePage.id !== 'page-purchase') {
     showPage('page-bom');
   }
+
+  // Re-render BOM table to reflect role-based visibility
+  renderBomTable();
 
   // Buyer notification: check for new items and alert
   if (currentUser.role === 'buyer') {
@@ -2203,6 +2208,7 @@ function renderLibrary() {
         '<div style="font-size:11px;color:var(--text-secondary);">供应商：'+esc(l.supplier||'未知')+'</div>'+
         '<div style="font-size:11px;color:var(--primary);">'+esc(l.model||'-')+'</div>'+
         '<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">单位：'+esc(l.unit||'-')+' | 分类：'+esc(l.category||'-')+'</div>'+
+        (l.remark ? '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;font-style:italic;">备注：'+esc(l.remark)+'</div>' : '')+
         '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">'+
         extraBtns+
         '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();editLib(\''+l.id+'\')">编辑</button>'+
@@ -2212,7 +2218,7 @@ function renderLibrary() {
     cardEl.style.display = 'none'; document.getElementById('libListView').style.display = 'block';
     document.getElementById('viewBtnList').classList.add('active'); document.getElementById('viewBtnCard').classList.remove('active');
     var tbody = document.getElementById('libListTbody');
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">'+noDataMsg+'</td></tr>'; return; }
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">'+noDataMsg+'</td></tr>'; return; }
     tbody.innerHTML = filtered.map(function(l,i) {
       var promoteBtnHtml = isLocal
         ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
@@ -2223,6 +2229,7 @@ function renderLibrary() {
         '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
         '<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td>'+
         '<td style="font-size:12px;">'+esc(l.unit||'-')+'</td>'+
+        '<td style="font-size:11px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(l.remark||'')+'">'+esc(l.remark||'-')+'</td>'+
         '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;">'+promoteBtnHtml+'<button class="btn btn-sm btn-outline" onclick="editLib(\''+l.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteLib(\''+l.id+'\')">删除</button></div></td></tr>';
     }).join('');
   }
@@ -2242,6 +2249,7 @@ function prefillFromLib(id) {
   document.getElementById('inp-category').value = l.category||getCategories()[0];
   document.getElementById('inp-unit').value = l.unit||'个';
   document.getElementById('inp-taobao').value = l.taobaoLink||'';
+  document.getElementById('inp-remark').value = l.remark||'';
   showPage('page-bom'); toast('已填入：'+l.name+'，请补充数量后添加', 'info');
   document.getElementById('inp-qty').focus();
 }
@@ -2259,6 +2267,7 @@ function openLibModal(id) {
   document.getElementById('lib-category').value = l ? (l.category||getCategories()[0]) : getCategories()[0];
   document.getElementById('lib-unit').value = l ? (l.unit||'个') : '个';
   document.getElementById('lib-taobao').value = l ? (l.taobaoLink||'') : '';
+  document.getElementById('lib-remark').value = l ? (l.remark||'') : '';
   document.getElementById('modal-lib')._editId = id || null;
   document.getElementById('modal-lib')._isLocal = isLocal;
   document.getElementById('modal-lib').classList.add('show');
@@ -2277,7 +2286,8 @@ function saveLibEntry() {
     model: document.getElementById('lib-model').value.trim(),
     category: document.getElementById('lib-category').value,
     unit: document.getElementById('lib-unit').value,
-    taobaoLink: document.getElementById('lib-taobao').value.trim()
+    taobaoLink: document.getElementById('lib-taobao').value.trim(),
+    remark: document.getElementById('lib-remark').value.trim()
   };
   var targetList = isLocal ? getLocalLib() : store.library;
   if (editId) {
@@ -3161,14 +3171,16 @@ function acSearch(val) {
   matches = matches.slice(0, 30);
   if (!matches.length) return;
   var list = document.getElementById('acList');
-  // Use table format for better display
-  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:40%;">名称</th><th>供应商</th><th style="width:35%;">型号规格</th><th style="width:10%;">来源</th></tr></thead><tbody>'+
+  // Wide table showing complete part info
+  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:25%;">名称</th><th style="width:14%;">供应商</th><th style="width:28%;">型号规格</th><th style="width:12%;">分类</th><th style="width:8%;">单位</th><th style="width:13%;">来源</th></tr></thead><tbody>'+
     matches.map(function(m,i){
-      var srcLabel = m._src==='local' ? '<span class="ac-local-badge">本项目</span>' : '<span style="font-size:10px;color:var(--text-muted);">通用库</span>';
+      var srcLabel = m._src==='local' ? '<span class="ac-local-badge">本项目</span>' : '<span style="font-size:11px;color:var(--text-muted);">通用库</span>';
       return '<tr class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')">'+
-        '<td style="font-weight:600;">'+esc(m.name)+'</td>'+
+        '<td style="font-weight:600;font-size:13px;">'+esc(m.name)+'</td>'+
         '<td style="font-size:12px;">'+esc(m.supplier||'-')+'</td>'+
         '<td style="font-size:12px;color:var(--primary);">'+esc(m.model||'-')+'</td>'+
+        '<td style="font-size:12px;">'+esc(m.category||'-')+'</td>'+
+        '<td style="text-align:center;font-size:12px;">'+esc(m.unit||'个')+'</td>'+
         '<td>'+srcLabel+'</td></tr>';
     }).join('')+'</tbody></table>';
   list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
@@ -3184,6 +3196,7 @@ function selectAC(idx) {
   document.getElementById('inp-category').value = m.category||getCategories()[0];
   document.getElementById('inp-unit').value = m.unit||'个';
   document.getElementById('inp-taobao').value = m.taobaoLink||'';
+  document.getElementById('inp-remark').value = m.remark||'';
   hideAC(); toast('已填入：'+m.name, 'success');
 }
 
