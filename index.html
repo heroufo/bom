@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.3</title>
+<title>BOM 智能管理工具 v5.4</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -64,15 +64,20 @@ body.dark {
   --tag-bg: #1e3a5f;
 }
 
+body { --font-scale: 1; }
+body.font-sm { --font-scale: 0.85; }
+body.font-lg { --font-scale: 1.15; }
+body.font-xl { --font-scale: 1.3; }
+
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;transition:background .2s,color .2s}
+body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:calc(14px * var(--font-scale));min-height:100vh;transition:background .2s,color .2s}
 
 /* HEADER */
 .header{background:var(--header-bg);color:var(--header-text);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.header-title{font-size:17px;font-weight:600;letter-spacing:.5px}
+.header-title{font-size:calc(17px * var(--font-scale));font-weight:600;letter-spacing:.5px}
 .header-title span{color:#60a5fa}
 .header-actions{display:flex;gap:8px;align-items:center}
-.dark-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:5px;transition:background .15s}
+.dark-toggle{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:calc(13px * var(--font-scale));display:flex;align-items:center;gap:5px;transition:background .15s}
 .dark-toggle:hover{background:rgba(255,255,255,.18)}
 
 /* TABS */
@@ -160,7 +165,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 /* AUTOCOMPLETE */
 .autocomplete-wrap{position:relative}
-.autocomplete-list{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--card-bg);border:1px solid var(--primary);border-top:none;border-radius:0 0 var(--radius) var(--radius);max-height:240px;overflow-y:auto;box-shadow:var(--shadow-md)}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--card-bg);border:1px solid var(--primary);border-top:none;border-radius:0 0 var(--radius) var(--radius);max-height:380px;overflow-y:auto;box-shadow:var(--shadow-md)}
 .single-part-ac{left:50%;transform:translateX(-50%);right:auto;width:360px;max-width:90vw;border-top:1px solid var(--primary);border-radius:var(--radius);margin-top:2px}
 .sp-search-wrap{position:relative;flex:0 0 auto}
 .autocomplete-item{padding:7px 10px;cursor:pointer;transition:background .08s;border-bottom:1px solid var(--border-light);display:flex;flex-direction:column;gap:1px}
@@ -308,6 +313,52 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .dark .role-badge.admin{background:#052e16;color:#86efac}
 .dark .role-badge.buyer{background:#172554;color:#93c5fd}
 .dark .role-badge.guest{background:#1e293b;color:#94a3b8}
+
+/* ARCHIVED PROJECT */
+.archived-row td{color:var(--text-muted)!important;font-style:italic}
+.archived-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1}
+.dark .archived-badge{background:#1e293b;color:#94a3b8;border-color:#475569}
+.archived-banner{display:none;padding:8px 14px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:var(--radius);margin-bottom:12px;font-size:13px;color:#64748b;align-items:center;gap:8px}
+.dark .archived-banner{background:#1e293b;border-color:#475569;color:#94a3b8}
+.archived-banner.show{display:flex}
+
+/* FONT SIZE BUTTONS */
+.font-size-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:var(--header-text);border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .15s;line-height:1}
+.font-size-btn:hover{background:rgba(255,255,255,.2)}
+.font-size-label{font-size:11px;color:rgba(255,255,255,.6);margin:0 2px;min-width:20px;text-align:center}
+
+/* LIST DRAG */
+.drag-list{list-style:none;padding:0;margin:0}
+.drag-list-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:4px;transition:all .12s;cursor:default;font-size:13px}
+.drag-list-item:hover{background:var(--primary-bg)}
+.drag-list-item .drag-grip{cursor:grab;color:var(--text-muted);font-size:16px;line-height:1;user-select:none;padding:0 2px}
+.drag-list-item .drag-grip:active{cursor:grabbing}
+.drag-list-item.dragging{opacity:.4;border-style:dashed}
+.drag-list-item.drag-over{border-color:var(--accent);box-shadow:0 0 6px rgba(249,115,22,.2);transform:translateY(1px)}
+.drag-list-item .item-name{flex:1;font-weight:500}
+.drag-list-item .del-btn{color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px;opacity:.7;transition:opacity .12s}
+.drag-list-item .del-btn:hover{opacity:1}
+
+/* OPTIMIZED ADD FORM */
+.add-form-sections{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:900px){.add-form-sections{grid-template-columns:1fr}}
+.add-form-section{background:var(--bg);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
+.add-form-section h4{font-size:12px;font-weight:600;color:var(--primary);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
+.add-form-section h4 .sec-icon{font-size:14px}
+.add-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.add-form-grid .form-group label{font-size:11px}
+.add-form-grid .form-control{font-size:12px;padding:5px 8px}
+.lib-checkboxes{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+.lib-checkboxes label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer}
+.lib-checkboxes input[type=checkbox]{width:14px;height:14px;accent-color:var(--primary);cursor:pointer}
+
+/* AUTOCOMPLETE TABLE */
+.ac-table-wrap{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:380px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md)}
+.ac-table{width:100%;border-collapse:collapse;font-size:12px}
+.ac-table thead th{background:var(--primary);color:#fff;padding:6px 8px;text-align:left;font-weight:500;position:sticky;top:0;z-index:1;font-size:11px}
+.ac-table tbody td{padding:6px 8px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .08s}
+.ac-table tbody tr:hover,.ac-table tbody tr.selected{background:var(--primary-bg)}
+.ac-table tbody tr .ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px}
 </style>
 </head>
 <body>
@@ -317,7 +368,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.3 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.4 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -333,7 +384,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 <!-- HEADER -->
 <div class="header">
-  <div class="header-title">BOM <span>智能管理工具 v5.0</span></div>
+  <div class="header-title">BOM <span>智能管理工具 v5.4</span></div>
   <div class="header-actions">
     <span style="font-size:12px;opacity:.75;">项目：</span>
     <span id="headerProjectName" style="font-size:13px;font-weight:600;color:#60a5fa;">-</span>
@@ -345,6 +396,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <button class="btn btn-outline" style="color:var(--header-text);border-color:rgba(255,255,255,.35);font-size:12px;" onclick="exportData()">导出JSON</button>
     <button class="btn btn-outline" style="color:var(--header-text);border-color:rgba(255,255,255,.35);font-size:12px;" onclick="importData()">导入JSON</button>
     <button class="logout-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">退出登录</button>
+    <span style="margin:0 4px;width:1px;height:20px;background:rgba(255,255,255,.2);display:inline-block;"></span>
+    <button class="font-size-btn" onclick="changeFontSize(-1)" title="缩小字号">A⁻</button>
+    <span class="font-size-label" id="fontSizeLabel">标准</span>
+    <button class="font-size-btn" onclick="changeFontSize(1)" title="放大字号">A⁺</button>
   </div>
 </div>
 
@@ -379,6 +434,12 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <button class="btn btn-success admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()">一键生成实采清单</button>
     <button class="btn btn-outline btn-sm" onclick="exportBomExcel()">导出Excel</button>
     <button class="btn btn-outline btn-sm" style="color:#16a34a;border-color:#16a34a;" onclick="exportBomToTencentDocs()">导出到腾讯文档</button>
+  </div>
+
+  <div class="archived-banner" id="archivedBanner">
+    <span style="font-size:16px;">📦</span>
+    <span>该项目已归档，无法新增、修改或删除零部件。如需操作请先取消归档。</span>
+    <button class="btn btn-sm btn-outline" onclick="toggleArchiveProject()" style="margin-left:auto;">取消归档</button>
   </div>
 
   <div class="stats-row no-print" id="bomStats"></div>
@@ -417,35 +478,44 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <button class="btn btn-sm btn-gray" onclick="toggleAddForm()">折叠</button>
     </div>
     <div class="card-body" id="addFormBody">
-      <div class="notice notice-info">输入名称自动从零件库匹配，选中自动填入供应商/型号。快速选件面板支持多选批量添加。</div>
-      <div class="form-row">
-        <div class="form-group"><label>分类 *</label><select class="form-control" id="inp-category"></select></div>
-        <div class="form-group"><label>名称 * <span style="font-size:10px;background:var(--text-secondary);color:#fff;padding:1px 5px;border-radius:3px;">自动补全</span></label>
-          <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="输入名称..." oninput="acSearch(this.value)" onblur="setTimeout(()=>hideAC(),200)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
+      <div class="notice notice-info">输入名称首字母即可从零件库匹配，选中自动填入信息。快速选件面板支持多选批量添加。</div>
+      <div class="add-form-sections">
+        <!-- Left: Core Info -->
+        <div class="add-form-section">
+          <h4><span class="sec-icon">📋</span>基本信息</h4>
+          <div class="add-form-grid">
+            <div class="form-group"><label>分类 *</label><select class="form-control" id="inp-category"></select></div>
+            <div class="form-group"><label>名称 * <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 4px;border-radius:3px;">首字母匹配</span></label>
+              <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="输入首字母快速检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
+            </div>
+            <div class="form-group"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商..."></div>
+            <div class="form-group"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..."></div>
+            <div class="form-group"><label>备注</label><input class="form-control" id="inp-remark" placeholder="该零件独有信息..."></div>
+          </div>
         </div>
-        <div class="form-group"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌或供应商名称..."></div>
-        <div class="form-group"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..."></div>
-        <div class="form-group"><label>数量 *</label><input class="form-control" type="number" id="inp-qty" value="1" min="1"></div>
-        <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit"></select></div>
-        <div class="form-group"><label>库存数量</label><input class="form-control" type="number" id="inp-stock" value="0" min="0"></div>
-        <div class="form-group"><label>状态</label><select class="form-control" id="inp-status"><option value="auto">自动计算</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
-        <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
+        <!-- Right: Quantity & Status -->
+        <div class="add-form-section">
+          <h4><span class="sec-icon">🔢</span>数量与状态</h4>
+          <div class="add-form-grid">
+            <div class="form-group"><label>数量 *</label><input class="form-control" type="number" id="inp-qty" value="1" min="1"></div>
+            <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit"></select></div>
+            <div class="form-group"><label>库存数量</label><input class="form-control" type="number" id="inp-stock" value="0" min="0"></div>
+            <div class="form-group"><label>状态</label><select class="form-control" id="inp-status"><option value="auto">自动计算</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
+            <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
+            <div class="form-group"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..."></div>
+          </div>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);">
+            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">💾 保存到零件库</div>
+            <div class="lib-checkboxes">
+              <label><input type="checkbox" id="chk-save-lib-global"> 🌐 保存到通用零件库（跨项目共享）</label>
+              <label><input type="checkbox" id="chk-save-lib-local"> 📁 保存到本项目零件库（仅本项目可见）</label>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..."></div>
-        <div class="form-group"><label>备注</label><input class="form-control" id="inp-remark" placeholder="其他备注..."></div>
-      </div>
-      <div class="form-actions">
+      <div class="form-actions" style="margin-top:12px;">
         <button class="btn btn-primary" onclick="addBomEntry()">确认添加</button>
         <button class="btn btn-gray" onclick="clearAddForm()">清空</button>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer;margin-left:8px;">
-          <input type="checkbox" id="chk-save-lib">
-          保存到：
-          <select id="sel-lib-scope" style="font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);">
-            <option value="global">🌐 通用零件库</option>
-            <option value="local">📁 本项目零件库</option>
-          </select>
-        </label>
       </div>
     </div>
   </div>
@@ -477,10 +547,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <th style="width:45px;">实采</th>
             <th style="width:50px;">到货</th>
             <th style="width:65px;">淘宝</th>
+            <th style="min-width:100px;">备注</th>
             <th id="bomActionColHeader" style="width:80px;" class="no-print">操作</th>
           </tr>
         </thead>
-        <tbody id="bomTbody"><tr><td colspan="13" class="no-data">请先选择或创建项目，然后添加零部件</td></tr></tbody>
+        <tbody id="bomTbody"><tr><td colspan="14" class="no-data">请先选择或创建项目，然后添加零部件</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -649,8 +720,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <div class="notice notice-info" style="margin-bottom:10px;">「从腾讯文档导入」：在腾讯文档中将表格导出为 CSV 或 Excel (.xlsx)，再点击此按钮上传。格式：第1行=项目名 → 第2行="清单" → 第3行=表头（序号/供应商/名称/名称型号/数量/单位/库存/状态/实采/到货状态/备注）→ 之后为数据行。</div>
     </div>
     <div class="table-wrap"><table id="projectsTable"><thead><tr>
-      <th>项目名称</th><th>零件数</th><th>采购数</th><th>库存数</th><th>创建时间</th><th style="width:120px;">操作</th>
-    </tr></thead><tbody id="projectsTbody"><tr><td colspan="6" class="no-data">暂无项目</td></tr></tbody></table></div>
+      <th>项目名称</th><th>零件数</th><th>采购数</th><th>库存数</th><th>状态</th><th>创建时间</th><th style="width:180px;">操作</th>
+    </tr></thead><tbody id="projectsTbody"><tr><td colspan="7" class="no-data">暂无项目</td></tr></tbody></table></div>
   </div>
 </div>
 
@@ -659,10 +730,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="card">
     <div class="card-header"><div class="card-header-left">分类管理（拖拽排序）</div></div>
     <div class="card-body">
-      <div class="notice notice-info">拖拽分类标签调整顺序，影响BOM清单分组显示。删除分类不影响已有零件。</div>
+      <div class="notice notice-info">拖拽列表项调整顺序，影响BOM清单分组显示。删除分类不影响已有零件。</div>
       <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前分类（拖拽排序）：</div>
-      <div id="catTagContainer" style="margin-bottom:14px;min-height:36px;"></div>
-      <div style="border-top:1px solid var(--border);padding-top:14px;">
+      <ul class="drag-list" id="catDragList"></ul>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:8px;">
         <div style="font-weight:600;margin-bottom:8px;font-size:13px;">添加新分类：</div>
         <div style="display:flex;gap:8px;"><input class="form-control" id="newCatInput" placeholder="分类名称..." style="max-width:240px;"><button class="btn btn-primary" onclick="addCategory()">+ 添加</button></div>
       </div>
@@ -671,10 +742,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="card">
     <div class="card-header"><div class="card-header-left">常用单位管理</div></div>
     <div class="card-body">
-      <div class="notice notice-info">管理零件可选单位列表，影响所有单位下拉框。</div>
-      <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前单位列表：</div>
-      <div id="unitTagContainer" style="margin-bottom:14px;"></div>
-      <div style="border-top:1px solid var(--border);padding-top:14px;">
+      <div class="notice notice-info">管理零件可选单位列表，拖拽调整顺序，影响所有单位下拉框。</div>
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前单位列表（拖拽排序）：</div>
+      <ul class="drag-list" id="unitDragList"></ul>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:8px;">
         <div style="display:flex;gap:8px;"><input class="form-control" id="newUnitInput" placeholder="单位名称..." style="max-width:160px;"><button class="btn btn-primary" onclick="addUnit()">+ 添加单位</button></div>
       </div>
     </div>
@@ -737,6 +808,15 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-project')">取消</button><button class="btn btn-primary" onclick="createProject()">创建</button></div>
 </div></div>
 
+<!-- Edit Project Name -->
+<div class="modal-overlay" id="modal-project-edit"><div class="modal">
+  <div class="modal-title">编辑项目信息</div>
+  <input type="hidden" id="editProjectId">
+  <div class="form-group" style="margin-bottom:12px;"><label>项目名称 *</label><input class="form-control" id="editProjectName"></div>
+  <div class="form-group" style="margin-bottom:12px;"><label>项目描述</label><input class="form-control" id="editProjectDesc" placeholder="可选备注"></div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-project-edit')">取消</button><button class="btn btn-primary" onclick="saveProjectEdit()">保存</button></div>
+</div></div>
+
 <!-- Library Add/Edit -->
 <div class="modal-overlay" id="modal-lib"><div class="modal">
   <div class="modal-title" id="libModalTitle">添加零件到库</div>
@@ -771,8 +851,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="form-group"><label>到货状态</label><select class="form-control" id="edit-arrived"><option value="">-</option><option>已到</option><option>未到</option><option>部分到</option></select></div>
   </div>
   <div class="form-row">
+    <div class="form-group"><label>备注</label><input class="form-control" id="edit-remark" placeholder="零件独有信息..."></div>
     <div class="form-group"><label>淘宝链接</label><input class="form-control" id="edit-taobao"></div>
-    <div class="form-group"><label>备注</label><input class="form-control" id="edit-remark"></div>
   </div>
   <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-edit')">取消</button><button class="btn btn-primary" onclick="saveEditEntry()">保存修改</button></div>
 </div></div>
@@ -815,7 +895,7 @@ const DEFAULT_USERS = [
 ];
 
 let store = {
-  version: 5.0,
+  version: 5.4,
   currentProject: null,
   projects: {},
   library: [],
@@ -823,6 +903,7 @@ let store = {
   units: [...DEFAULT_UNITS],
   darkMode: false,
   libView: 'card',
+  fontSize: 1,  // 0.85=小, 1=标准, 1.15=大, 1.3=特大
   users: JSON.parse(JSON.stringify(DEFAULT_USERS))
 };
 
@@ -847,6 +928,12 @@ function loadStore() {
       Object.values(store.projects).forEach(function(p) {
         if (!Array.isArray(p.localLibrary)) p.localLibrary = [];
       });
+      // v5.4 migration: ensure every project has archived field
+      Object.values(store.projects).forEach(function(p) {
+        if (p.archived === undefined) p.archived = false;
+      });
+      // v5.4 migration: ensure fontSize is set
+      if (!store.fontSize) store.fontSize = 1;
     } else {
       // migrate from v4
       const raw4 = localStorage.getItem('bom_tool_v4');
@@ -919,7 +1006,7 @@ function loadStore() {
     console.warn('Load store failed, resetting to defaults:', e);
     // Fully reset store on any load failure, then persist clean state
     store = {
-      version: 5.0,
+      version: 5.4,
       currentProject: null,
       projects: {},
       library: [],
@@ -927,6 +1014,7 @@ function loadStore() {
       units: [...DEFAULT_UNITS],
       darkMode: false,
       libView: 'card',
+      fontSize: 1,
       users: JSON.parse(JSON.stringify(DEFAULT_USERS))
     };
     saveStore();
@@ -1107,7 +1195,7 @@ const INITIAL_PROJECT = {"id":"p_2602","name":"2602 迅尔测控 称重法水装
   {"id":e(),"category":"传感器仪表","name":"环境温湿度","supplier":"建大仁科","model":"RS-WS-N01-2D-LCD","qty":1,"unit":"个","stock":1,"status":"库存","actualPurchase":0,"arrived":"已到","taobaoLink":"","remark":""},
   {"id":e(),"category":"结构件","name":"不锈钢水箱","supplier":"上力","model":"无盖 长8210x宽1210x高860 厚3mm","qty":1,"unit":"个","stock":0,"status":"采购","actualPurchase":1,"arrived":"已到","taobaoLink":"","remark":""},
   {"id":e(),"category":"结构件","name":"封头","supplier":"迦南","model":"外径1200 壁厚4mm SUS304 拉丝","qty":2,"unit":"个","stock":0,"status":"采购","actualPurchase":2,"arrived":"已到","taobaoLink":"","remark":""},
-]};
+],"localLibrary":[],"archived":false};
 
 function buildInitialLibrary() {
   const seen = new Set();
@@ -1158,12 +1246,54 @@ function populateSelects() {
 
 function renderCategoryManager() {
   var cats = getCategories();
-  var container = document.getElementById('catTagContainer');
+  var container = document.getElementById('catDragList');
   container.innerHTML = cats.map(function(c, i) {
-    return '<span class="cat-tag" draggable="true" data-cat-idx="'+i+'" ondragstart="catDragStart(event)" ondragover="catDragOver(event)" ondragleave="catDragLeave(event)" ondrop="catDrop(event)">'+
-      '<span class="drag-handle">⋮⋮</span> '+esc(c)+
-      '<span class="del-cat" title="删除" onclick="event.stopPropagation();deleteCategory('+i+')">×</span></span>';
+    return '<li class="drag-list-item" draggable="true" data-cat-idx="'+i+'" ondragstart="listDragStart(event)" ondragover="listDragOver(event)" ondragleave="listDragLeave(event)" ondrop="listDrop(event,\'category\')">'+
+      '<span class="drag-grip" title="拖拽排序">⋮⋮</span>'+
+      '<span class="item-name">'+esc(c)+'</span>'+
+      '<span class="del-btn" title="删除" onclick="deleteCategory('+i+')">×</span></li>';
   }).join('');
+}
+
+function renderUnitManager() {
+  var container = document.getElementById('unitDragList');
+  container.innerHTML = store.units.map(function(u, i) {
+    return '<li class="drag-list-item" draggable="true" data-unit-idx="'+i+'" ondragstart="listDragStart(event)" ondragover="listDragOver(event)" ondragleave="listDragLeave(event)" ondrop="listDrop(event,\'unit\')">'+
+      '<span class="drag-grip" title="拖拽排序">⋮⋮</span>'+
+      '<span class="item-name">'+esc(u)+'</span>'+
+      '<span class="del-btn" title="删除" onclick="deleteUnit('+i+')">×</span></li>';
+  }).join('');
+}
+
+// Generic list drag for both categories and units
+var listDragIdx = -1;
+function listDragStart(e) {
+  var el = e.target.closest('.drag-list-item'); if (!el) return;
+  listDragIdx = Array.from(el.parentNode.children).indexOf(el);
+  e.dataTransfer.effectAllowed = 'move';
+  el.classList.add('dragging');
+}
+function listDragOver(e) {
+  e.preventDefault();
+  var el = e.target.closest('.drag-list-item'); if (el) el.classList.add('drag-over');
+}
+function listDragLeave(e) {
+  var el = e.target.closest('.drag-list-item'); if (el) el.classList.remove('drag-over');
+}
+function listDrop(e, type) {
+  e.preventDefault();
+  var el = e.target.closest('.drag-list-item'); if (!el) return;
+  el.classList.remove('drag-over');
+  document.querySelectorAll('.drag-list-item').forEach(function(li){li.classList.remove('dragging');});
+  var toIdx = Array.from(el.parentNode.children).indexOf(el);
+  if (listDragIdx < 0 || toIdx < 0 || listDragIdx === toIdx) return;
+  var arr = type === 'category' ? store.categories : store.units;
+  var item = arr.splice(listDragIdx, 1)[0];
+  arr.splice(toIdx, 0, item);
+  saveStore();
+  if (type === 'category') { renderCategoryManager(); populateSelects(); refreshQuickCatFilter(); }
+  else { renderUnitManager(); populateSelects(); }
+  toast('排序已更新', 'success');
 }
 
 function addCategory() {
@@ -1184,40 +1314,9 @@ function deleteCategory(idx) {
   toast('分类「'+cat+'」已删除');
 }
 
-// Drag & Drop for categories
-var catDragIdx = -1;
-function catDragStart(e) {
-  catDragIdx = parseInt(e.target.getAttribute('data-cat-idx'));
-  e.dataTransfer.effectAllowed = 'move';
-  e.target.style.opacity = '0.5';
-}
-function catDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-  var el = e.target.closest('.cat-tag'); if (el) el.classList.add('drag-over');
-}
-function catDragLeave(e) { var el = e.target.closest('.cat-tag'); if (el) el.classList.remove('drag-over'); }
-function catDrop(e) {
-  e.preventDefault();
-  var el = e.target.closest('.cat-tag'); if (!el) return;
-  el.classList.remove('drag-over');
-  var toIdx = parseInt(el.getAttribute('data-cat-idx'));
-  if (catDragIdx < 0 || toIdx < 0 || catDragIdx === toIdx) return;
-  var cats = store.categories;
-  var item = cats.splice(catDragIdx, 1)[0];
-  cats.splice(toIdx, 0, item);
-  saveStore(); renderCategoryManager(); populateSelects();
-  toast('排序已更新', 'success');
-}
-
 // ============================================================
 // UNITS MANAGEMENT
 // ============================================================
-function renderUnitManager() {
-  var container = document.getElementById('unitTagContainer');
-  container.innerHTML = store.units.map(function(u, i) {
-    return '<span class="cat-tag" style="cursor:default;">'+esc(u)+
-      '<span class="del-cat" title="删除" onclick="deleteUnit('+i+')">×</span></span>';
-  }).join('');
-}
 function addUnit() {
   var val = document.getElementById('newUnitInput').value.trim();
   if (!val) { toast('请输入单位名称','error'); return; }
@@ -1253,6 +1352,7 @@ window.onload = function() {
     store.currentProject = Object.keys(store.projects)[0];
   }
   applyDark();
+  applyFontSize();
   populateSelects();
   refreshAll();
   // Show login screen
@@ -1272,6 +1372,8 @@ function refreshAll() {
   hdr.textContent = name; pn.textContent = name;
   // Update purchase-changed warning badge on BOM page button
   checkPurchaseBomChanged();
+  // Check archived UI state
+  checkArchivedUI();
 }
 
 // ============================================================
@@ -1571,7 +1673,7 @@ function createProject() {
   var name = document.getElementById('newProjectName').value.trim();
   if (!name) { toast('请输入项目名称','error'); return; }
   var id = 'p_'+e();
-  store.projects[id] = {id:id,name:name,desc:document.getElementById('newProjectDesc').value.trim(),created:new Date().toLocaleDateString('zh-CN'),bom:[],localLibrary:[]};
+  store.projects[id] = {id:id,name:name,desc:document.getElementById('newProjectDesc').value.trim(),created:new Date().toLocaleDateString('zh-CN'),bom:[],localLibrary:[],archived:false};
   store.currentProject = id; saveStore(); closeModal('modal-project'); refreshAll();
   toast('项目「'+name+'」创建成功', 'success');
 }
@@ -1595,14 +1697,111 @@ function deleteProject(id) {
   }
   refreshAll(); toast('项目已删除');
 }
+
+// Project edit modal
+function openEditProjectModal(id) {
+  var p = store.projects[id]; if (!p) return;
+  document.getElementById('editProjectId').value = id;
+  document.getElementById('editProjectName').value = p.name || '';
+  document.getElementById('editProjectDesc').value = p.desc || '';
+  document.getElementById('modal-project-edit').classList.add('show');
+  setTimeout(function(){ document.getElementById('editProjectName').focus(); }, 100);
+}
+
+function saveProjectEdit() {
+  var id = document.getElementById('editProjectId').value;
+  var name = document.getElementById('editProjectName').value.trim();
+  if (!name) { toast('请输入项目名称', 'error'); return; }
+  var p = store.projects[id]; if (!p) return;
+  p.name = name;
+  p.desc = document.getElementById('editProjectDesc').value.trim();
+  saveStore(); closeModal('modal-project-edit');
+  refreshAll(); toast('项目信息已更新', 'success');
+}
+
+// Toggle archive
+function toggleArchiveProject(id) {
+  if (!id) {
+    id = store.currentProject;
+    if (!id) { toast('请先选择项目', 'warn'); return; }
+  }
+  var p = store.projects[id]; if (!p) return;
+  p.archived = !p.archived;
+  saveStore();
+  if (id === store.currentProject) {
+    refreshAll();
+    checkArchivedUI();
+  } else {
+    renderProjectsTable();
+  }
+  toast(p.archived ? '项目已归档 📦' : '项目已取消归档 ✅', 'success');
+}
+
+// Check archived status and update UI
+function checkArchivedUI() {
+  if (!store.currentProject) return;
+  var p = store.projects[store.currentProject];
+  if (!p) return;
+  var isArchived = p.archived === true;
+  var banner = document.getElementById('archivedBanner');
+  if (banner) { banner.style.display = isArchived ? 'flex' : 'none'; }
+  // Disable/enable manual add form
+  var addCard = document.getElementById('manualAddCard');
+  if (addCard && currentUser && currentUser.role === 'admin') {
+    addCard.style.opacity = isArchived ? '0.5' : '1';
+    addCard.style.pointerEvents = isArchived ? 'none' : 'auto';
+  }
+  // Disable quick panel
+  var qp = document.getElementById('quickPanel');
+  if (qp && currentUser && currentUser.role === 'admin') {
+    qp.style.opacity = isArchived ? '0.5' : '1';
+    qp.style.pointerEvents = isArchived ? 'none' : 'auto';
+  }
+}
+
+// Font size control
+function changeFontSize(delta) {
+  var sizes = [0.85, 1, 1.15, 1.3];
+  var labels = ['小', '标准', '大', '特大'];
+  var cur = sizes.indexOf(store.fontSize);
+  if (cur < 0) cur = 1;
+  var next = cur + delta;
+  if (next < 0) next = 0;
+  if (next >= sizes.length) next = sizes.length - 1;
+  store.fontSize = sizes[next];
+  saveStore();
+  applyFontSize();
+  document.getElementById('fontSizeLabel').textContent = labels[next];
+}
+
+function applyFontSize() {
+  var body = document.body;
+  body.classList.remove('font-sm', 'font-lg', 'font-xl');
+  if (store.fontSize === 0.85) { body.classList.add('font-sm'); document.getElementById('fontSizeLabel').textContent = '小'; }
+  else if (store.fontSize === 1.15) { body.classList.add('font-lg'); document.getElementById('fontSizeLabel').textContent = '大'; }
+  else if (store.fontSize === 1.3) { body.classList.add('font-xl'); document.getElementById('fontSizeLabel').textContent = '特大'; }
+  else { document.getElementById('fontSizeLabel').textContent = '标准'; }
+}
 function renderProjectsTable() {
   var tbody = document.getElementById('projectsTbody');
   var projs = Object.values(store.projects);
-  if (!projs.length) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无项目</td></tr>'; return; }
+  if (!projs.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">暂无项目</td></tr>'; return; }
   tbody.innerHTML = projs.map(function(p) {
     var pc = p.bom.filter(function(i){return i.status==='采购';}).length;
     var sc = p.bom.filter(function(i){return i.status==='库存';}).length;
-    return '<tr><td><b>'+esc(p.name)+'</b> '+(p.id===store.currentProject?'<span class="badge" style="background:#dcfce7;color:#166534;">当前</span>':'')+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+esc(p.created||'-')+'</td><td><div class="row-actions" style="display:flex;gap:4px;"><button class="btn btn-sm btn-primary" onclick="switchProject(\''+p.id+'\');showPage(\'page-bom\')">进入</button><button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">删除</button></div></td></tr>';
+    var isArchived = p.archived === true;
+    var rowClass = isArchived ? 'archived-row' : '';
+    var statusBadge = isArchived ? '<span class="archived-badge">📦 已归档</span>' : '<span class="badge badge-stock">活跃</span>';
+    var currentBadge = p.id===store.currentProject ? '<span class="badge" style="background:#dcfce7;color:#166534;">当前</span>' : '';
+    var actions = '<div class="row-actions" style="display:flex;gap:4px;flex-wrap:wrap;">'
+      + '<button class="btn btn-sm btn-primary" onclick="switchProject(\''+p.id+'\');showPage(\'page-bom\')">进入</button>'
+      + '<button class="btn btn-sm btn-outline" onclick="openEditProjectModal(\''+p.id+'\')">编辑</button>'
+      + (isArchived
+        ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="toggleArchiveProject(\''+p.id+'\')">取消归档</button>'
+        : '<button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:var(--warning);" onclick="toggleArchiveProject(\''+p.id+'\')">归档</button>')
+      + '<button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">删除</button>'
+      + '</div>';
+    return '<tr class="'+rowClass+'"><td><b>'+esc(p.name)+'</b> '+currentBadge+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+statusBadge+'</td><td>'+esc(p.created||'-')+'</td><td>'+actions+'</td></tr>';
   }).join('');
 }
 
@@ -1622,7 +1821,7 @@ function renderBomTable() {
     return ms && mst;
   });
 
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="13" class="no-data">暂无数据</td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14" class="no-data">暂无数据</td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
 
   var labelMap = {category:'按分类',supplier:'按供应商',status:'按状态',none:''};
   document.getElementById('bomGroupLabel').textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
@@ -1646,7 +1845,7 @@ function renderBomTable() {
       });
     }
     keys.forEach(function(key) {
-      html += '<tr class="category-row"><td colspan="13">▶ '+esc(key)+'（'+groups[key].length+' 项）</td></tr>';
+      html += '<tr class="category-row"><td colspan="14">▶ '+esc(key)+'（'+groups[key].length+' 项）</td></tr>';
       groups[key].forEach(function(item) { html += bomRowHtml(item, seq++); });
     });
   }
@@ -1678,6 +1877,7 @@ function bomRowHtml(item, seq) {
     '<td style="text-align:center;font-weight:600;color:var(--accent);">'+(item.actualPurchase||0)+'</td>'+
     '<td>'+ab+'</td>'+
     '<td style="font-size:12px;">'+tl+'</td>'+
+    '<td style="font-size:11px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(item.remark||'')+'">'+esc(item.remark||'-')+'</td>'+
     actionCol+
     '</tr>';
 }
@@ -1736,6 +1936,9 @@ function toggleQuickPanel() { var b=document.getElementById('quickPanelBody'); b
 // ============================================================
 function addBomEntry() {
   if (!store.currentProject) { toast('请先选择或创建项目','error'); return; }
+  // Check if project is archived
+  var proj = store.projects[store.currentProject];
+  if (proj.archived) { toast('该项目已归档，无法添加零部件', 'error'); return; }
   var name = document.getElementById('inp-name').value.trim();
   if (!name) { toast('请输入零件名称','error'); return; }
   var qty = parseInt(document.getElementById('inp-qty').value) || 1;
@@ -1754,23 +1957,23 @@ function addBomEntry() {
     remark: document.getElementById('inp-remark').value.trim()
   };
 
-  store.projects[store.currentProject].bom.push(entry);
+  proj.bom.push(entry);
 
-  if (document.getElementById('chk-save-lib').checked) {
-    var libScope = document.getElementById('sel-lib-scope').value;
-    var libEntry = {id:e(),name:name,supplier:entry.supplier,model:entry.model,unit:entry.unit,category:entry.category,taobaoLink:entry.taobaoLink};
-    if (libScope === 'local') {
-      // Save to current project's local library
-      var proj = store.projects[store.currentProject];
-      if (!Array.isArray(proj.localLibrary)) proj.localLibrary = [];
-      var existingLocal = proj.localLibrary.find(function(l){return l.name===name&&l.supplier===entry.supplier;});
-      if (!existingLocal) { proj.localLibrary.push(libEntry); toast('已保存到本项目零件库 📁', 'success'); }
-    } else {
-      // Save to global library
-      var existing = store.library.find(function(l){return l.name===name&&l.supplier===entry.supplier;});
-      if (!existing) { store.library.push(libEntry); toast('已同时保存到通用零件库 🌐', 'success'); }
-    }
+  // v5.4: separate checkboxes for global and local library
+  var saveGlobal = document.getElementById('chk-save-lib-global').checked;
+  var saveLocal = document.getElementById('chk-save-lib-local').checked;
+  var libEntry = {id:e(),name:name,supplier:entry.supplier,model:entry.model,unit:entry.unit,category:entry.category,taobaoLink:entry.taobaoLink};
+
+  if (saveLocal) {
+    if (!Array.isArray(proj.localLibrary)) proj.localLibrary = [];
+    var existingLocal = proj.localLibrary.find(function(l){return l.name===name&&l.supplier===entry.supplier;});
+    if (!existingLocal) { proj.localLibrary.push(libEntry); toast('已保存到本项目零件库 📁', 'success'); }
   }
+  if (saveGlobal) {
+    var existingGlobal = store.library.find(function(l){return l.name===name&&l.supplier===entry.supplier;});
+    if (!existingGlobal) { store.library.push(Object.assign({}, libEntry, {id: e()})); toast('已保存到通用零件库 🌐', 'success'); }
+  }
+
   saveStore(); clearAddForm(); renderBomTable(); renderBomStats(); updateBadges();
   toast('已添加：'+name, 'success');
 }
@@ -1779,11 +1982,15 @@ function clearAddForm() {
   ['inp-name','inp-supplier','inp-model','inp-taobao','inp-remark'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('inp-qty').value = 1; document.getElementById('inp-stock').value = 0;
   document.getElementById('inp-arrived').value = ''; document.getElementById('inp-status').value = 'auto';
+  document.getElementById('chk-save-lib-global').checked = false;
+  document.getElementById('chk-save-lib-local').checked = false;
 }
 
 function deleteBomEntry(id) {
   if (!store.currentProject) return;
-  store.projects[store.currentProject].bom = store.projects[store.currentProject].bom.filter(function(i){return i.id!==id;});
+  var proj = store.projects[store.currentProject];
+  if (proj.archived) { toast('该项目已归档，无法删除', 'error'); return; }
+  proj.bom = proj.bom.filter(function(i){return i.id!==id;});
   saveStore(); renderBomTable(); renderBomStats(); updateBadges(); toast('已删除');
 }
 
@@ -1809,6 +2016,8 @@ function openEditModal(id) {
 }
 
 function saveEditEntry() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (proj && proj.archived) { toast('该项目已归档，无法修改', 'error'); closeModal('modal-edit'); return; }
   var id = document.getElementById('edit-idx').value;
   var bom = currentBom(); var idx = bom.findIndex(function(i){return i.id===id;}); if (idx<0) return;
   var qty = parseInt(document.getElementById('edit-qty').value)||1;
@@ -1890,6 +2099,8 @@ function quickDeselectAll() { quickSelectedIds.clear(); document.querySelectorAl
 
 function batchAddFromLib() {
   if (!store.currentProject) { toast('请先选择或创建项目','error'); return; }
+  var proj = store.projects[store.currentProject];
+  if (proj.archived) { toast('该项目已归档，无法添加零部件', 'error'); return; }
   if (!quickSelectedIds.size) { toast('请先勾选要添加的零件','warn'); return; }
   var statusMode = document.getElementById('quickInpStatus').value;
   var localLib = getLocalLib();
@@ -2914,6 +3125,13 @@ function selectSinglePart(idx) {
 
 // Hide AC on blur
 document.addEventListener('click', function(e){
+  // Close BOM name AC
+  var bomAc = document.getElementById('acList');
+  var bomInp = document.getElementById('inp-name');
+  if (bomAc && bomInp && !bomInp.contains(e.target) && !bomAc.contains(e.target)) {
+    bomAc.classList.add('autocomplete-hidden');
+  }
+  // Close single part AC
   var acEl = document.getElementById('singlePartAC');
   var inputEl = document.getElementById('singlePartSearch');
   if (acEl && inputEl && !inputEl.contains(e.target) && !acEl.contains(e.target)) {
@@ -2940,13 +3158,19 @@ function acSearch(val) {
     var key = (m.name||'')+'|'+(m.supplier||'');
     if (!seen[key]) { seen[key]=true; matches.push(m); }
   });
-  matches = matches.slice(0,12);
+  matches = matches.slice(0, 30);
   if (!matches.length) return;
   var list = document.getElementById('acList');
-  list.innerHTML = matches.map(function(m,i){
-    var badge = m._src==='local' ? '<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;margin-left:4px;">本项目</span>' : '';
-    return '<div class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')"><div class="ac-name">'+esc(m.name)+badge+'</div><div class="ac-supplier">供应商：'+esc(m.supplier||'-')+' | 分类：'+esc(m.category||'-')+'</div><div class="ac-model">型号：'+esc(m.model||'-')+'</div></div>';
-  }).join('');
+  // Use table format for better display
+  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:40%;">名称</th><th>供应商</th><th style="width:35%;">型号规格</th><th style="width:10%;">来源</th></tr></thead><tbody>'+
+    matches.map(function(m,i){
+      var srcLabel = m._src==='local' ? '<span class="ac-local-badge">本项目</span>' : '<span style="font-size:10px;color:var(--text-muted);">通用库</span>';
+      return '<tr class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')">'+
+        '<td style="font-weight:600;">'+esc(m.name)+'</td>'+
+        '<td style="font-size:12px;">'+esc(m.supplier||'-')+'</td>'+
+        '<td style="font-size:12px;color:var(--primary);">'+esc(m.model||'-')+'</td>'+
+        '<td>'+srcLabel+'</td></tr>';
+    }).join('')+'</tbody></table>';
   list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
 }
 
@@ -3189,7 +3413,7 @@ function importFromTencentDocsFile(input) {
         store.currentProject = existingId;
       } else {
         var pid = e();
-        store.projects[pid] = {id: pid, name: projName, bom: bom, createdAt: new Date().toISOString()};
+        store.projects[pid] = {id: pid, name: projName, bom: bom, createdAt: new Date().toISOString(), localLibrary: [], archived: false};
         store.currentProject = pid;
       }
 
