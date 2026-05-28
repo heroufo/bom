@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.4.3</title>
+<title>BOM 智能管理工具 v5.5</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -197,13 +197,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .quick-selected-count{font-weight:700;color:var(--primary)}
 
 /* LIBRARY VIEWS */
-.lib-view-toggle{display:flex;gap:3px}
-.view-btn{padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card-bg);color:var(--text-secondary);cursor:pointer;font-size:12px;transition:all .12s}
-.view-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .lib-check{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);margin:0}
 .lib-check-cell{width:30px;text-align:center;padding:8px 4px!important}
-.lib-card-check{position:absolute;top:8px;right:8px;width:18px;height:18px;cursor:pointer;accent-color:var(--primary);z-index:1}
-.lib-card-wrap{position:relative}
 #batchDeleteBtn{display:none;gap:4px;align-items:center}
 #batchDeleteBtn.show{display:inline-flex}
 #batchDeleteCount{font-size:12px;background:var(--danger);color:#fff;border-radius:10px;padding:0 7px;height:18px;line-height:18px;font-weight:600}
@@ -615,10 +610,6 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         </span>
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
-        <div class="lib-view-toggle">
-          <button class="view-btn" id="viewBtnList" onclick="setLibView('list')">列表</button>
-          <button class="view-btn active" id="viewBtnCard" onclick="setLibView('card')">卡片</button>
-        </div>
         <button class="btn btn-primary btn-sm" onclick="openLibModal()">+ 添加零件</button>
         <button class="btn btn-outline btn-sm" onclick="batchDeleteLib()">
           🗑 批量删除
@@ -626,6 +617,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         </button>
         <button class="btn btn-outline btn-sm" onclick="exportLibTemplate()">下载导入模板</button>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('libFileInput').click()">批量导入Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="exportLibExcel()">📥 导出Excel</button>
         <input type="file" id="libFileInput" accept=".xlsx,.xls" style="display:none" onchange="importLibExcel(this)">
       </div>
     </div>
@@ -639,8 +631,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       </div>
     </div>
   </div>
-  <div id="libCardView" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;"></div>
-  <div id="libListView" style="display:none;" class="card">
+  <div id="libListView" class="card">
     <div class="table-wrap"><table class="lib-table"><thead><tr>
       <th style="width:32px;" class="no-print"><input type="checkbox" class="lib-check" id="libSelectAll" onchange="toggleLibSelectAll(this)" title="全选"></th><th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th>备注</th><th style="width:100px;" class="no-print">操作</th>
     </tr></thead><tbody id="libListTbody"></tbody></table></div>
@@ -2135,7 +2126,6 @@ function batchAddFromLib() {
 // ============================================================
 // LIBRARY
 // ============================================================
-var libView = 'card';
 var libTab = 'global'; // 'global' | 'local'
 var libSortDir = 0; // 0=none, 1=asc, -1=desc
 
@@ -2178,15 +2168,6 @@ function getLocalLib() {
   return proj.localLibrary;
 }
 
-function setLibView(v) {
-  libView = v; store.libView = v; saveStore();
-  document.getElementById('viewBtnList').classList.toggle('active', v==='list');
-  document.getElementById('viewBtnCard').classList.toggle('active', v==='card');
-  document.getElementById('libCardView').style.display = v==='card'?'grid':'none';
-  document.getElementById('libListView').style.display = v==='list'?'block':'none';
-  renderLibrary();
-}
-
 function renderLibrary() {
   var sel = document.getElementById('libCatFilter');
   var kw = (document.getElementById('libSearch').value||'').toLowerCase();
@@ -2215,50 +2196,23 @@ function renderLibrary() {
     });
   }
 
-  var cv = store.libView || libView;
-  var cardEl = document.getElementById('libCardView');
   var noDataMsg = isLocal ? '本项目暂无私有零件' : '没有匹配的零件';
 
-  if (cv === 'card') {
-    cardEl.style.display = 'grid'; document.getElementById('libListView').style.display = 'none';
-    document.getElementById('viewBtnCard').classList.add('active'); document.getElementById('viewBtnList').classList.remove('active');
-    if (!filtered.length) { cardEl.innerHTML = '<div class="no-data" style="grid-column:1/-1;padding:36px;">'+noDataMsg+(isLocal?'<br><small style="color:var(--text-muted)">在BOM录入时选择「保存到本项目零件库」即可添加</small>':'')+'</div>'; return; }
-    cardEl.innerHTML = filtered.map(function(l) {
-      var borderColor = isLocal ? 'var(--accent)' : 'var(--primary)';
-      var extraBtns = isLocal
-        ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="event.stopPropagation();promoteLocalLib(\''+l.id+'\')" title="升级为通用库，所有项目可见">↑升级</button>'
-        : '';
-      return '<div class="lib-card-wrap" style="background:var(--card-bg);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid '+borderColor+';">'+
-        '<input type="checkbox" class="lib-card-check" data-lib-id="'+l.id+'" onclick="event.stopPropagation();updateBatchDeleteBtn()" title="选择此零件">'+
-        '<div style="font-weight:600;font-size:13px;color:var(--text);margin-bottom:3px;padding-right:24px;">'+esc(l.name)+'</div>'+
-        '<div style="font-size:11px;color:var(--text-secondary);">供应商：'+esc(l.supplier||'未知')+'</div>'+
-        '<div style="font-size:11px;color:var(--primary);">'+esc(l.model||'-')+'</div>'+
-        '<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">单位：'+esc(l.unit||'-')+' | 分类：'+esc(l.category||'-')+'</div>'+
-        (l.remark ? '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;font-style:italic;">备注：'+esc(l.remark)+'</div>' : '')+
-        '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">'+
-        extraBtns+
-        '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();editLib(\''+l.id+'\')">编辑</button>'+
-        '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteLib(\''+l.id+'\')">删除</button></div></div>';
-    }).join('');
-  } else {
-    cardEl.style.display = 'none'; document.getElementById('libListView').style.display = 'block';
-    document.getElementById('viewBtnList').classList.add('active'); document.getElementById('viewBtnCard').classList.remove('active');
-    var tbody = document.getElementById('libListTbody');
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">'+noDataMsg+'</td></tr>'; return; }
-    tbody.innerHTML = filtered.map(function(l,i) {
-      var promoteBtnHtml = isLocal
-        ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
-        : '';
-      return '<tr>'+
-        '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
-        '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
-        '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
-        '<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td>'+
-        '<td style="font-size:12px;">'+esc(l.unit||'-')+'</td>'+
-        '<td style="font-size:11px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(l.remark||'')+'">'+esc(l.remark||'-')+'</td>'+
-        '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;">'+promoteBtnHtml+'<button class="btn btn-sm btn-outline" onclick="editLib(\''+l.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteLib(\''+l.id+'\')">删除</button></div></td></tr>';
-    }).join('');
-  }
+  var tbody = document.getElementById('libListTbody');
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">'+noDataMsg+(isLocal?'<br><small style="color:var(--text-muted)">在BOM录入时选择「保存到本项目零件库」即可添加</small>':'')+'</td></tr>'; return; }
+  tbody.innerHTML = filtered.map(function(l,i) {
+    var promoteBtnHtml = isLocal
+      ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
+      : '';
+    return '<tr>'+
+      '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
+      '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
+      '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
+      '<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td>'+
+      '<td style="font-size:12px;">'+esc(l.unit||'-')+'</td>'+
+      '<td style="font-size:11px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(l.remark||'')+'">'+esc(l.remark||'-')+'</td>'+
+      '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;">'+promoteBtnHtml+'<button class="btn btn-sm btn-outline" onclick="editLib(\''+l.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteLib(\''+l.id+'\')">删除</button></div></td></tr>';
+  }).join('');
   // Reset selection state after render
   var sa = document.getElementById('libSelectAll');
   if (sa) { sa.checked = false; sa.indeterminate = false; }
@@ -2870,6 +2824,23 @@ function exportLibTemplate() {
   toast('导入模板已下载', 'success');
 }
 
+function exportLibExcel() {
+  var isLocal = (libTab === 'local');
+  var sourceList = isLocal ? getLocalLib() : store.library;
+  if (!sourceList.length) { toast('零件库为空，无法导出', 'error'); return; }
+  var data = [['名称','供应商','型号规格','分类','单位','淘宝链接','备注']];
+  sourceList.forEach(function(l){
+    data.push([l.name||'', l.supplier||'', l.model||'', l.category||'', l.unit||'', l.taobaoLink||'', l.remark||'']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:18},{wch:16},{wch:30},{wch:12},{wch:6},{wch:35},{wch:30}];
+  var wb = XLSX.utils.book_new();
+  var sheetName = isLocal ? '本项目零件库' : '通用零件库';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, (isLocal ? '本项目' : '通用')+'零件库导出.xlsx');
+  toast(sourceList.length+' 个零件已导出', 'success');
+}
+
 function importLibExcel(input) {
   var file = input.files[0]; if (!file) return;
   var reader = new FileReader();
@@ -2888,25 +2859,43 @@ function importLibExcel(input) {
       var unitCol = headers.findIndex(function(h){return h==='单位';});
       var taobaoCol = headers.findIndex(function(h){return h.indexOf('淘宝')>=0||h.indexOf('链接')>=0;});
 
-      var added = 0, skipped = 0;
+      var remarkCol = headers.findIndex(function(h){return h==='备注'||h.indexOf('备注')>=0;});
+
+      var isLocal = (libTab === 'local');
+      var targetList = isLocal ? getLocalLib() : store.library;
+
+      var added = 0, updated = 0, skipped = 0;
       for (var i = 1; i < rows.length; i++) {
         var row = rows[i]; if (!row || !row[nameCol]) { skipped++; continue; }
         var name = String(row[nameCol]||'').trim(); if (!name) { skipped++; continue; }
-        var supplier = supplierCol>=0 ? String(row[supplierCol]||'').trim() : '';
-        var existing = store.library.find(function(l){return l.name===name&&l.supplier===supplier;});
-        if (existing) { skipped++; continue; }
-        store.library.push({
-          id: e(), name: name,
-          supplier: supplier,
-          model: modelCol>=0 ? String(row[modelCol]||'').trim() : '',
-          category: catCol>=0 ? String(row[catCol]||'').trim() : getCategories()[0],
-          unit: unitCol>=0 ? String(row[unitCol]||'').trim() : '个',
-          taobaoLink: taobaoCol>=0 ? String(row[taobaoCol]||'').trim() : ''
-        });
-        added++;
+        var existing = targetList.find(function(l){return l.name.toLowerCase()===name.toLowerCase();});
+        if (existing) {
+          // Update existing entry fields
+          existing.supplier = supplierCol>=0 ? String(row[supplierCol]||'').trim() : existing.supplier;
+          existing.model = modelCol>=0 ? String(row[modelCol]||'').trim() : existing.model;
+          existing.category = catCol>=0 ? String(row[catCol]||'').trim() : existing.category;
+          existing.unit = unitCol>=0 ? String(row[unitCol]||'').trim() : existing.unit;
+          existing.taobaoLink = taobaoCol>=0 ? String(row[taobaoCol]||'').trim() : existing.taobaoLink;
+          if (remarkCol >= 0) existing.remark = String(row[remarkCol]||'').trim();
+          updated++;
+        } else {
+          targetList.push({
+            id: e(), name: name,
+            supplier: supplierCol>=0 ? String(row[supplierCol]||'').trim() : '',
+            model: modelCol>=0 ? String(row[modelCol]||'').trim() : '',
+            category: catCol>=0 ? String(row[catCol]||'').trim() : getCategories()[0],
+            unit: unitCol>=0 ? String(row[unitCol]||'').trim() : '个',
+            taobaoLink: taobaoCol>=0 ? String(row[taobaoCol]||'').trim() : '',
+            remark: remarkCol>=0 ? String(row[remarkCol]||'').trim() : ''
+          });
+          added++;
+        }
       }
       saveStore(); renderLibrary(); updateBadges(); renderQuickLib();
-      toast('导入完成：新增 '+added+' 个，跳过 '+skipped+' 个（重复或空行）', 'success');
+      var msgs = ['新增 '+added+' 个'];
+      if (updated > 0) msgs.push('更新 '+updated+' 个（同名覆盖）');
+      if (skipped > 0) msgs.push('跳过 '+skipped+' 个（空行）');
+      toast('导入完成：'+msgs.join('，'), 'success');
     } catch(err) { toast('导入失败：'+err.message, 'error'); }
   };
   reader.readAsArrayBuffer(file);
@@ -3490,7 +3479,9 @@ function importFromTencentDocsFile(input) {
 // ============================================================
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
-  overlay.addEventListener('click', function(e) { if (e.target===this) this.classList.remove('show'); });
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this && this.id !== 'modal-lib') this.classList.remove('show');
+  });
 });
 </script>
 </body>
