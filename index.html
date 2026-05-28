@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.7</title>
+<title>BOM 智能管理工具 v5.8</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -375,9 +375,13 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .add-form-section{background:var(--bg);border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border)}
 .add-form-section h4{font-size:12px;font-weight:600;color:var(--primary);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px}
 .add-form-section h4 .sec-icon{font-size:14px}
-.add-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.add-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .add-form-grid .form-group label{font-size:11px}
 .add-form-grid .form-control{font-size:12px;padding:5px 8px}
+.add-form-col{display:flex;flex-direction:column;gap:0}
+@media (max-width:640px) {
+  .add-form-grid{grid-template-columns:1fr;gap:0}
+}
 .lib-checkboxes{display:flex;flex-direction:column;gap:3px;margin-top:4px}
 .lib-checkboxes label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary);cursor:pointer}
 .lib-checkboxes input[type=checkbox]{width:14px;height:14px;accent-color:var(--primary);cursor:pointer}
@@ -398,7 +402,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.7 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.8 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -415,7 +419,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.7</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.8</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -513,8 +517,59 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       </div>
     </div>
 
-    <!-- MIDDLE: BOM Table -->
+    <!-- MIDDLE: Manual Add Form + BOM Table -->
     <div class="bom-main">
+      <!-- Manual Add Form - Two Column Layout -->
+      <div class="bom-drawer admin-only" id="bomDrawer">
+        <div class="card no-print" id="manualAddCard">
+          <div class="card-header">
+            <div class="card-header-left">✏️ 手动添加零件</div>
+          </div>
+          <div class="card-body" id="addFormBody" style="font-size:12px;">
+            <div class="notice notice-info" style="font-size:11px;padding:6px 10px;margin-bottom:10px;">输入名称首字母即可从零件库匹配</div>
+            <div class="add-form-grid">
+              <!-- LEFT COLUMN -->
+              <div class="add-form-col">
+                <div class="form-group" style="margin-bottom:8px;"><label>名称 *</label>
+                  <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="首字母快速检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off" style="font-size:12px;"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
+                </div>
+                <div class="form-group" style="margin-bottom:8px;"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商..." style="font-size:12px;"></div>
+                <div class="form-group" style="margin-bottom:8px;"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..." style="font-size:12px;"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                  <div class="form-group"><label>分类</label><select class="form-control" id="inp-category" style="font-size:12px;"></select></div>
+                  <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit" style="font-size:12px;"></select></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                  <div class="form-group"><label>数量</label><input class="form-control" type="number" id="inp-qty" value="1" min="1" style="font-size:12px;"></div>
+                  <div class="form-group"><label>库存</label><input class="form-control" type="number" id="inp-stock" value="0" min="0" style="font-size:12px;"></div>
+                </div>
+                <div class="form-group" style="margin-bottom:8px;"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..." style="font-size:12px;"></div>
+              </div>
+              <!-- RIGHT COLUMN -->
+              <div class="add-form-col">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                  <div class="form-group"><label>状态</label><select class="form-control" id="inp-status" style="font-size:12px;"><option value="auto">自动</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
+                  <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived" style="font-size:12px;"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
+                </div>
+                <div class="form-group" style="margin-bottom:8px;"><label>备注</label><input class="form-control" id="inp-remark" placeholder="零件独有信息..." style="font-size:12px;"></div>
+                <div style="margin-top:28px;margin-bottom:8px;padding:8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border);">
+                  <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">保存到零件库</div>
+                  <div class="lib-checkboxes">
+                    <label><input type="checkbox" id="chk-save-lib-global"> 通用库</label>
+                    <label><input type="checkbox" id="chk-save-lib-local"> 本项目库</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addBomEntry()" style="flex:1;">确认添加</button>
+              <button class="btn btn-ghost" onclick="clearAddForm()">清空</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOM Table -->
       <div class="card">
         <div class="card-header no-print">
           <div class="card-header-left">📋 零部件清单 <span id="bomGroupLabel" style="font-size:11px;color:var(--text-muted);font-weight:400;"></span></div>
@@ -545,52 +600,10 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <th id="bomActionColHeader" style="width:70px;" class="no-print">操作</th>
               </tr>
             </thead>
-            <tbody id="bomTbody"><tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从上方零件库选件<br>或通过下方表单手动添加零件</div></div></td></tr></tbody>
+            <tbody id="bomTbody"><tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从上方零件库选件<br>或通过上方表单手动添加零件</div></div></td></tr></tbody>
           </table>
         </div>
       </div>
-    </div>
-
-    <!-- BOTTOM: Manual Add Form -->
-    <div class="bom-drawer admin-only" id="bomDrawer">
-      <div class="card no-print" id="manualAddCard">
-          <div class="card-header">
-            <div class="card-header-left">✏️ 手动添加零件</div>
-          </div>
-          <div class="card-body" id="addFormBody" style="font-size:12px;">
-            <div class="notice notice-info" style="font-size:11px;padding:6px 10px;margin-bottom:10px;">输入名称首字母即可从零件库匹配</div>
-            <div class="form-group" style="margin-bottom:8px;"><label>名称 *</label>
-              <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="首字母快速检索..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off" style="font-size:12px;"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
-            </div>
-            <div class="form-group" style="margin-bottom:8px;"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商..." style="font-size:12px;"></div>
-            <div class="form-group" style="margin-bottom:8px;"><label>名称型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格..." style="font-size:12px;"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div class="form-group"><label>分类</label><select class="form-control" id="inp-category" style="font-size:12px;"></select></div>
-              <div class="form-group"><label>单位</label><select class="form-control" id="inp-unit" style="font-size:12px;"></select></div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div class="form-group"><label>数量</label><input class="form-control" type="number" id="inp-qty" value="1" min="1" style="font-size:12px;"></div>
-              <div class="form-group"><label>库存</label><input class="form-control" type="number" id="inp-stock" value="0" min="0" style="font-size:12px;"></div>
-              <div class="form-group"><label>状态</label><select class="form-control" id="inp-status" style="font-size:12px;"><option value="auto">自动</option><option value="采购">采购</option><option value="库存">库存</option></select></div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div class="form-group"><label>到货状态</label><select class="form-control" id="inp-arrived" style="font-size:12px;"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select></div>
-              <div class="form-group"><label>备注</label><input class="form-control" id="inp-remark" placeholder="零件独有信息..." style="font-size:12px;"></div>
-            </div>
-            <div class="form-group" style="margin-bottom:10px;"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..." style="font-size:12px;"></div>
-            <div style="margin-bottom:10px;padding:8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border);">
-              <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">保存到零件库</div>
-              <div class="lib-checkboxes">
-                <label><input type="checkbox" id="chk-save-lib-global"> 通用库</label>
-                <label><input type="checkbox" id="chk-save-lib-local"> 本项目库</label>
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="btn btn-primary" onclick="addBomEntry()" style="flex:1;">确认添加</button>
-              <button class="btn btn-ghost" onclick="clearAddForm()">清空</button>
-            </div>
-          </div>
-        </div>
     </div>
   </div>
 </div>
@@ -1865,7 +1878,7 @@ function renderBomTable() {
     return ms && mst;
   });
 
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过下方表单手动添加</div></div></td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
 
   var labelMap = {category:'按分类',supplier:'按供应商',status:'按状态',none:''};
   document.getElementById('bomGroupLabel').textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
