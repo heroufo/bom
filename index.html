@@ -364,7 +364,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.4 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.5 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -380,7 +380,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 <!-- HEADER -->
 <div class="header">
-  <div class="header-title">BOM <span>智能管理工具 v5.4</span></div>
+  <div class="header-title">BOM <span>智能管理工具 v5.5</span></div>
   <div class="header-actions">
     <span style="font-size:12px;opacity:.75;">项目：</span>
     <span id="headerProjectName" style="font-size:13px;font-weight:600;color:#60a5fa;">-</span>
@@ -2843,14 +2843,23 @@ function exportLibExcel() {
 
 function importLibExcel(input) {
   var file = input.files[0]; if (!file) return;
+  // Capture current tab at import time to avoid race condition
+  var capturedTab = libTab;
   var reader = new FileReader();
+  reader.onerror = function() {
+    toast('文件读取失败，请确认文件未被其他程序占用','error');
+    input.value = '';
+  };
   reader.onload = function(evt) {
     try {
       var wb = XLSX.read(evt.target.result, {type:'array'});
       var ws = wb.Sheets[wb.SheetNames[0]];
-      var rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      // Use defval:'' so all rows have consistent length (empty cells = '' instead of undefined)
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      console.log('[importLibExcel] capturedTab='+capturedTab+' rows.length='+rows.length);
       if (!rows || rows.length < 2) { toast('Excel文件为空或格式不符','error'); return; }
       var headers = rows[0].map(function(h){return String(h||'').trim();});
+      console.log('[importLibExcel] headers:', JSON.stringify(headers));
       var nameCol = headers.findIndex(function(h){return h.indexOf('名称')===0;});
       if (nameCol < 0) { toast('未找到"名称"列，请使用导入模板','error'); return; }
       var supplierCol = headers.findIndex(function(h){return h==='供应商'||h.indexOf('供应商')>=0;});
@@ -2861,13 +2870,26 @@ function importLibExcel(input) {
 
       var remarkCol = headers.findIndex(function(h){return h==='备注'||h.indexOf('备注')>=0;});
 
-      var isLocal = (libTab === 'local');
+      var isLocal = (capturedTab === 'local');
+      if (isLocal && (!store.currentProject || !store.projects[store.currentProject])) {
+        toast('请先选择一个项目，才能导入到本项目零件库','error');
+        input.value = ''; return;
+      }
       var targetList = isLocal ? getLocalLib() : store.library;
+      if (!Array.isArray(targetList)) {
+        toast('零件库数据异常，请刷新页面后重试','error');
+        input.value = ''; return;
+      }
+      var beforeCount = targetList.length;
+      console.log('[importLibExcel] targetList before import: '+beforeCount+' items');
 
       var added = 0, updated = 0, skipped = 0;
       for (var i = 1; i < rows.length; i++) {
-        var row = rows[i]; if (!row || !row[nameCol]) { skipped++; continue; }
-        var name = String(row[nameCol]||'').trim(); if (!name) { skipped++; continue; }
+        var row = rows[i];
+        // defval ensures row[nameCol] is always a string, never undefined
+        var rawName = String(row[nameCol]||'').trim();
+        if (!rawName) { skipped++; continue; }
+        var name = rawName;
         var existing = targetList.find(function(l){return l.name.toLowerCase()===name.toLowerCase();});
         if (existing) {
           // Update existing entry fields
@@ -2889,17 +2911,24 @@ function importLibExcel(input) {
             remark: remarkCol>=0 ? String(row[remarkCol]||'').trim() : ''
           });
           added++;
+          console.log('[importLibExcel] added: '+name);
         }
       }
-      saveStore(); renderLibrary(); updateBadges(); renderQuickLib();
+      var saved = saveStore();
+      if (!saved) { input.value = ''; return; }
+      renderLibrary(); updateBadges(); renderQuickLib();
+      console.log('[importLibExcel] result: added='+added+' updated='+updated+' skipped='+skipped+' afterCount='+targetList.length);
       var msgs = ['新增 '+added+' 个'];
       if (updated > 0) msgs.push('更新 '+updated+' 个（同名覆盖）');
       if (skipped > 0) msgs.push('跳过 '+skipped+' 个（空行）');
       toast('导入完成：'+msgs.join('，'), 'success');
-    } catch(err) { toast('导入失败：'+err.message, 'error'); }
+    } catch(err) {
+      console.error('[importLibExcel] error:', err);
+      toast('导入失败：'+err.message, 'error');
+    }
+    input.value = '';
   };
   reader.readAsArrayBuffer(file);
-  input.value = '';
 }
 
 // ============================================================
