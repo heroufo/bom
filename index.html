@@ -2262,12 +2262,14 @@ function saveLibEntry() {
   var isLocal = document.getElementById('modal-lib')._isLocal;
   var targetList = isLocal ? getLocalLib() : store.library;
 
-  // Duplicate name check (skip when editing the same entry)
+  // Duplicate name+model check (skip when editing the same entry)
+  var model = document.getElementById('lib-model').value.trim();
   var dup = targetList.find(function(l){
-    return l.name.toLowerCase() === name.toLowerCase() && l.id !== editId;
+    return l.name.toLowerCase() === name.toLowerCase() && (l.model||'').toLowerCase() === model.toLowerCase() && l.id !== editId;
   });
   if (dup) {
-    var btnText = editId ? '覆盖同名零件「'+dup.name+'」？' : '零件「'+dup.name+'」已存在，是否覆盖？';
+    var dupLabel = dup.name + (dup.model ? ' ('+dup.model+')' : '');
+    var btnText = editId ? '覆盖同名零件「'+dupLabel+'」？' : '零件「'+dupLabel+'」已存在，是否覆盖？';
     var action = confirm(btnText + '\n\n供应商：'+(dup.supplier||'未知')+'\n型号：'+(dup.model||'-')+'\n\n点「确定」覆盖，点「取消」返回修改。');
     if (!action) return;
     // Remove the duplicate before adding
@@ -2890,7 +2892,11 @@ function importLibExcel(input) {
         var rawName = String(row[nameCol]||'').trim();
         if (!rawName) { skipped++; continue; }
         var name = rawName;
-        var existing = targetList.find(function(l){return l.name.toLowerCase()===name.toLowerCase();});
+        var model = modelCol>=0 ? String(row[modelCol]||'').trim() : '';
+        // Match by name + model to avoid overwriting same-name different-model parts
+        var existing = targetList.find(function(l){
+          return l.name.toLowerCase()===name.toLowerCase() && (l.model||'').toLowerCase()===model.toLowerCase();
+        });
         if (existing) {
           // Update existing entry fields
           existing.supplier = supplierCol>=0 ? String(row[supplierCol]||'').trim() : existing.supplier;
