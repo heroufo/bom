@@ -377,16 +377,19 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .add-form-field .form-control{font-size:12px;padding:3px 6px;height:28px;min-width:0}
 .add-form-field select.form-control{padding:3px 4px}
 .form-field-name{flex:2.6;min-width:160px}
-.form-field-supplier{flex:1.3;min-width:100px}
-.form-field-model{flex:2.4;min-width:160px}
+.form-field-pair{display:flex;gap:6px;flex:2.8;min-width:200px;align-items:center}
+.form-field-pair .pair-item{display:flex;align-items:center;gap:3px;min-width:0}
+.form-field-pair .pair-item label{font-size:11px;color:var(--text-secondary);white-space:nowrap;font-weight:500;flex-shrink:0}
+.form-field-pair .pair-item .form-control{font-size:12px;padding:3px 6px;height:28px;width:100%;min-width:0}
+.form-field-pair .pair-30{width:30%}
+.form-field-pair .pair-70{width:70%}
+.form-field-pair .pair-50{width:50%}
 .form-field-category{flex:0.7;min-width:65px}
 .form-field-unit{flex:0.5;min-width:52px}
 .form-field-qty{flex:0.45;min-width:55px}
 .form-field-stock{flex:0.45;min-width:55px}
 .form-field-status{flex:0.7;min-width:72px}
 .form-field-arrived{flex:0.7;min-width:72px}
-.form-field-taobao{flex:1.9;min-width:140px}
-.form-field-remark{flex:1.5;min-width:110px}
 .form-field-lib{flex:1.0;min-width:130px}
 .form-field-lib .lib-inline{display:flex;align-items:center;gap:8px;height:28px}
 .lib-inline label{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--text-secondary);cursor:pointer;white-space:nowrap}
@@ -543,13 +546,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <label>名称 *</label>
                 <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="输入零件名称..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
               </div>
-              <div class="add-form-field form-field-supplier">
-                <label>供应商</label>
-                <input class="form-control" id="inp-supplier" placeholder="品牌/供应商">
-              </div>
-              <div class="add-form-field form-field-model">
-                <label>名称型号</label>
-                <input class="form-control" id="inp-model" placeholder="详细型号规格">
+              <div class="form-field-pair">
+                <div class="pair-item pair-30"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商"></div>
+                <div class="pair-item pair-70"><label>规格型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格"></div>
               </div>
               <div class="add-form-field form-field-category">
                 <label>分类</label>
@@ -578,13 +577,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <label>到货</label>
                 <select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select>
               </div>
-              <div class="add-form-field form-field-taobao">
-                <label>淘宝链接</label>
-                <input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接...">
-              </div>
-              <div class="add-form-field form-field-remark">
-                <label>备注</label>
-                <input class="form-control" id="inp-remark" placeholder="零件备注...">
+              <div class="form-field-pair">
+                <div class="pair-item pair-50"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..."></div>
+                <div class="pair-item pair-50"><label>备注</label><input class="form-control" id="inp-remark" placeholder="零件备注..."></div>
               </div>
               <div class="add-form-field form-field-lib">
                 <label style="font-size:10px;color:var(--primary);">保存到库</label>
