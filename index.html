@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.4.2</title>
+<title>BOM 智能管理工具 v5.4.3</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -634,6 +634,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <div class="search-bar">
         <input class="form-control" placeholder="搜索名称/供应商/型号..." id="libSearch" oninput="renderLibrary()">
         <select class="form-control" style="max-width:120px;" id="libCatFilter" onchange="renderLibrary()"><option value="">全部分类</option></select>
+        <button class="btn btn-sm btn-gray" onclick="toggleLibSort()" title="按名称排序" id="libSortBtn">🔤 名称排序</button>
         <button class="btn btn-sm btn-gray" onclick="clearLibFilter()">清除</button>
       </div>
     </div>
@@ -2136,6 +2137,19 @@ function batchAddFromLib() {
 // ============================================================
 var libView = 'card';
 var libTab = 'global'; // 'global' | 'local'
+var libSortDir = 0; // 0=none, 1=asc, -1=desc
+
+function toggleLibSort() {
+  if (libSortDir === 0) { libSortDir = 1; }    // 默认 → 升序
+  else if (libSortDir === 1) { libSortDir = -1; } // 升序 → 降序
+  else { libSortDir = 0; }                      // 降序 → 取消
+  var btn = document.getElementById('libSortBtn');
+  var labels = {0: '🔤 名称排序', 1: '🔤 名称↑ 升序', '-1': '🔤 名称↓ 降序'};
+  btn.textContent = labels[String(libSortDir)];
+  btn.style.background = libSortDir !== 0 ? 'var(--primary)' : '';
+  btn.style.color = libSortDir !== 0 ? '#fff' : '';
+  renderLibrary();
+}
 
 function setLibTab(tab) {
   libTab = tab;
@@ -2191,6 +2205,15 @@ function renderLibrary() {
     var mc = !catFilter || l.category === catFilter;
     return mk && mc;
   });
+
+  // Apply name sort if active
+  if (libSortDir !== 0) {
+    filtered.sort(function(a,b){
+      var na = (a.name||'').toLowerCase();
+      var nb = (b.name||'').toLowerCase();
+      return libSortDir === 1 ? (na < nb ? -1 : na > nb ? 1 : 0) : (na > nb ? -1 : na < nb ? 1 : 0);
+    });
+  }
 
   var cv = store.libView || libView;
   var cardEl = document.getElementById('libCardView');
@@ -2283,6 +2306,21 @@ function saveLibEntry() {
   if (!name) { toast('请输入零件名称','error'); return; }
   var editId = document.getElementById('modal-lib')._editId;
   var isLocal = document.getElementById('modal-lib')._isLocal;
+  var targetList = isLocal ? getLocalLib() : store.library;
+
+  // Duplicate name check (skip when editing the same entry)
+  var dup = targetList.find(function(l){
+    return l.name.toLowerCase() === name.toLowerCase() && l.id !== editId;
+  });
+  if (dup) {
+    var btnText = editId ? '覆盖同名零件「'+dup.name+'」？' : '零件「'+dup.name+'」已存在，是否覆盖？';
+    var action = confirm(btnText + '\n\n供应商：'+(dup.supplier||'未知')+'\n型号：'+(dup.model||'-')+'\n\n点「确定」覆盖，点「取消」返回修改。');
+    if (!action) return;
+    // Remove the duplicate before adding
+    var dupIdx = targetList.findIndex(function(l){return l.id===dup.id;});
+    if (dupIdx >= 0) targetList.splice(dupIdx, 1);
+  }
+
   var entry = {
     id: editId || e(), name: name,
     supplier: document.getElementById('lib-supplier').value.trim(),
@@ -2292,7 +2330,6 @@ function saveLibEntry() {
     taobaoLink: document.getElementById('lib-taobao').value.trim(),
     remark: document.getElementById('lib-remark').value.trim()
   };
-  var targetList = isLocal ? getLocalLib() : store.library;
   if (editId) {
     var idx = targetList.findIndex(function(l){return l.id===editId;});
     if (idx>=0) targetList[idx] = entry;
