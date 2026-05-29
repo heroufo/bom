@@ -448,6 +448,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="header-right">
     <button class="btn btn-ghost-header btn-sm" onclick="exportData()">导出</button>
     <button class="btn btn-ghost-header btn-sm" onclick="importData()">导入</button>
+    <button class="btn btn-ghost-header btn-sm" onclick="doRefresh()" title="强制刷新（保持登录状态">🔄 刷新</button>
     <div class="user-chip" id="userChip" style="display:none;">
       <span class="role-dot" id="userRoleDot"></span>
       <span id="userChipName"></span>
@@ -1450,8 +1451,24 @@ window.onload = function() {
   applyFontSize();
   populateSelects();
   refreshAll();
-  // Show login screen
-  showLoginScreen();
+  // Auto-login from sessionStorage if available
+  var savedUid = sessionStorage.getItem('bom_uid');
+  if (savedUid) {
+    if (!Array.isArray(store.users) || !store.users.length) {
+      store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+    }
+    ensureDefaultAdmin();
+    var savedUser = store.users.find(function(u){ return u.id === savedUid; });
+    if (savedUser) {
+      currentUser = savedUser;
+      document.getElementById('loginScreen').classList.add('hidden');
+      applyRoleUI();
+    } else {
+      showLoginScreen();
+    }
+  } else {
+    showLoginScreen();
+  }
 };
 
 function refreshAll() {
@@ -1571,6 +1588,7 @@ function doLogin() {
     if (!user) { return; }
   }
   currentUser = user;
+  sessionStorage.setItem('bom_uid', user.id);
   document.getElementById('loginScreen').classList.add('hidden');
   applyRoleUI();
   toast('欢迎，' + user.username + '！', 'success');
@@ -1588,7 +1606,13 @@ function ensureDefaultAdmin() {
 
 function doLogout() {
   currentUser = null;
+  sessionStorage.removeItem('bom_uid');
   showLoginScreen();
+}
+
+function doRefresh() {
+  sessionStorage.setItem('bom_uid', currentUser ? currentUser.id : '');
+  location.reload();
 }
 
 // Hard reset: completely wipe localStorage and reload
@@ -2195,11 +2219,10 @@ function saveEditEntry() {
     var globalMatch = store.library.find(function(l){return l.name===editedName&&l.model===editedModel;});
     if (globalMatch) Object.assign(globalMatch, libFields);
   }
-  if (saveLocal) {
-    var localLib = getLocalLib();
-    var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
-    if (localMatch) Object.assign(localMatch, libFields);
-  }
+  // 始终同步到本项目库
+  var localLib = getLocalLib();
+  var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
+  if (localMatch) Object.assign(localMatch, libFields);
   saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); toast('修改已保存', 'success');
 }
 
