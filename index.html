@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.14</title>
+<title>BOM 智能管理工具 v5.15</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -416,7 +416,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.14 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.15 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -433,7 +433,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.14</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.15</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -1241,7 +1241,27 @@ function updateBackupInfo() {
 // HELPERS
 // ============================================================
 function e() { return Math.random().toString(36).substr(2,9); }
-function currentBom() { if (!store.currentProject) return []; const p = store.projects[store.currentProject]; return p ? p.bom : []; }
+function currentBom() {
+  var pid = store.currentProject;
+  if (!pid) return [];
+  var p = store.projects[pid];
+  if (p && Array.isArray(p.bom)) return p.bom;
+  // 内存数据丢失，尝试从 localStorage 恢复
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      var diskStore = JSON.parse(raw);
+      var diskProj = diskStore.projects && diskStore.projects[pid];
+      if (diskProj && Array.isArray(diskProj.bom) && diskProj.bom.length > 0) {
+        // 恢复内存
+        if (!p) store.projects[pid] = diskProj;
+        else p.bom = diskProj.bom;
+        return diskProj.bom;
+      }
+    }
+  } catch(e) { /* silent fallback */ }
+  return [];
+}
 function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg, type) {
   type = type || 'info';
@@ -1942,46 +1962,89 @@ function renderProjectsTable() {
 // BOM TABLE
 // ============================================================
 function renderBomTable() {
-  try {
-    // 防御：确保 store 和 currentProject 有效
-    if (!store || !store.currentProject) {
-      console.warn('[renderBomTable] store.currentProject 无效');
-      return;
+  var tbody = document.getElementById('bomTbody');
+  if (!tbody) return;
+
+  // ============================================================
+  // CRITICAL: 直接从 localStorage 读取权威数据，不依赖内存 store 变量
+  // 防止因 store 引用异常导致 BOM 列表变空
+  // ============================================================
+  var raw = localStorage.getItem(STORE_KEY);
+  var diskStore = null;
+  try { diskStore = raw ? JSON.parse(raw) : null; } catch(e) { diskStore = null; }
+
+  // 1. 确定当前项目 ID（优先用磁盘数据，回退到内存）
+  var pid = (diskStore && diskStore.currentProject) || (store && store.currentProject) || null;
+  if (!pid) {
+    tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-title">未选择项目</div><div class="empty-desc">请先选择或创建一个项目</div><div class="empty-action"><button class="btn btn-primary" onclick="showPage(\'page-projects\')">前往项目管理</button></div></div></td></tr>';
+    return;
+  }
+
+  // 2. 获取项目数据（磁盘优先，内存回退）
+  var proj = null;
+  if (diskStore && diskStore.projects && diskStore.projects[pid]) {
+    proj = diskStore.projects[pid];
+  } else if (store && store.projects && store.projects[pid]) {
+    proj = store.projects[pid];
+  }
+
+  if (!proj) {
+    tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">项目数据丢失</div><div class="empty-desc">当前项目「'+pid+'」的数据未能加载<br>请尝试刷新页面或选择其他项目</div><div class="empty-action"><button class="btn btn-primary" onclick="doRefresh()">🔄 刷新页面</button></div></div></td></tr>';
+    return;
+  }
+
+  // 3. 获取 BOM 数组
+  var bom = Array.isArray(proj.bom) ? proj.bom : [];
+
+  // 4. 同步磁盘数据到内存（确保后续操作一致）
+  if (!diskStore && store && store.projects && store.projects[pid]) {
+    // 磁盘数据为空但内存有数据，说明是首次加载，使用内存数据即可
+  } else if (diskStore && store) {
+    // 从磁盘恢复内存中的项目数据（保持引用一致）
+    if (store.projects[pid]) {
+      store.projects[pid].bom = bom;
     }
-    var proj = store.projects[store.currentProject];
-    if (!proj) {
-      console.warn('[renderBomTable] 项目不存在，尝试从 localStorage 恢复');
-      loadStore(); // 重新加载
-      proj = store.projects[store.currentProject];
-      if (!proj) {
-        console.warn('[renderBomTable] localStorage 恢复失败，跳过渲染');
-        return;
-      }
+  }
+
+  // 5. 获取搜索/过滤参数
+  var searchEl = document.getElementById('bomSearch');
+  var filterEl = document.getElementById('bomFilterStatus');
+  var groupEl = document.getElementById('bomGroupBy');
+  var searchVal = (searchEl && searchEl.value || '').toLowerCase();
+  var statusFilter = filterEl && filterEl.value || '';
+  var groupBy = groupEl && groupEl.value || 'none';
+
+  // 6. 过滤
+  var filtered = bom.filter(function(item) {
+    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
+    var mst = !statusFilter || item.status === statusFilter;
+    return ms && mst;
+  });
+
+  // 7. 空状态处理
+  if (!filtered.length) {
+    var hasData = bom.length > 0;
+    if (hasData && (searchVal || statusFilter)) {
+      // 有数据但被过滤了：提示用户清除搜索条件
+      tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">无匹配结果</div><div class="empty-desc">BOM 中共有 '+bom.length+' 条记录，但当前搜索/筛选条件下无匹配项<br>请调整搜索关键词或筛选条件</div></div></td></tr>';
+    } else if (hasData) {
+      // 有数据但 filtered 为空（异常情况）
+      tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">数据处理异常</div><div class="empty-desc">BOM 数据存在（'+bom.length+'条）但过滤后为空，可能是数据格式问题</div><div class="empty-action"><button class="btn btn-primary" onclick="doRefresh()">🔄 刷新页面</button></div></div></td></tr>';
+    } else {
+      // 真的没数据
+      tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>';
     }
-    // 确保 bom 是数组
-    if (!Array.isArray(proj.bom)) {
-      console.warn('[renderBomTable] bom 不是数组，重置为空数组');
-      proj.bom = [];
-    }
+    var gl = document.getElementById('bomGroupLabel');
+    if (gl) gl.textContent = '';
+    return;
+  }
 
-    var bom = proj.bom;
-    var tbody = document.getElementById('bomTbody');
-    if (!tbody) { console.warn('[renderBomTable] bomTbody 元素不存在'); return; }
-    var searchVal = (document.getElementById('bomSearch').value || '').toLowerCase();
-    var statusFilter = document.getElementById('bomFilterStatus').value;
-    var groupBy = document.getElementById('bomGroupBy').value;
-
-    var filtered = bom.filter(function(item) {
-      var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
-      var mst = !statusFilter || item.status === statusFilter;
-      return ms && mst;
-    });
-
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
-
+  // 8. 分组标签
   var labelMap = {category:'按分类',supplier:'按供应商',status:'按状态',none:''};
-  document.getElementById('bomGroupLabel').textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
+  var gl = document.getElementById('bomGroupLabel');
+  if (gl) gl.textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
 
+  // 9. 生成 HTML
   var html = ''; var seq = 1;
 
   if (groupBy === 'none') {
@@ -2007,13 +2070,7 @@ function renderBomTable() {
   }
   tbody.innerHTML = html;
   updateBadges();
-  // Refresh purchase-changed warning after BOM re-render
   if (typeof checkPurchaseBomChanged === 'function') checkPurchaseBomChanged();
-  } catch(e) {
-    console.error('[renderBomTable] 渲染异常:', e);
-    var tb = document.getElementById('bomTbody');
-    if (tb) tb.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">渲染异常</div><div class="empty-desc">' + esc(e.message) + '<br>请尝试刷新页面</div></div></td></tr>';
-  }
 }
 
 function bomRowHtml(item, seq) {
@@ -2206,12 +2263,15 @@ function openEditModal(id) {
   var bom = currentBom();
   var item = bom.find(function(i){return i.id===id;});
   if (!item) {
-    // 防御：只在不该为空时尝试恢复
+    // 数据异常：尝试从 localStorage 恢复后再找一次
     if (bom.length === 0 && store.currentProject && store.projects[store.currentProject]) {
-      // 数据可能丢失，先不重渲染（避免覆盖），提示用户刷新
-      toast('数据异常，请按🔄刷新按钮修复', 'error'); return;
+      loadStore();
+      bom = currentBom();
+      item = bom.find(function(i){return i.id===id;});
     }
-    if (!item) { toast('未找到该零部件', 'error'); return; }
+    if (!item) {
+      toast('未找到该零部件，请刷新页面后重试', 'error'); return;
+    }
   }
   populateSelects();
   document.getElementById('edit-idx').value = id;
