@@ -611,6 +611,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <select class="form-control" style="width:90px;font-size:12px;" id="bomFilterStatus" onchange="renderBomTable()"><option value="">全部状态</option><option value="采购">采购</option><option value="库存">库存</option></select>
             <button class="btn btn-sm btn-ghost" onclick="sortBomByCategory()">按分类</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
+            <button class="btn btn-sm btn-ghost" onclick="sortBomByArrival()">按到货</button>
             <button class="btn btn-sm btn-success" onclick="syncBomToLibrary()" title="将BOM中零件库没有的零件同步到通用库">🔄 同步到库</button>
           </div>
         </div>
@@ -2377,6 +2378,20 @@ function sortBomBySupplier() {
   });
   if (store.currentProject) store.projects[store.currentProject].bom = bom;
   saveStore(); renderBomTable(); toast('已按供应商排序', 'success');
+}
+
+function sortBomByArrival() {
+  var bom = currentBom();
+  // 到货优先级：未到 > 部分到 > 已到 > (空)
+  var arrivalOrder = { '未到': 0, '部分到': 1, '已到': 2 };
+  bom.sort(function(a,b) {
+    var ai = arrivalOrder[a.arrived || ''] !== undefined ? arrivalOrder[a.arrived || ''] : 3;
+    var bi = arrivalOrder[b.arrived || ''] !== undefined ? arrivalOrder[b.arrived || ''] : 3;
+    if (ai !== bi) return ai - bi;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  if (store.currentProject) store.projects[store.currentProject].bom = bom;
+  saveStore(); renderBomTable(); toast('已按到货情况排序（未到→部分到→已到）', 'success');
 }
 
 function syncBomToLibrary() {
