@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.17</title>
+<title>BOM 智能管理工具 v5.18</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -423,7 +423,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.17 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.18 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -2336,6 +2336,18 @@ function openEditModal(id) {
   document.getElementById('edit-arrived').value = item.arrived||'';
   document.getElementById('edit-taobao').value = item.taobaoLink||'';
   document.getElementById('edit-remark').value = item.remark||'';
+  // 预置"保存到库"勾选框：与零件库页面保持一致，根据零件实际位置设置
+  var editName = (item.name||'').trim();
+  var editModel = (item.model||'').trim();
+  var inGlobal = store.library.some(function(l){ return l.name===editName && l.model===editModel; });
+  var inLocal = getLocalLib().some(function(l){ return l.name===editName && l.model===editModel; });
+  document.getElementById('edit-save-lib-global').checked = inGlobal;
+  document.getElementById('edit-save-lib-local').checked = inLocal;
+  // 若两个库都不在，默认勾选通用库（保持旧行为）
+  if (!inGlobal && !inLocal) {
+    document.getElementById('edit-save-lib-global').checked = true;
+    document.getElementById('edit-save-lib-local').checked = false;
+  }
   document.getElementById('modal-edit').classList.add('show');
 }
 
@@ -2381,13 +2393,15 @@ function saveEditEntry() {
       store.library.push(Object.assign({id: e()}, libFields));
     }
   }
-  // 始终同步到本项目库
-  var localLib = getLocalLib();
-  var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
-  if (localMatch) {
-    Object.assign(localMatch, libFields);
-  } else {
-    localLib.push(Object.assign({id: e()}, libFields));
+  // 根据勾选同步到本项目库
+  if (saveLocal) {
+    var localLib = getLocalLib();
+    var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
+    if (localMatch) {
+      Object.assign(localMatch, libFields);
+    } else {
+      localLib.push(Object.assign({id: e()}, libFields));
+    }
   }
   saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); renderLibrary(); updateBadges(); toast('修改已保存', 'success');
 }
