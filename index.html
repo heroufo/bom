@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.10</title>
+<title>BOM 智能管理工具 v5.11</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -606,6 +606,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <select class="form-control" style="width:90px;font-size:12px;" id="bomFilterStatus" onchange="renderBomTable()"><option value="">全部状态</option><option value="采购">采购</option><option value="库存">库存</option></select>
             <button class="btn btn-sm btn-ghost" onclick="sortBomByCategory()">按分类</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
+            <button class="btn btn-sm btn-success" onclick="syncBomToLibrary()" title="将BOM中零件库没有的零件同步到通用库">🔄 同步到库</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -1103,8 +1104,12 @@ function loadStore() {
 
 function saveStore() {
   try {
+    if (!store || !store.library) { console.error('saveStore: store 对象异常', store); return false; }
     var json = JSON.stringify(store);
     localStorage.setItem(STORE_KEY, json);
+    // 验证保存是否成功（读取回来比对）
+    var verified = localStorage.getItem(STORE_KEY);
+    if (!verified) { console.error('saveStore: 保存后验证失败', STORE_KEY); return false; }
     return true;
   } catch(e) {
     console.error('Save store failed:', e);
@@ -2013,6 +2018,41 @@ function sortBomBySupplier() {
   saveStore(); renderBomTable(); toast('已按供应商排序', 'success');
 }
 
+function syncBomToLibrary() {
+  var bom = currentBom();
+  if (!bom.length) { toast('BOM清单为空，无需同步', 'error'); return; }
+  if (!Array.isArray(store.library)) store.library = [];
+
+  var added = 0;
+  var skipped = 0;
+  bom.forEach(function(item) {
+    if (!item.name) { skipped++; return; }
+    var exists = store.library.find(function(l){
+      return (l.name===item.name) && (l.model===item.model);
+    });
+    if (exists) { skipped++; return; }
+    // 零件库中没有，加入
+    store.library.push({
+      id: e(),
+      name: item.name,
+      supplier: item.supplier || '',
+      model: item.model || '',
+      category: item.category || '未分类',
+      unit: item.unit || '个',
+      taobaoLink: item.taobaoLink || '',
+      remark: item.remark || ''
+    });
+    added++;
+  });
+
+  if (added === 0) {
+    toast('零件库已完整，无需同步（BOM共 '+bom.length+' 条）', 'info');
+    return;
+  }
+  saveStore(); updateBadges(); renderLibrary(); renderQuickLib();
+  toast('已同步 '+added+' 个新零件到通用库！'+(skipped>0?'（跳过 '+skipped+' 个已存在的）':''), 'success');
+}
+
 function toggleAddForm() { var b=document.getElementById('addFormBody'); b.style.display = b.style.display==='none'?'':'none'; }
 function toggleQuickPanel() { var b=document.getElementById('quickPanelBody'); b.style.display = b.style.display==='none'?'':'none'; }
 
@@ -2062,8 +2102,13 @@ function addBomEntry() {
     if (!existingGlobal) { store.library.push(Object.assign({}, libEntry, {id: e()})); }
   }
 
-  saveStore(); clearAddForm(); renderBomTable(); renderBomStats(); updateBadges();
-  toast('已添加：'+name, 'success');
+  var saved = saveStore();
+  clearAddForm(); renderBomTable(); renderBomStats(); updateBadges();
+  if (!saved) {
+    toast('⚠️ 数据保存失败', 'error');
+  } else {
+    toast('已添加：'+name, 'success');
+  }
 }
 
 function clearAddForm() {
@@ -2234,17 +2279,17 @@ function batchAddFromLib() {
 // LIBRARY
 // ============================================================
 var libTab = 'global'; // 'global' | 'local'
-var libSortDir = 0; // 0=none, 1=asc, -1=desc
+var libSortState = ''; // '' | 'name-asc' | 'name-desc' | 'supplier-asc' | 'supplier-desc'
 
 function toggleLibSort() {
-  if (libSortDir === 0) { libSortDir = 1; }    // 默认 → 升序
-  else if (libSortDir === 1) { libSortDir = -1; } // 升序 → 降序
-  else { libSortDir = 0; }                      // 降序 → 取消
+  var states = ['name-asc', 'name-desc', 'supplier-asc', 'supplier-desc', ''];
+  var labels = {'name-asc': '🔤 名称↑', 'name-desc': '🔤 名称↓', 'supplier-asc': '🏭 供应商↑', 'supplier-desc': '🏭 供应商↓', '': '🔤 排序'};
+  var idx = states.indexOf(libSortState);
+  libSortState = states[(idx + 1) % states.length];
   var btn = document.getElementById('libSortBtn');
-  var labels = {0: '🔤 名称排序', 1: '🔤 名称↑ 升序', '-1': '🔤 名称↓ 降序'};
-  btn.textContent = labels[String(libSortDir)];
-  btn.style.background = libSortDir !== 0 ? 'var(--primary)' : '';
-  btn.style.color = libSortDir !== 0 ? '#fff' : '';
+  btn.textContent = labels[libSortState];
+  btn.style.background = libSortState !== '' ? 'var(--primary)' : '';
+  btn.style.color = libSortState !== '' ? '#fff' : '';
   renderLibrary();
 }
 
@@ -2294,12 +2339,16 @@ function renderLibrary() {
     return mk && mc;
   });
 
-  // Apply name sort if active
-  if (libSortDir !== 0) {
+  // Apply sort if active
+  if (libSortState) {
+    var parts = libSortState.split('-');
+    var sortField = parts[0];
+    var sortDir = parts[1];
     filtered.sort(function(a,b){
-      var na = (a.name||'').toLowerCase();
-      var nb = (b.name||'').toLowerCase();
-      return libSortDir === 1 ? (na < nb ? -1 : na > nb ? 1 : 0) : (na > nb ? -1 : na < nb ? 1 : 0);
+      var va = (a[sortField]||'').toLowerCase();
+      var vb = (b[sortField]||'').toLowerCase();
+      if (sortDir === 'asc') return va < vb ? -1 : va > vb ? 1 : 0;
+      else return va > vb ? -1 : va < vb ? 1 : 0;
     });
   }
 
@@ -2398,8 +2447,13 @@ function saveLibEntry() {
   } else {
     targetList.push(entry);
   }
-  saveStore(); closeModal('modal-lib'); renderLibrary(); updateBadges(); renderQuickLib();
-  toast('零件「'+name+'」已保存'+(isLocal?' 到本项目库 📁':' 到通用库 🌐'), 'success');
+  var saved = saveStore();
+  closeModal('modal-lib'); renderLibrary(); updateBadges(); renderQuickLib();
+  if (!saved) {
+    toast('⚠️ 保存失败，请检查浏览器存储空间', 'error');
+  } else {
+    toast('零件「'+name+'」已保存'+(isLocal?' 到本项目库 📁':' 到通用库 🌐'), 'success');
+  }
 }
 
 function deleteLib(id) {
