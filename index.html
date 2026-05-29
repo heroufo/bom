@@ -431,9 +431,6 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="login-btn" onclick="doLogin()">登 录</button>
     <div class="login-err" id="loginErr"></div>
-    <div style="margin-top:10px;text-align:center;">
-      <a href="javascript:void(0)" onclick="hardResetStore()" style="color:var(--gray);font-size:12px;text-decoration:underline;">重置系统数据</a>
-    </div>
   </div>
 </div>
 
@@ -848,6 +845,13 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="handleRestoreFile(this)">
       </div>
       <div id="backupInfo" style="margin-top:10px;font-size:12px;color:var(--text-secondary);"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-header-left">⚠️ 系统重置</div></div>
+    <div class="card-body">
+      <div class="notice notice-warn">⚠️ 此操作将清除所有项目、BOM清单、零件库、用户和设置数据，恢复为出厂状态。此操作不可恢复！</div>
+      <button class="btn btn-danger" onclick="hardResetStore()">🔄 重置系统数据</button>
     </div>
   </div>
 </div>
