@@ -935,7 +935,14 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="form-group"><label>备注</label><input class="form-control" id="edit-remark" placeholder="零件独有信息..."></div>
     <div class="form-group"><label>淘宝链接</label><input class="form-control" id="edit-taobao"></div>
   </div>
-  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-edit')">取消</button><button class="btn btn-primary" onclick="saveEditEntry()">保存修改</button></div>
+  <div class="modal-actions">
+    <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--primary);margin-right:auto;">
+      <span style="font-size:12px;">保存到库：</span>
+      <label><input type="checkbox" id="edit-save-lib-global" checked>通用</label>
+      <label><input type="checkbox" id="edit-save-lib-local">本项目</label>
+    </div>
+    <button class="btn btn-gray" onclick="closeModal('modal-edit')">取消</button><button class="btn btn-primary" onclick="saveEditEntry()">保存修改</button>
+  </div>
 </div></div>
 
 <!-- Import JSON -->
@@ -2170,7 +2177,9 @@ function saveEditEntry() {
     remark: document.getElementById('edit-remark').value.trim()
   });
   store.projects[store.currentProject].bom = bom;
-  // 双向同步：将修改同步到零件库
+  // 根据勾选状态决定是否同步到零件库
+  var saveGlobal = document.getElementById('edit-save-lib-global').checked;
+  var saveLocal = document.getElementById('edit-save-lib-local').checked;
   var editedName = document.getElementById('edit-name').value.trim();
   var editedModel = document.getElementById('edit-model').value.trim();
   var libFields = {
@@ -2182,13 +2191,15 @@ function saveEditEntry() {
     taobaoLink: document.getElementById('edit-taobao').value.trim(),
     remark: document.getElementById('edit-remark').value.trim()
   };
-  // 同步到通用库
-  var globalMatch = store.library.find(function(l){return l.name===editedName&&l.model===editedModel;});
-  if (globalMatch) Object.assign(globalMatch, libFields);
-  // 同步到本项目库
-  var localLib = getLocalLib();
-  var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
-  if (localMatch) Object.assign(localMatch, libFields);
+  if (saveGlobal) {
+    var globalMatch = store.library.find(function(l){return l.name===editedName&&l.model===editedModel;});
+    if (globalMatch) Object.assign(globalMatch, libFields);
+  }
+  if (saveLocal) {
+    var localLib = getLocalLib();
+    var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
+    if (localMatch) Object.assign(localMatch, libFields);
+  }
   saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); toast('修改已保存', 'success');
 }
 
