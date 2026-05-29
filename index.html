@@ -2396,6 +2396,10 @@ function saveEditEntry() {
     } else {
       store.library.push(Object.assign({id: e()}, libFields));
     }
+  } else {
+    // 取消勾选 → 从通用库移除
+    var rmGIdx = store.library.findIndex(function(l){return l.name===editedName&&l.model===editedModel;});
+    if (rmGIdx >= 0) store.library.splice(rmGIdx, 1);
   }
   // 根据勾选同步到本项目库
   if (saveLocal) {
@@ -2406,6 +2410,11 @@ function saveEditEntry() {
     } else {
       localLib.push(Object.assign({id: e()}, libFields));
     }
+  } else {
+    // 取消勾选 → 从本项目库移除
+    var localLib2 = getLocalLib();
+    var rmLIdx = localLib2.findIndex(function(l){return l.name===editedName&&l.model===editedModel;});
+    if (rmLIdx >= 0) localLib2.splice(rmLIdx, 1);
   }
   saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); renderLibrary(); updateBadges(); toast('修改已保存', 'success');
 }
