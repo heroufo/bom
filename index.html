@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.13</title>
+<title>BOM 智能管理工具 v5.14</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -416,7 +416,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.8 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.14 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -433,7 +433,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.8</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.14</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -1942,19 +1942,42 @@ function renderProjectsTable() {
 // BOM TABLE
 // ============================================================
 function renderBomTable() {
-  var bom = currentBom();
-  var tbody = document.getElementById('bomTbody');
-  var searchVal = (document.getElementById('bomSearch').value || '').toLowerCase();
-  var statusFilter = document.getElementById('bomFilterStatus').value;
-  var groupBy = document.getElementById('bomGroupBy').value;
+  try {
+    // 防御：确保 store 和 currentProject 有效
+    if (!store || !store.currentProject) {
+      console.warn('[renderBomTable] store.currentProject 无效');
+      return;
+    }
+    var proj = store.projects[store.currentProject];
+    if (!proj) {
+      console.warn('[renderBomTable] 项目不存在，尝试从 localStorage 恢复');
+      loadStore(); // 重新加载
+      proj = store.projects[store.currentProject];
+      if (!proj) {
+        console.warn('[renderBomTable] localStorage 恢复失败，跳过渲染');
+        return;
+      }
+    }
+    // 确保 bom 是数组
+    if (!Array.isArray(proj.bom)) {
+      console.warn('[renderBomTable] bom 不是数组，重置为空数组');
+      proj.bom = [];
+    }
 
-  var filtered = bom.filter(function(item) {
-    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
-    var mst = !statusFilter || item.status === statusFilter;
-    return ms && mst;
-  });
+    var bom = proj.bom;
+    var tbody = document.getElementById('bomTbody');
+    if (!tbody) { console.warn('[renderBomTable] bomTbody 元素不存在'); return; }
+    var searchVal = (document.getElementById('bomSearch').value || '').toLowerCase();
+    var statusFilter = document.getElementById('bomFilterStatus').value;
+    var groupBy = document.getElementById('bomGroupBy').value;
 
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
+    var filtered = bom.filter(function(item) {
+      var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
+      var mst = !statusFilter || item.status === statusFilter;
+      return ms && mst;
+    });
+
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>'; document.getElementById('bomGroupLabel').textContent=''; return; }
 
   var labelMap = {category:'按分类',supplier:'按供应商',status:'按状态',none:''};
   document.getElementById('bomGroupLabel').textContent = groupBy!=='none' ? '（'+labelMap[groupBy]+'分组）' : '';
@@ -1986,6 +2009,11 @@ function renderBomTable() {
   updateBadges();
   // Refresh purchase-changed warning after BOM re-render
   if (typeof checkPurchaseBomChanged === 'function') checkPurchaseBomChanged();
+  } catch(e) {
+    console.error('[renderBomTable] 渲染异常:', e);
+    var tb = document.getElementById('bomTbody');
+    if (tb) tb.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">渲染异常</div><div class="empty-desc">' + esc(e.message) + '<br>请尝试刷新页面</div></div></td></tr>';
+  }
 }
 
 function bomRowHtml(item, seq) {
@@ -2091,9 +2119,9 @@ function syncBomToLibrary() {
 
   if (added === 0) {
     toast('零件库已完整，无需同步（BOM共 '+bom.length+' 条）', 'info');
-    return;
+    renderBomTable(); return;
   }
-  saveStore(); updateBadges(); renderLibrary(); renderQuickLib();
+  saveStore(); updateBadges(); renderLibrary(); renderQuickLib(); renderBomTable();
   toast('已同步 '+added+' 个新零件到通用库！'+(skipped>0?'（跳过 '+skipped+' 个已存在的）':''), 'success');
 }
 
