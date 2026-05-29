@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.11</title>
+<title>BOM 智能管理工具 v5.12</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -712,7 +712,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <div class="search-bar">
         <input class="form-control" placeholder="搜索名称/供应商/型号..." id="libSearch" oninput="renderLibrary()">
         <select class="form-control" style="max-width:120px;" id="libCatFilter" onchange="renderLibrary()"><option value="">全部分类</option></select>
-        <button class="btn btn-sm btn-ghost" onclick="toggleLibSort()" title="按名称排序" id="libSortBtn">🔤 排序</button>
+        <button class="btn btn-sm btn-ghost" onclick="toggleLibSortName()" id="libSortNameBtn">🔤 名称</button>
+        <button class="btn btn-sm btn-ghost" onclick="toggleLibSortSupplier()" id="libSortSupplierBtn">🏭 供应商</button>
         <button class="btn btn-sm btn-ghost" onclick="clearLibFilter()">清除</button>
       </div>
     </div>
@@ -2027,8 +2028,9 @@ function syncBomToLibrary() {
   var skipped = 0;
   bom.forEach(function(item) {
     if (!item.name) { skipped++; return; }
+    // 按名称匹配：名称相同即视为已存在
     var exists = store.library.find(function(l){
-      return (l.name===item.name) && (l.model===item.model);
+      return l.name === item.name;
     });
     if (exists) { skipped++; return; }
     // 零件库中没有，加入
@@ -2279,18 +2281,46 @@ function batchAddFromLib() {
 // LIBRARY
 // ============================================================
 var libTab = 'global'; // 'global' | 'local'
-var libSortState = ''; // '' | 'name-asc' | 'name-desc' | 'supplier-asc' | 'supplier-desc'
+var libSortField = ''; // '' | 'name' | 'supplier'
+var libSortDir = '';   // '' | 'asc' | 'desc'
 
-function toggleLibSort() {
-  var states = ['name-asc', 'name-desc', 'supplier-asc', 'supplier-desc', ''];
-  var labels = {'name-asc': '🔤 名称↑', 'name-desc': '🔤 名称↓', 'supplier-asc': '🏭 供应商↑', 'supplier-desc': '🏭 供应商↓', '': '🔤 排序'};
-  var idx = states.indexOf(libSortState);
-  libSortState = states[(idx + 1) % states.length];
-  var btn = document.getElementById('libSortBtn');
-  btn.textContent = labels[libSortState];
-  btn.style.background = libSortState !== '' ? 'var(--primary)' : '';
-  btn.style.color = libSortState !== '' ? '#fff' : '';
+function toggleLibSortName() {
+  // Clear supplier sort if active
+  if (libSortField === 'supplier') { libSortField = ''; libSortDir = ''; }
+  if (libSortField === 'name') {
+    if (libSortDir === 'asc') { libSortDir = 'desc'; }
+    else if (libSortDir === 'desc') { libSortField = ''; libSortDir = ''; }
+  } else {
+    libSortField = 'name'; libSortDir = 'asc';
+  }
+  updateLibSortBtns();
   renderLibrary();
+}
+function toggleLibSortSupplier() {
+  // Clear name sort if active
+  if (libSortField === 'name') { libSortField = ''; libSortDir = ''; }
+  if (libSortField === 'supplier') {
+    if (libSortDir === 'asc') { libSortDir = 'desc'; }
+    else if (libSortDir === 'desc') { libSortField = ''; libSortDir = ''; }
+  } else {
+    libSortField = 'supplier'; libSortDir = 'asc';
+  }
+  updateLibSortBtns();
+  renderLibrary();
+}
+function updateLibSortBtns() {
+  var btnN = document.getElementById('libSortNameBtn');
+  var btnS = document.getElementById('libSortSupplierBtn');
+  if (btnN) {
+    if (libSortField === 'name' && libSortDir === 'asc') { btnN.textContent = '🔤 名称↑'; btnN.style.background = 'var(--primary)'; btnN.style.color = '#fff'; }
+    else if (libSortField === 'name' && libSortDir === 'desc') { btnN.textContent = '🔤 名称↓'; btnN.style.background = 'var(--primary)'; btnN.style.color = '#fff'; }
+    else { btnN.textContent = '🔤 名称'; btnN.style.background = ''; btnN.style.color = ''; }
+  }
+  if (btnS) {
+    if (libSortField === 'supplier' && libSortDir === 'asc') { btnS.textContent = '🏭 供应商↑'; btnS.style.background = 'var(--primary)'; btnS.style.color = '#fff'; }
+    else if (libSortField === 'supplier' && libSortDir === 'desc') { btnS.textContent = '🏭 供应商↓'; btnS.style.background = 'var(--primary)'; btnS.style.color = '#fff'; }
+    else { btnS.textContent = '🏭 供应商'; btnS.style.background = ''; btnS.style.color = ''; }
+  }
 }
 
 function setLibTab(tab) {
@@ -2340,10 +2370,9 @@ function renderLibrary() {
   });
 
   // Apply sort if active
-  if (libSortState) {
-    var parts = libSortState.split('-');
-    var sortField = parts[0];
-    var sortDir = parts[1];
+  if (libSortField && libSortDir) {
+    var sortField = libSortField;
+    var sortDir = libSortDir;
     filtered.sort(function(a,b){
       var va = (a[sortField]||'').toLowerCase();
       var vb = (b[sortField]||'').toLowerCase();
