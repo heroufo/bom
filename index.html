@@ -2028,9 +2028,9 @@ function syncBomToLibrary() {
   var skipped = 0;
   bom.forEach(function(item) {
     if (!item.name) { skipped++; return; }
-    // 按名称匹配：名称相同即视为已存在
+    // 按名称+型号匹配：只有一个不匹配就同步
     var exists = store.library.find(function(l){
-      return l.name === item.name;
+      return (l.name===item.name) && (l.model===item.model);
     });
     if (exists) { skipped++; return; }
     // 零件库中没有，加入
