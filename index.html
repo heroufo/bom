@@ -2205,16 +2205,22 @@ function syncBomToLibrary() {
   if (!bom.length) { toast('BOM清单为空，无需同步', 'error'); return; }
   if (!Array.isArray(store.library)) store.library = [];
 
+  var localLib = getLocalLib();
   var added = 0;
   var skipped = 0;
   bom.forEach(function(item) {
     if (!item.name) { skipped++; return; }
-    // 按名称+型号匹配：只有一个不匹配就同步
-    var exists = store.library.find(function(l){
+    // 先查通用库
+    var inGlobal = store.library.find(function(l){
       return (l.name===item.name) && (l.model===item.model);
     });
-    if (exists) { skipped++; return; }
-    // 零件库中没有，加入
+    // 再查本项目库
+    var inLocal = localLib.find(function(l){
+      return (l.name===item.name) && (l.model===item.model);
+    });
+    // 已在任意一个库中存在则跳过
+    if (inGlobal || inLocal) { skipped++; return; }
+    // 两个库都不存在，加入通用库
     store.library.push({
       id: e(),
       name: item.name,
