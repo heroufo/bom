@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.16</title>
+<title>BOM 智能管理工具 v5.17</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -35,6 +35,7 @@
   --table-stripe: #f8fafc;
   --input-bg: #ffffff;
   --tag-bg: #eff6ff;
+  --accent-bg: rgba(249,115,22,0.07);
 }
 
 body.dark {
@@ -53,6 +54,7 @@ body.dark {
   --border: #334155;
   --border-light: #1e293b;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --accent-bg: rgba(251,146,60,0.1);
   --shadow: 0 1px 3px rgba(0,0,0,0.4);
   --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
   --header-bg: #0f172a;
@@ -190,11 +192,16 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .single-part-ac{left:50%;transform:translateX(-50%);right:auto;width:360px;max-width:90vw;border-top:1px solid var(--primary);border-radius:var(--radius);margin-top:2px}
 .sp-search-wrap{position:relative;flex:0 0 auto}
 .autocomplete-item{padding:7px 10px;cursor:pointer;transition:background .08s;border-bottom:1px solid var(--border-light);display:flex;flex-direction:column;gap:1px}
+.ac-table tbody tr.autocomplete-item{display:table-row}
 .autocomplete-item:hover,.autocomplete-item.selected{background:var(--primary-bg)}
 .autocomplete-item .ac-name{font-weight:600;color:var(--text)}
 .autocomplete-item .ac-supplier{font-size:11px;color:var(--text-secondary)}
 .autocomplete-item .ac-model{font-size:11px;color:var(--primary)}
 .autocomplete-hidden{display:none!important}
+
+/* BOM本地零件行高亮 */
+.bom-row-local{background:linear-gradient(90deg,var(--accent-bg) 0,var(--accent-bg) 4px,transparent 4px)}
+.bom-row-local td:first-child{padding-left:12px;font-weight:700}
 
 /* PROJECT BAR (new two-row) */
 .proj-bar{background:var(--card-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;border:1px solid var(--border);overflow:hidden}
@@ -416,7 +423,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.16 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.17 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -433,7 +440,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.16</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.17</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -2027,6 +2034,29 @@ function renderBomTable() {
     return ms && mst;
   });
 
+  // 6.5 标记仅存于本项目库的零件（通用库中不存在的）
+  var globalKeys = {};
+  (store.library||[]).forEach(function(l){
+    globalKeys[(l.name||'')+'|'+(l.supplier||'')] = true;
+  });
+  var localLib = getLocalLib();
+  var localKeys = {};
+  localLib.forEach(function(l){
+    var k = (l.name||'')+'|'+(l.supplier||'');
+    localKeys[k] = true;
+    // 在通用库中不存在的 → 标记为本项目独有
+    if (!globalKeys[k]) {
+      l._localOnly = true;
+    }
+  });
+  // 将标记传递到 filtered 中的 BOM item
+  filtered.forEach(function(item){
+    var k = (item.name||'')+'|'+(item.supplier||'');
+    if (localKeys[k] && !globalKeys[k]) {
+      item._localOnly = true;
+    }
+  });
+
   // 7. 空状态处理
   if (!filtered.length) {
     var hasData = bom.length > 0;
@@ -2091,11 +2121,15 @@ function bomRowHtml(item, seq) {
   if (currentUser && currentUser.role === 'admin') {
     actionCol = '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="openEditModal(\''+item.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteBomEntry(\''+item.id+'\')">删除</button></div></td>';
   }
-  return '<tr>'+
+  // 判断是否仅存在于项目库中（非通用库）
+  var isLocalOnly = item._localOnly === true;
+  var rowClass = isLocalOnly ? ' class="bom-row-local"' : '';
+  var localBadge = isLocalOnly ? ' <span title="本项目库独有零件" style="display:inline-block;font-size:9px;background:var(--accent);color:#fff;border-radius:3px;padding:0 3px;margin-left:3px;vertical-align:middle;">本</span>' : '';
+  return '<tr'+rowClass+'>'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
     '<td style="font-size:12px;font-weight:500;">'+esc(supplier)+'</td>'+
-    '<td><b>'+esc(item.name)+'</b></td>'+
+    '<td><b>'+esc(item.name)+localBadge+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
     '<td style="text-align:center;font-weight:600;">'+item.qty+'</td>'+
     '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
