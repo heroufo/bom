@@ -2621,7 +2621,7 @@ function refreshQuickCatFilter() {
 
 function renderQuickLib() {
   refreshQuickCatFilter();
-  var kw = (document.getElementById('quickSearch').value||'').toLowerCase();
+  var kw = (document.getElementById('quickSearch').value||'').trim().toLowerCase();
   var catF = document.getElementById('quickCatFilter').value;
 
   // Merge global + local, deduplicate by name+supplier, local items show badge
@@ -2635,7 +2635,7 @@ function renderQuickLib() {
   var seen = {};
   var merged = [];
   localTagged.concat(globalTagged).forEach(function(l){
-    var key = (l.name||'')+'|'+(l.supplier||'');
+    var key = (l.name||'')+'|'+(l.supplier||'')+'|'+(l.model||'');
     if (!seen[key]) { seen[key]=true; merged.push(l); }
   });
 
