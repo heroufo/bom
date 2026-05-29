@@ -912,7 +912,14 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>淘宝链接</label><input class="form-control" id="lib-taobao" placeholder="粘贴淘宝链接..."></div>
   <div class="form-group" style="margin-bottom:10px;"><label>备注</label><input class="form-control" id="lib-remark" placeholder="该零件的专有信息或备注..."></div>
-  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-lib')">取消</button><button class="btn btn-success" onclick="saveLibEntry()">保存到零件库</button></div>
+  <div class="modal-actions">
+    <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--primary);margin-right:auto;">
+      <span style="font-size:12px;">保存到库：</span>
+      <label><input type="checkbox" id="lib-save-global" checked>通用</label>
+      <label><input type="checkbox" id="lib-save-local">本项目</label>
+    </div>
+    <button class="btn btn-gray" onclick="closeModal('modal-lib')">取消</button><button class="btn btn-success" onclick="saveLibEntry()">保存到零件库</button>
+  </div>
 </div></div>
 
 <!-- Edit BOM Entry -->
@@ -1475,8 +1482,7 @@ window.onload = function() {
 
 function refreshAll() {
   updateProjectSelector();
-  // renderBomTable() is called via applyRoleUI() or after auto-login to ensure currentUser is set
-  renderBomStats();
+  renderBomTable(); renderBomStats();
   renderLibrary(); renderProjectsTable();
   renderCategoryManager(); renderUnitManager();
   renderQuickLib(); updateBadges();
@@ -2169,12 +2175,15 @@ function deleteBomEntry(id) {
 // EDIT MODAL
 // ============================================================
 function openEditModal(id) {
-  var item = currentBom().find(function(i){return i.id===id;});
+  var bom = currentBom();
+  var item = bom.find(function(i){return i.id===id;});
   if (!item) {
-    // 防御：如果找不到条目，尝试重新渲染后重试
-    renderBomTable();
-    item = currentBom().find(function(i){return i.id===id;});
-    if (!item) { toast('未找到该零部件，请刷新页面', 'error'); return; }
+    // 防御：只在不该为空时尝试恢复
+    if (bom.length === 0 && store.currentProject && store.projects[store.currentProject]) {
+      // 数据可能丢失，先不重渲染（避免覆盖），提示用户刷新
+      toast('数据异常，请按🔄刷新按钮修复', 'error'); return;
+    }
+    if (!item) { toast('未找到该零部件', 'error'); return; }
   }
   populateSelects();
   document.getElementById('edit-idx').value = id;
@@ -2484,6 +2493,9 @@ function openLibModal(id) {
   document.getElementById('lib-unit').value = l ? (l.unit||'个') : '个';
   document.getElementById('lib-taobao').value = l ? (l.taobaoLink||'') : '';
   document.getElementById('lib-remark').value = l ? (l.remark||'') : '';
+  // Set checkbox defaults based on source tab
+  document.getElementById('lib-save-global').checked = id ? !isLocal : true;
+  document.getElementById('lib-save-local').checked = isLocal;
   document.getElementById('modal-lib')._editId = id || null;
   document.getElementById('modal-lib')._isLocal = isLocal;
   document.getElementById('modal-lib').classList.add('show');
@@ -2494,47 +2506,55 @@ function editLib(id) { openLibModal(id); }
 function saveLibEntry() {
   var name = document.getElementById('lib-name').value.trim();
   if (!name) { toast('请输入零件名称','error'); return; }
-  var editId = document.getElementById('modal-lib')._editId;
-  var isLocal = document.getElementById('modal-lib')._isLocal;
-  var targetList = isLocal ? getLocalLib() : store.library;
-
-  // Duplicate name+model check (skip when editing the same entry)
   var model = document.getElementById('lib-model').value.trim();
-  var dup = targetList.find(function(l){
-    return l.name.toLowerCase() === name.toLowerCase() && (l.model||'').toLowerCase() === model.toLowerCase() && l.id !== editId;
-  });
-  if (dup) {
-    var dupLabel = dup.name + (dup.model ? ' ('+dup.model+')' : '');
-    var btnText = editId ? '覆盖同名零件「'+dupLabel+'」？' : '零件「'+dupLabel+'」已存在，是否覆盖？';
-    var action = confirm(btnText + '\n\n供应商：'+(dup.supplier||'未知')+'\n型号：'+(dup.model||'-')+'\n\n点「确定」覆盖，点「取消」返回修改。');
-    if (!action) return;
-    // Remove the duplicate before adding
-    var dupIdx = targetList.findIndex(function(l){return l.id===dup.id;});
-    if (dupIdx >= 0) targetList.splice(dupIdx, 1);
-  }
+  var saveGlobal = document.getElementById('lib-save-global').checked;
+  var saveLocal = document.getElementById('lib-save-local').checked;
+  if (!saveGlobal && !saveLocal) { toast('请至少选择一个保存目标', 'error'); return; }
 
-  var entry = {
-    id: editId || e(), name: name,
+  var baseFields = {
+    name: name,
     supplier: document.getElementById('lib-supplier').value.trim(),
-    model: document.getElementById('lib-model').value.trim(),
+    model: model,
     category: document.getElementById('lib-category').value,
     unit: document.getElementById('lib-unit').value,
     taobaoLink: document.getElementById('lib-taobao').value.trim(),
     remark: document.getElementById('lib-remark').value.trim()
   };
-  if (editId) {
-    var idx = targetList.findIndex(function(l){return l.id===editId;});
-    if (idx>=0) targetList[idx] = entry;
-    else targetList.push(entry); // fallback
-  } else {
-    targetList.push(entry);
-  }
+
+  var syncTarget = function(targetList, listLabel) {
+    // Find existing by name+model
+    var existing = targetList.find(function(l){
+      return l.name.toLowerCase()===name.toLowerCase() && (l.model||'').toLowerCase()===model.toLowerCase();
+    });
+    if (existing) {
+      existing.name = name; existing.model = model;
+      Object.keys(baseFields).forEach(function(k){ existing[k] = baseFields[k]; });
+    } else {
+      targetList.push(Object.assign({id: e()}, baseFields));
+    }
+  };
+
+  if (saveGlobal) syncTarget(store.library, '通用库');
+  if (saveLocal) syncTarget(getLocalLib(), '本项目库');
+
+  // Also update in current project BOM if this item exists there
+  var bom = currentBom();
+  bom.forEach(function(item){
+    if (item.name.toLowerCase()===name.toLowerCase() && (item.model||'').toLowerCase()===model.toLowerCase()) {
+      item.name = name; item.model = model; item.supplier = baseFields.supplier;
+      item.category = baseFields.category; item.unit = baseFields.unit;
+    }
+  });
+
   var saved = saveStore();
-  closeModal('modal-lib'); renderLibrary(); updateBadges(); renderQuickLib();
+  closeModal('modal-lib'); renderLibrary(); updateBadges(); renderQuickLib(); renderBomTable();
   if (!saved) {
     toast('⚠️ 保存失败，请检查浏览器存储空间', 'error');
   } else {
-    toast('零件「'+name+'」已保存'+(isLocal?' 到本项目库 📁':' 到通用库 🌐'), 'success');
+    var targets = [];
+    if (saveGlobal) targets.push('通用库');
+    if (saveLocal) targets.push('本项目库');
+    toast('零件「'+name+'」已保存到 '+targets.join(' + '), 'success');
   }
 }
 
