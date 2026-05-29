@@ -262,7 +262,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .new-item-row{background:#fff5f5!important} .dark .new-item-row{background:#2d0a0a!important}
 .new-item-row:hover{background:#fee2e2!important} .dark .new-item-row:hover{background:#3b0a0a!important}
 .new-items-header td{background:#fecaca!important;color:#991b1b!important;font-weight:600;font-size:12px;padding:8px 10px} .dark .new-items-header td{background:#7f1d1d!important;color:#fca5a5!important}
-.arrival-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);cursor:pointer;max-width:68px}
+.arrival-select{font-size:11px;padding:2px 2px;border:1px solid var(--border);border-radius:3px;background:var(--input-bg);color:var(--text);cursor:pointer;width:68px}
 .arrival-select:disabled{opacity:.6;cursor:not-allowed}
 
 /* SEARCH BAR */
@@ -584,7 +584,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
               <div class="add-form-field form-field-lib">
                 <label style="font-size:10px;color:var(--primary);">保存到库</label>
                 <div class="lib-inline">
-                  <label><input type="checkbox" id="chk-save-lib-global">通用</label>
+                  <label><input type="checkbox" id="chk-save-lib-global" checked>通用</label>
                   <label><input type="checkbox" id="chk-save-lib-local">本项目</label>
                 </div>
               </div>
@@ -622,7 +622,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <th style="width:44px;">库存</th>
                 <th style="width:48px;">状态</th>
                 <th style="width:42px;">实采</th>
-                <th style="width:48px;">到货</th>
+                <th style="width:72px;">到货</th>
                 <th style="width:56px;">淘宝</th>
                 <th style="min-width:90px;">备注</th>
                 <th id="bomActionColHeader" style="width:70px;" class="no-print">操作</th>
@@ -1942,7 +1942,7 @@ function renderBomTable() {
 
 function bomRowHtml(item, seq) {
   var sb = item.status==='采购' ? '<span class="badge badge-purchase">采购</span>' : '<span class="badge badge-stock">库存</span>';
-  var ab = item.arrived==='已到' ? '<span class="badge badge-arrived">已到</span>' : item.arrived ? '<span class="badge badge-pending">'+esc(item.arrived)+'</span>' : '<span style="color:var(--text-muted)">-</span>';
+  var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" style="color:var(--primary);font-size:11px;" title="'+esc(item.taobaoLink)+'">打开</a>' : '<span style="color:var(--text-muted)">-</span>';
   var supplier = item.supplier || '-';
   var actionCol = '';
@@ -2045,9 +2045,11 @@ function addBomEntry() {
 
   proj.bom.push(entry);
 
-  // v5.4: separate checkboxes for global and local library
+  // 默认保存到通用零件库，不需要手动勾选
   var saveGlobal = document.getElementById('chk-save-lib-global').checked;
   var saveLocal = document.getElementById('chk-save-lib-local').checked;
+  // 两个都没勾选时，默认添加到通用库
+  if (!saveGlobal && !saveLocal) saveGlobal = true;
   var libEntry = {id:e(),name:name,supplier:entry.supplier,model:entry.model,unit:entry.unit,category:entry.category,taobaoLink:entry.taobaoLink};
 
   if (saveLocal) {
@@ -2057,7 +2059,7 @@ function addBomEntry() {
   }
   if (saveGlobal) {
     var existingGlobal = store.library.find(function(l){return l.name===name&&l.supplier===entry.supplier;});
-    if (!existingGlobal) { store.library.push(Object.assign({}, libEntry, {id: e()})); toast('已保存到通用零件库 🌐', 'success'); }
+    if (!existingGlobal) { store.library.push(Object.assign({}, libEntry, {id: e()})); }
   }
 
   saveStore(); clearAddForm(); renderBomTable(); renderBomStats(); updateBadges();
@@ -2068,7 +2070,7 @@ function clearAddForm() {
   ['inp-name','inp-supplier','inp-model','inp-taobao','inp-remark'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('inp-qty').value = 1; document.getElementById('inp-stock').value = 0;
   document.getElementById('inp-arrived').value = ''; document.getElementById('inp-status').value = 'auto';
-  document.getElementById('chk-save-lib-global').checked = false;
+  document.getElementById('chk-save-lib-global').checked = true;
   document.getElementById('chk-save-lib-local').checked = false;
 }
 
@@ -2121,6 +2123,25 @@ function saveEditEntry() {
     remark: document.getElementById('edit-remark').value.trim()
   });
   store.projects[store.currentProject].bom = bom;
+  // 双向同步：将修改同步到零件库
+  var editedName = document.getElementById('edit-name').value.trim();
+  var editedModel = document.getElementById('edit-model').value.trim();
+  var libFields = {
+    name: editedName,
+    supplier: document.getElementById('edit-supplier').value.trim(),
+    model: editedModel,
+    category: document.getElementById('edit-category').value,
+    unit: document.getElementById('edit-unit').value,
+    taobaoLink: document.getElementById('edit-taobao').value.trim(),
+    remark: document.getElementById('edit-remark').value.trim()
+  };
+  // 同步到通用库
+  var globalMatch = store.library.find(function(l){return l.name===editedName&&l.model===editedModel;});
+  if (globalMatch) Object.assign(globalMatch, libFields);
+  // 同步到本项目库
+  var localLib = getLocalLib();
+  var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
+  if (localMatch) Object.assign(localMatch, libFields);
   saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); toast('修改已保存', 'success');
 }
 
@@ -2600,8 +2621,9 @@ function updatePurchaseArrival(itemId, newStatus) {
   item.arrived = newStatus;
   saveStore();
 
-  // Re-render the purchase list to reflect the change
+  // Re-render the purchase list + BOM table to reflect the change
   renderSavedPurchaseList();
+  renderBomTable(); renderBomStats();
   toast('到货状态已更新', 'success');
 }
 
