@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.18</title>
+<title>BOM 智能管理工具 v5.22</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -423,7 +423,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.18 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.22 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -848,6 +848,26 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     </div>
   </div>
   <div class="card">
+    <div class="card-header"><div class="card-header-left">☁️ 云同步</div></div>
+    <div class="card-body">
+      <div class="notice notice-info">数据自动同步到 GitHub Gist，不同浏览器打开同一链接时自动保持一致。管理员需在每个浏览器上配置一次 Token。</div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">GitHub Token（需 gist 权限）</label>
+        <div style="display:flex;gap:8px;">
+          <input class="form-control" id="gistTokenInput" type="password" placeholder="ghp_..." style="flex:1;max-width:400px;">
+          <button class="btn btn-primary btn-sm" onclick="saveGistToken()">💾 保存</button>
+          <button class="btn btn-outline btn-sm" onclick="testGistConnection()">🔍 测试连接</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">在 <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--primary);">github.com/settings/tokens</a> 创建，勾选 gist 权限即可</div>
+      </div>
+      <div id="cloudSyncStatus" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">状态：检查中...</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="cloudPull(function(d,err){if(d){Object.assign(store,d);delete store._gistUpdatedAt;saveStore();refreshAll();updateCloudSyncStatus();toast('云端数据已拉取并合并','success');}else{toast(err||'云端暂无数据或拉取失败','warn');}})">📥 从云端拉取</button>
+        <button class="btn btn-outline btn-sm" onclick="cloudPush(function(ok,err){updateCloudSyncStatus();toast(ok?'已推送到云端':(err||'推送失败'),ok?'success':'error');})">📤 推送到云端</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-header"><div class="card-header-left">⚠️ 系统重置</div></div>
     <div class="card-body">
       <div class="notice notice-warn">⚠️ 此操作将清除所有项目、BOM清单、零件库、用户和设置数据，恢复为出厂状态。此操作不可恢复！</div>
@@ -1018,6 +1038,10 @@ let store = {
 let currentUser = null;
 
 const STORE_KEY = 'bom_tool_v4_1';
+const GIST_ID = '9d77de825894e88a4641ad4ff2d327c4';
+const GIST_FILENAME = 'bom-data.json';
+const GIST_TOKEN_KEY = 'bom_gist_token';
+const GIST_SYNC_KEY = 'bom_gist_sync';
 
 function loadStore() {
   try {
@@ -1137,12 +1161,139 @@ function saveStore() {
     // 验证保存是否成功（读取回来比对）
     var verified = localStorage.getItem(STORE_KEY);
     if (!verified) { console.error('saveStore: 保存后验证失败', STORE_KEY); return false; }
+    // 异步推送到云端（不阻塞UI）
+    cloudPush();
     return true;
   } catch(e) {
     console.error('Save store failed:', e);
     toast('数据保存失败：' + (e.name === 'QuotaExceededError' ? '存储空间不足，请清理浏览器数据' : e.message), 'error');
     return false;
   }
+}
+
+// ============================================================
+// GIST CLOUD SYNC
+// ============================================================
+function getGistToken() {
+  return localStorage.getItem(GIST_TOKEN_KEY) || '';
+}
+
+function cloudPush(callback) {
+  var token = getGistToken();
+  if (!token) { if (callback) callback(false, '未配置同步Token'); return; }
+  try {
+    var json = JSON.stringify(store);
+    var body = JSON.stringify({ files: {}, description: 'BOM管理工具 - 云端数据同步' });
+    var obj = JSON.parse(body);
+    obj.files[GIST_FILENAME] = { content: json };
+    fetch('https://api.github.com/gists/'+GIST_ID, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'token '+token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(obj)
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if (data.updated_at) {
+        localStorage.setItem(GIST_SYNC_KEY, JSON.stringify({pushedAt: new Date().toISOString(), gistUpdated: data.updated_at}));
+        if (callback) callback(true);
+      } else {
+        console.warn('Gist push failed:', data);
+        if (callback) callback(false, data.message || '推送失败');
+      }
+    }).catch(function(e){
+      console.warn('Gist push error:', e);
+      if (callback) callback(false, e.message);
+    });
+  } catch(e) {
+    console.warn('Gist push exception:', e);
+    if (callback) callback(false, e.message);
+  }
+}
+
+function cloudPull(callback) {
+  var token = getGistToken();
+  if (!token) { if (callback) callback(null, '未配置同步Token'); return; }
+  fetch('https://api.github.com/gists/'+GIST_ID, {
+    headers: {
+      'Authorization': 'token '+token,
+      'Accept': 'application/vnd.github+json'
+    }
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (!data.files || !data.files[GIST_FILENAME]) {
+      if (callback) callback(null, '云端无数据'); return;
+    }
+    var content = data.files[GIST_FILENAME].content;
+    var updatedAt = data.updated_at;
+    if (!content || content === '{}') {
+      if (callback) callback(null, '云端数据为空'); return;
+    }
+    try {
+      var parsed = JSON.parse(content);
+      parsed._gistUpdatedAt = updatedAt;
+      if (callback) callback(parsed);
+    } catch(e) {
+      console.warn('Gist data parse error:', e);
+      if (callback) callback(null, '数据解析失败');
+    }
+  }).catch(function(e){
+    console.warn('Gist pull error:', e);
+    if (callback) callback(null, e.message);
+  });
+}
+
+function updateCloudSyncStatus() {
+  var el = document.getElementById('cloudSyncStatus');
+  if (!el) return;
+  // 预填已保存的 token 到 placeholder
+  var tokenInput = document.getElementById('gistTokenInput');
+  var savedToken = getGistToken();
+  if (tokenInput && savedToken && !tokenInput.value) {
+    tokenInput.placeholder = '已保存（' + savedToken.substring(0,8) + '...）';
+  }
+  var token = savedToken;
+  if (!token) {
+    el.innerHTML = '状态：<span style="color:var(--danger);">● 未配置</span>｜请先填入 GitHub Token';
+    return;
+  }
+  var syncInfo = null;
+  try { syncInfo = JSON.parse(localStorage.getItem(GIST_SYNC_KEY)||'null'); } catch(e){}
+  if (syncInfo && syncInfo.gistUpdated) {
+    var pushedTime = syncInfo.pushedAt ? new Date(syncInfo.pushedAt).toLocaleString('zh-CN') : '未知';
+    el.innerHTML = '状态：<span style="color:var(--success);">● 已同步</span>｜最近推送：' + pushedTime;
+  } else {
+    el.innerHTML = '状态：<span style="color:var(--warning);">● 等待首次同步</span>｜保存数据后自动推送';
+  }
+}
+
+function saveGistToken() {
+  var token = document.getElementById('gistTokenInput').value.trim();
+  if (!token) { toast('请输入 Token', 'warn'); return; }
+  if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+    if (!confirm('Token 格式不常见（通常以 ghp_ 或 github_pat_ 开头），确定保存？')) return;
+  }
+  localStorage.setItem(GIST_TOKEN_KEY, token);
+  document.getElementById('gistTokenInput').value = '';
+  updateCloudSyncStatus();
+  toast('Token 已保存', 'success');
+}
+
+function testGistConnection() {
+  var token = document.getElementById('gistTokenInput').value.trim() || getGistToken();
+  if (!token) { toast('请先输入 Token', 'warn'); return; }
+  fetch('https://api.github.com/gists/'+GIST_ID, {
+    headers: { 'Authorization': 'token '+token, 'Accept': 'application/vnd.github+json' }
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.id === GIST_ID) {
+      toast('✅ 连接成功！Gist 更新时间：'+new Date(d.updated_at).toLocaleString('zh-CN'), 'success');
+      updateCloudSyncStatus();
+    } else {
+      toast('❌ 连接失败：'+(d.message||'无法访问 Gist'), 'error');
+    }
+  }).catch(function(e){
+    toast('❌ 网络错误：'+e.message, 'error');
+  });
 }
 
 // ============================================================
@@ -1485,6 +1636,34 @@ window.onload = function() {
   } else if (!store.currentProject && Object.keys(store.projects).length > 0) {
     store.currentProject = Object.keys(store.projects)[0];
   }
+  // 从云端拉取最新数据（异步，不阻塞页面加载）
+  cloudPull(function(cloudData, errMsg){
+    if (!cloudData) {
+      if (errMsg && errMsg !== '未配置同步Token') console.log('云端同步跳过: '+errMsg);
+      return;
+    }
+    var gistUpdated = cloudData._gistUpdatedAt;
+    delete cloudData._gistUpdatedAt;
+    // 读取本地同步记录
+    var syncInfo = null;
+    try { syncInfo = JSON.parse(localStorage.getItem(GIST_SYNC_KEY)||'null'); } catch(e){}
+    var localPushed = syncInfo && syncInfo.gistUpdated;
+    // 如果云端比本地新（本地无记录或有更新的数据），用云端数据覆盖
+    if (!localPushed || (gistUpdated && gistUpdated > localPushed)) {
+      // 保持当前用户登录状态
+      var savedUid2 = sessionStorage.getItem('bom_uid');
+      // 合并：云端数据为主，但保留本地某些状态
+      Object.assign(store, cloudData);
+      saveStore();
+      // 重新渲染
+      refreshAll();
+      if (savedUid2) {
+        var u2 = store.users.find(function(u){return u.id===savedUid2;});
+        if (u2) { currentUser = u2; document.getElementById('loginScreen').classList.add('hidden'); applyRoleUI(); }
+      }
+      console.log('云端数据已同步 (Gist updated: '+gistUpdated+')');
+    }
+  });
   applyDark();
   applyFontSize();
   populateSelects();
@@ -1545,7 +1724,7 @@ function showPage(id) {
   if (tabMap[id]) document.getElementById(tabMap[id]).classList.add('active');
   if (id === 'page-stats') renderStats();
   if (id === 'page-users') renderUsersTable();
-  if (id === 'page-settings') updateBackupInfo();
+  if (id === 'page-settings') { updateBackupInfo(); updateCloudSyncStatus(); }
   if (id === 'page-purchase') renderSavedPurchaseList();
   if (id === 'page-bom') renderBomTable();
   if (id === 'page-library') renderLibrary();
