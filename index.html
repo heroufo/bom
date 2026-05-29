@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.12</title>
+<title>BOM 智能管理工具 v5.13</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -1450,7 +1450,6 @@ window.onload = function() {
   applyDark();
   applyFontSize();
   populateSelects();
-  refreshAll();
   // Auto-login from sessionStorage if available
   var savedUid = sessionStorage.getItem('bom_uid');
   if (savedUid) {
@@ -1463,17 +1462,21 @@ window.onload = function() {
       currentUser = savedUser;
       document.getElementById('loginScreen').classList.add('hidden');
       applyRoleUI();
+      // renderBomTable is already called inside applyRoleUI, but ensure it runs
     } else {
       showLoginScreen();
     }
   } else {
     showLoginScreen();
   }
+  // refreshAll AFTER login so UI state is correct (also calls renderBomTable if needed)
+  refreshAll();
 };
 
 function refreshAll() {
   updateProjectSelector();
-  renderBomTable(); renderBomStats();
+  // renderBomTable() is called via applyRoleUI() or after auto-login to ensure currentUser is set
+  renderBomStats();
   renderLibrary(); renderProjectsTable();
   renderCategoryManager(); renderUnitManager();
   renderQuickLib(); updateBadges();
@@ -1507,6 +1510,8 @@ function showPage(id) {
   if (id === 'page-users') renderUsersTable();
   if (id === 'page-settings') updateBackupInfo();
   if (id === 'page-purchase') renderSavedPurchaseList();
+  if (id === 'page-bom') renderBomTable();
+  if (id === 'page-library') renderLibrary();
 }
 
 // Check if BOM has changed since last purchase list generation
@@ -2164,7 +2169,13 @@ function deleteBomEntry(id) {
 // EDIT MODAL
 // ============================================================
 function openEditModal(id) {
-  var item = currentBom().find(function(i){return i.id===id;}); if (!item) return;
+  var item = currentBom().find(function(i){return i.id===id;});
+  if (!item) {
+    // 防御：如果找不到条目，尝试重新渲染后重试
+    renderBomTable();
+    item = currentBom().find(function(i){return i.id===id;});
+    if (!item) { toast('未找到该零部件，请刷新页面', 'error'); return; }
+  }
   populateSelects();
   document.getElementById('edit-idx').value = id;
   document.getElementById('edit-category').value = item.category||getCategories()[0];
@@ -2217,13 +2228,21 @@ function saveEditEntry() {
   };
   if (saveGlobal) {
     var globalMatch = store.library.find(function(l){return l.name===editedName&&l.model===editedModel;});
-    if (globalMatch) Object.assign(globalMatch, libFields);
+    if (globalMatch) {
+      Object.assign(globalMatch, libFields);
+    } else {
+      store.library.push(Object.assign({id: e()}, libFields));
+    }
   }
   // 始终同步到本项目库
   var localLib = getLocalLib();
   var localMatch = localLib.find(function(l){return l.name===editedName&&l.model===editedModel;});
-  if (localMatch) Object.assign(localMatch, libFields);
-  saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); toast('修改已保存', 'success');
+  if (localMatch) {
+    Object.assign(localMatch, libFields);
+  } else {
+    localLib.push(Object.assign({id: e()}, libFields));
+  }
+  saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); renderLibrary(); updateBadges(); toast('修改已保存', 'success');
 }
 
 // ============================================================
