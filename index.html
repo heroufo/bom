@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.33</title>
+<title>BOM 智能管理工具 v5.34</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -876,7 +876,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       </div>
       <div id="cloudSyncStatus" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">状态：检查中...</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary btn-sm" onclick="cloudPull(function(d,err){if(d){Object.assign(store,d);delete store._gistUpdatedAt;saveStore();refreshAll();updateCloudSyncStatus();toast('云端数据已拉取并合并','success');}else{toast(err||'云端暂无数据或拉取失败','warn');}})">📥 从云端拉取</button>
+        <button class="btn btn-primary btn-sm" onclick="cloudPull(function(d,err){if(d){Object.assign(store,d);delete store._gistUpdatedAt;saveStoreDebounced();refreshAll();updateCloudSyncStatus();toast('云端数据已拉取并合并','success');}else{toast(err||'云端暂无数据或拉取失败','warn');}})">📥 从云端拉取</button>
         <button class="btn btn-outline btn-sm" onclick="cloudPush(function(ok,err){updateCloudSyncStatus();toast(ok?'已推送到云端':(err||'推送失败'),ok?'success':'error');})">📤 推送到云端</button>
       </div>
     </div>
@@ -1066,6 +1066,16 @@ let store = {
 // Current session user (NOT persisted to store, session-only)
 let currentUser = null;
 
+// Performance: dirty flags for batched rendering (Plan E)
+var dirtyFlags = {
+  bomTable: false, bomStats: false, library: false, quickLib: false,
+  badges: false, projectsTable: false, projectSelector: false,
+  categoryManager: false, unitManager: false, purchaseList: false,
+  attachments: false, users: false
+};
+var _renderScheduled = false;
+var _saveDebounceTimer = null;
+
 const STORE_KEY = 'bom_tool_v4_1';
 const GIST_ID = '9d77de825894e88a4641ad4ff2d327c4';
 const GIST_FILENAME = 'bom-data.json';
@@ -1130,7 +1140,7 @@ function loadStore() {
         if (parsed4.units) store.units = parsed4.units;
         if (parsed4.currentProject) store.currentProject = parsed4.currentProject;
         if (parsed4.darkMode !== undefined) store.darkMode = parsed4.darkMode;
-        saveStore();
+        saveStoreDebounced();
       } else {
         // migrate from v3
         const raw3 = localStorage.getItem('bom_tool_v3');
@@ -1163,7 +1173,7 @@ function loadStore() {
           }
           if (parsed3.categories) store.categories = parsed3.categories;
           if (parsed3.currentProject) store.currentProject = parsed3.currentProject;
-          saveStore();
+          saveStoreDebounced();
         }
       }
     }
@@ -1182,12 +1192,12 @@ function loadStore() {
       fontSize: 1,
       users: JSON.parse(JSON.stringify(DEFAULT_USERS))
     };
-    saveStore();
+    saveStoreDebounced();
     toast('检测到数据异常，已重置为初始状态', 'warn');
   }
 }
 
-function saveStore() {
+function saveStoreRaw() {
   try {
     if (!store || !store.library) { console.error('saveStore: store 对象异常', store); return false; }
     var json = JSON.stringify(store);
@@ -1204,6 +1214,52 @@ function saveStore() {
     return false;
   }
 }
+
+// 防抖版 saveStore（方案A）：300ms内连续调用只执行最后一次
+// immediate=true 强制立即保存（如项目删除等关键操作）
+function saveStoreDebounced(immediate) {
+  if (_saveDebounceTimer) { clearTimeout(_saveDebounceTimer); _saveDebounceTimer = null; }
+  if (immediate) {
+    return saveStoreRaw();
+  }
+  _saveDebounceTimer = setTimeout(function() {
+    _saveDebounceTimer = null;
+    saveStoreRaw();
+  }, 300);
+  return true; // 乐观返回
+}
+
+// 脏标记系统（方案E）：合并同帧渲染
+function markDirty(flag) {
+  dirtyFlags[flag] = true;
+  scheduleRender();
+}
+function scheduleRender() {
+  if (!_renderScheduled) {
+    _renderScheduled = true;
+    requestAnimationFrame(flushDirty);
+  }
+}
+function flushDirty() {
+  _renderScheduled = false;
+  if (dirtyFlags.bomTable)        { dirtyFlags.bomTable = false;        renderBomTable(); }
+  if (dirtyFlags.bomStats)        { dirtyFlags.bomStats = false;        renderBomStats(); }
+  if (dirtyFlags.library)         { dirtyFlags.library = false;         renderLibrary(); }
+  if (dirtyFlags.quickLib)        { dirtyFlags.quickLib = false;        renderQuickLib(); }
+  if (dirtyFlags.badges)          { dirtyFlags.badges = false;          updateBadges(); }
+  if (dirtyFlags.projectsTable)   { dirtyFlags.projectsTable = false;   renderProjectsTable(); }
+  if (dirtyFlags.projectSelector) { dirtyFlags.projectSelector = false; updateProjectSelector(); }
+  if (dirtyFlags.categoryManager) { dirtyFlags.categoryManager = false; renderCategoryManager(); }
+  if (dirtyFlags.unitManager)     { dirtyFlags.unitManager = false;     renderUnitManager(); }
+  if (dirtyFlags.purchaseList)    { dirtyFlags.purchaseList = false;    renderSavedPurchaseList(); }
+  if (dirtyFlags.attachments)     { dirtyFlags.attachments = false;     renderAttachmentsList(); }
+  if (dirtyFlags.users)           { dirtyFlags.users = false;           renderUsersTable(); }
+}
+
+// 页面关闭前强制立即保存（避免防抖延迟导致数据丢失）
+window.addEventListener('beforeunload', function() {
+  if (_saveDebounceTimer) { clearTimeout(_saveDebounceTimer); _saveDebounceTimer = null; }
+  saveStoreRaw();
 
 // ============================================================
 // GIST CLOUD SYNC
@@ -1530,7 +1586,7 @@ function buildInitialLibrary() {
 // ============================================================
 // DARK MODE
 // ============================================================
-function toggleDark() { store.darkMode = !store.darkMode; applyDark(); saveStore(); }
+function toggleDark() { store.darkMode = !store.darkMode; applyDark(); saveStoreDebounced(); }
 function applyDark() {
   if (store.darkMode) { document.body.classList.add('dark'); document.getElementById('darkToggleBtn').textContent = '☀ 日间'; }
   else { document.body.classList.remove('dark'); document.getElementById('darkToggleBtn').textContent = '🌙 黑夜'; }
@@ -1603,7 +1659,7 @@ function moveCategory(dir, idx) {
   if (newIdx < 0 || newIdx >= arr.length) return;
   var item = arr.splice(idx, 1)[0];
   arr.splice(newIdx, 0, item);
-  saveStore();
+  saveStoreDebounced();
   renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
 }
 function moveUnit(dir, idx) {
@@ -1612,7 +1668,7 @@ function moveUnit(dir, idx) {
   if (newIdx < 0 || newIdx >= arr.length) return;
   var item = arr.splice(idx, 1)[0];
   arr.splice(newIdx, 0, item);
-  saveStore();
+  saveStoreDebounced();
   renderUnitManager(); populateSelects();
 }
 
@@ -1620,7 +1676,7 @@ function addCategory() {
   var val = document.getElementById('newCatInput').value.trim();
   if (!val) { toast('请输入分类名称','error'); return; }
   if (store.categories.indexOf(val)>=0) { toast('该分类已存在','warn'); return; }
-  store.categories.push(val); saveStore();
+  store.categories.push(val); saveStoreDebounced();
   document.getElementById('newCatInput').value = '';
   renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
   toast('分类「'+val+'」已添加', 'success');
@@ -1629,7 +1685,7 @@ function addCategory() {
 function deleteCategory(idx) {
   var cat = store.categories[idx];
   if (!confirm('确认删除分类「'+cat+'」？已有零件不受影响。')) return;
-  store.categories.splice(idx, 1); saveStore();
+  store.categories.splice(idx, 1); saveStoreDebounced();
   renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
   toast('分类「'+cat+'」已删除');
 }
@@ -1641,7 +1697,7 @@ function addUnit() {
   var val = document.getElementById('newUnitInput').value.trim();
   if (!val) { toast('请输入单位名称','error'); return; }
   if (store.units.indexOf(val)>=0) { toast('该单位已存在','warn'); return; }
-  store.units.push(val); saveStore();
+  store.units.push(val); saveStoreDebounced();
   document.getElementById('newUnitInput').value = '';
   renderUnitManager(); populateSelects();
   toast('单位「'+val+'」已添加', 'success');
@@ -1649,7 +1705,7 @@ function addUnit() {
 function deleteUnit(idx) {
   var u = store.units[idx];
   if (!confirm('确认删除单位「'+u+'」？')) return;
-  store.units.splice(idx, 1); saveStore();
+  store.units.splice(idx, 1); saveStoreDebounced();
   renderUnitManager(); populateSelects();
   toast('单位已删除');
 }
@@ -1667,7 +1723,7 @@ window.onload = function() {
     store.projects['p_2602'] = INITIAL_PROJECT;
     store.currentProject = 'p_2602';
     if (store.library.length === 0) store.library = buildInitialLibrary();
-    saveStore();
+    saveStoreDebounced();
   } else if (!store.currentProject && Object.keys(store.projects).length > 0) {
     store.currentProject = Object.keys(store.projects)[0];
   }
@@ -1689,7 +1745,7 @@ window.onload = function() {
       var savedUid2 = sessionStorage.getItem('bom_uid');
       // 合并：云端数据为主，但保留本地某些状态
       Object.assign(store, cloudData);
-      saveStore();
+      saveStoreDebounced();
       // 重新渲染
       refreshAll();
       if (savedUid2) {
@@ -1740,6 +1796,8 @@ function refreshAll() {
   checkPurchaseBomChanged();
   // Check archived UI state
   checkArchivedUI();
+  // Clear all dirty flags since we just rendered everything
+  for (var k in dirtyFlags) { if (dirtyFlags.hasOwnProperty(k)) dirtyFlags[k] = false; }
 }
 
 // ============================================================
@@ -1820,7 +1878,7 @@ function doLogin() {
   // Ensure store.users is a valid array (defense against localStorage corruption)
   if (!Array.isArray(store.users) || !store.users.length) {
     store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
-    saveStore();
+    saveStoreDebounced();
     console.warn('Users array was corrupted, reset to defaults');
   }
 
@@ -1839,7 +1897,7 @@ function doLogin() {
     // Fallback: if login is admin/admin123 and it failed, reset users entirely
     if (username === 'admin' && password === 'admin123') {
       store.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
-      saveStore();
+      saveStoreDebounced();
       user = store.users.find(function(u){ return u.username === username && u.password === password; });
       if (user) { errEl.innerHTML = ''; } // reset triggered, proceed to login
     }
@@ -1857,7 +1915,7 @@ function ensureDefaultAdmin() {
   var hasAdmin = store.users.some(function(u){ return u.id === 'u_admin' && u.role === 'admin'; });
   if (!hasAdmin) {
     store.users.unshift(JSON.parse(JSON.stringify(DEFAULT_USERS[0])));
-    saveStore();
+    saveStoreDebounced();
     console.warn('Default admin account was missing, re-added and persisted');
   }
 }
@@ -2021,7 +2079,7 @@ function saveUser() {
     store.users.push({id:'u_'+e(), username:username, password:password, role:role, remark:remark});
     toast('用户「'+username+'」已创建', 'success');
   }
-  saveStore();
+  saveStoreDebounced();
   closeModal('modal-user');
   renderUsersTable();
 }
@@ -2035,7 +2093,7 @@ function deleteUser(uid) {
   }
   if (!confirm('确认删除用户「'+u.username+'」？')) return;
   store.users = store.users.filter(function(x){ return x.id !== uid; });
-  saveStore();
+  saveStoreDebounced();
   renderUsersTable();
   toast('用户「'+u.username+'」已删除');
 }
@@ -2052,14 +2110,14 @@ function updateProjectSelector() {
     sel.appendChild(opt);
   });
 }
-function switchProject(id) { if (!id) return; store.currentProject = id; saveStore(); refreshAll(); toast('已切换到：'+store.projects[id].name); }
+function switchProject(id) { if (!id) return; store.currentProject = id; saveStoreDebounced(); refreshAll(); toast('已切换到：'+store.projects[id].name); }
 function openNewProjectModal() { document.getElementById('newProjectName').value=''; document.getElementById('newProjectDesc').value=''; document.getElementById('modal-project').classList.add('show'); setTimeout(function(){document.getElementById('newProjectName').focus();},100); }
 function createProject() {
   var name = document.getElementById('newProjectName').value.trim();
   if (!name) { toast('请输入项目名称','error'); return; }
   var id = 'p_'+e();
   store.projects[id] = {id:id,name:name,desc:document.getElementById('newProjectDesc').value.trim(),created:new Date().toLocaleDateString('zh-CN'),bom:[],localLibrary:[],archived:false};
-  store.currentProject = id; saveStore(); closeModal('modal-project'); refreshAll();
+  store.currentProject = id; saveStoreDebounced(); closeModal('modal-project'); refreshAll();
   toast('项目「'+name+'」创建成功', 'success');
 }
 function deleteProject(id) {
@@ -2067,7 +2125,7 @@ function deleteProject(id) {
   if (!confirm('确认删除项目「'+projName+'」？此操作不可恢复。')) return;
   delete store.projects[id];
   if (store.currentProject === id) store.currentProject = Object.keys(store.projects)[0] || null;
-  if (!saveStore()) { toast('删除失败：数据保存异常，请重试', 'error'); return; }
+  if (!saveStoreDebounced(true)) { toast('删除失败：数据保存异常，请重试', 'error'); return; }
   // Verify deletion was actually persisted
   var savedRaw = localStorage.getItem(STORE_KEY);
   if (savedRaw) {
@@ -2100,7 +2158,7 @@ function saveProjectEdit() {
   var p = store.projects[id]; if (!p) return;
   p.name = name;
   p.desc = document.getElementById('editProjectDesc').value.trim();
-  saveStore(); closeModal('modal-project-edit');
+  saveStoreDebounced(); closeModal('modal-project-edit');
   refreshAll(); toast('项目信息已更新', 'success');
 }
 
@@ -2112,7 +2170,7 @@ function toggleArchiveProject(id) {
   }
   var p = store.projects[id]; if (!p) return;
   p.archived = !p.archived;
-  saveStore();
+  saveStoreDebounced();
   if (id === store.currentProject) {
     refreshAll();
     checkArchivedUI();
@@ -2154,7 +2212,7 @@ function changeFontSize(delta) {
   if (next < 0) next = 0;
   if (next >= sizes.length) next = sizes.length - 1;
   store.fontSize = sizes[next];
-  saveStore();
+  saveStoreDebounced();
   applyFontSize();
   document.getElementById('fontSizeLabel').textContent = labels[next];
 }
@@ -2235,7 +2293,7 @@ function renderProjectsTable() {
           : '<button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:var(--warning);" onclick="toggleArchiveProject(\''+p.id+'\')">归档</button>')
         + '<button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">删除</button>'
         + '</div>';
-      rows += '<tr class="'+rowClass+'"><td><b>'+esc(p.name)+'</b> '+currentBadge+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+statusBadge+'</td><td>'+esc(p.created||'-')+'</td><td>'+actions+'</td></tr>';
+      rows += '<tr class="'+rowClass+'" data-id="'+p.id+'"><td><b>'+esc(p.name)+'</b> '+currentBadge+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+statusBadge+'</td><td>'+esc(p.created||'-')+'</td><td>'+actions+'</td></tr>';
     });
   });
   tbody.innerHTML = rows;
@@ -2434,7 +2492,7 @@ function bomRowHtml(item, seq) {
   var isLocalOnly = item._localOnly === true;
   var rowClass = isLocalOnly ? ' class="bom-row-local"' : '';
   var localBadge = isLocalOnly ? ' <span title="本项目库独有零件" style="display:inline-block;font-size:9px;background:var(--accent);color:#fff;border-radius:3px;padding:0 3px;margin-left:3px;vertical-align:middle;">本</span>' : '';
-  return '<tr'+rowClass+'>'+
+  return '<tr'+rowClass+' data-id="'+item.id+'">'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
     '<td><span style="display:inline-block;'+supplierStyle+'">'+esc(supplier)+'</span></td>'+
@@ -2450,6 +2508,118 @@ function bomRowHtml(item, seq) {
     '<td style="font-size:11px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(item.remark||'')+'">'+esc(item.remark||'-')+'</td>'+
     actionCol+
     '</tr>';
+}
+
+// ── 局部 DOM 更新辅助函数（方案B）──
+
+function getBomItem(id) {
+  var pid = store.currentProject;
+  if (!pid || !store.projects[pid]) return null;
+  var bom = store.projects[pid].bom || [];
+  for (var i = 0; i < bom.length; i++) { if (bom[i].id === id) return bom[i]; }
+  return null;
+}
+
+// BOM 表格：更新单行
+function updateBomRow(itemId) {
+  var tbody = document.getElementById('bomTbody');
+  if (!tbody) return;
+  var item = getBomItem(itemId);
+  if (!item) { removeBomRow(itemId); return; }
+  var oldRow = tbody.querySelector('tr[data-id="'+itemId+'"]');
+  var newHtml = bomRowHtml(item, 0); // seq 暂不传，因为单行更新时 seq 可能变化
+  if (oldRow) {
+    var tmp = document.createElement('tbody');
+    tmp.innerHTML = newHtml;
+    var newRow = tmp.firstChild;
+    oldRow.parentNode.replaceChild(newRow, oldRow);
+  } else {
+    // 行不存在，追加
+    var tmp = document.createElement('tbody');
+    tmp.innerHTML = newHtml;
+    tbody.appendChild(tmp.firstChild);
+  }
+}
+
+// BOM 表格：删除单行
+function removeBomRow(itemId) {
+  var tbody = document.getElementById('bomTbody');
+  if (!tbody) return;
+  var row = tbody.querySelector('tr[data-id="'+itemId+'"]');
+  if (row) row.remove();
+}
+
+// 零件库表格：更新单行（全量刷新仍用 renderLibrary）
+function updateLibRow(itemId) {
+  var tbody = document.getElementById('libListTbody');
+  if (!tbody) return;
+  var libItem = null;
+  for (var i = 0; i < store.library.length; i++) { if (store.library[i].id === itemId) { libItem = store.library[i]; break; } }
+  if (!libItem) { removeLibRow(itemId); return; }
+  var oldRow = tbody.querySelector('tr[data-id="'+itemId+'"]');
+  if (!oldRow) return; // 局部更新只在行存在时生效，否则等全量刷新
+  // 重建该行 HTML
+  var i = store.library.indexOf(libItem);
+  var promoteBtnHtml = '';
+  var rowHtml = '<tr data-id="'+itemId+'">'+
+    '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+itemId+'" onchange="updateBatchDeleteBtn()"></td>'+
+    '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
+    '<td><b>'+esc(libItem.name)+'</b></td>'+
+    '<td style="font-size:12px;">'+esc(libItem.supplier||'-')+'</td>'+
+    '<td style="font-size:12px;">'+esc(libItem.model||'-')+'</td>'+
+    '<td>'+esc(libItem.category||'-')+'</td>'+
+    '<td style="text-align:center;">'+esc(libItem.unit||'')+'</td>'+
+    '<td style="text-align:center;">'+fmtNum(libItem.stock)+'</td>'+
+    '<td><div class="row-actions">'+
+      '<button class="btn btn-sm btn-outline" onclick="openLibEditModal(\''+itemId+'\')">编辑</button>'+
+      '<button class="btn btn-sm btn-danger" onclick="deleteLibraryItem(\''+itemId+'\')">删除</button>'+
+    '</div></td></tr>';
+  var tmp = document.createElement('tbody');
+  tmp.innerHTML = rowHtml;
+  oldRow.parentNode.replaceChild(tmp.firstChild, oldRow);
+}
+
+function removeLibRow(itemId) {
+  var tbody = document.getElementById('libListTbody');
+  if (!tbody) return;
+  var row = tbody.querySelector('tr[data-id="'+itemId+'"]');
+  if (row) row.remove();
+}
+
+// 快速选件表格：更新单行
+function updateQuickLibRow(itemId) {
+  var tbody = document.getElementById('quickLibTbody');
+  if (!tbody) return;
+  var oldRow = tbody.querySelector('tr[data-id="'+itemId+'"]');
+  if (!oldRow) return; // 不存在则等全量刷新
+  // 保持原有交互状态（checkbox、stock值），仅更新显示文本
+  var qtyEl = oldRow.querySelector('input[id^="qqty_"]');
+  var stockEl = oldRow.querySelector('input[id^="qstk_"]');
+  var chkEl = oldRow.querySelector('input[id^="qchk_"]');
+  // 全局库数据
+  var libItem = null;
+  for (var j = 0; j < store.library.length; j++) { if (store.library[j].id === itemId) { libItem = store.library[j]; break; } }
+  if (!libItem) {
+    var localLib = getLocalLib();
+    for (var k = 0; k < localLib.length; k++) { if (localLib[k].id === itemId) { libItem = localLib[k]; break; } }
+  }
+  if (!libItem) { removeQuickLibRow(itemId); return; }
+  // 更新文本单元格
+  var cells = oldRow.querySelectorAll('td');
+  if (cells.length >= 5) {
+    var srcBadge = libItem._localOnly ? ' <span class="badge badge-local" style="font-size:9px;padding:0 3px;">本</span>' : '';
+    cells[1].innerHTML = '<b>'+esc(libItem.name)+'</b>'+srcBadge;
+    cells[2].textContent = libItem.supplier||'-';
+    cells[3].textContent = libItem.model||'-';
+    cells[4].textContent = libItem.category||'-';
+  }
+}
+
+function removeQuickLibRow(itemId) {
+  var tbody = document.getElementById('quickLibTbody');
+  if (!tbody) return;
+  var row = tbody.querySelector('tr[data-id="'+itemId+'"]');
+  if (row) row.remove();
 }
 
 function renderBomStats() {
@@ -2491,7 +2661,7 @@ function sortBomByCategory() {
     return (a.name||'').localeCompare(b.name||'');
   });
   if (store.currentProject) store.projects[store.currentProject].bom = bom;
-  saveStore(); renderBomTable(); toast('已按分类排序', 'success');
+  saveStoreDebounced(); markDirty('bomTable'); toast('已按分类排序', 'success');
 }
 
 function sortBomBySupplier() {
@@ -2502,7 +2672,7 @@ function sortBomBySupplier() {
     return (a.name||'').localeCompare(b.name||'');
   });
   if (store.currentProject) store.projects[store.currentProject].bom = bom;
-  saveStore(); renderBomTable(); toast('已按供应商排序', 'success');
+  saveStoreDebounced(); markDirty('bomTable'); toast('已按供应商排序', 'success');
 }
 
 function sortBomByArrival() {
@@ -2516,7 +2686,7 @@ function sortBomByArrival() {
     return (a.name||'').localeCompare(b.name||'');
   });
   if (store.currentProject) store.projects[store.currentProject].bom = bom;
-  saveStore(); renderBomTable(); toast('已按到货情况排序（未到→部分到→已到）', 'success');
+  saveStoreDebounced(); markDirty('bomTable'); toast('已按到货情况排序（未到→部分到→已到）', 'success');
 }
 
 function syncBomToLibrary() {
@@ -2557,7 +2727,7 @@ function syncBomToLibrary() {
     toast('零件库已完整，无需同步（BOM共 '+bom.length+' 条）', 'info');
     renderBomTable(); return;
   }
-  saveStore(); updateBadges(); renderLibrary(); renderQuickLib(); renderBomTable();
+  saveStoreDebounced(); markDirty('badges'); markDirty('library'); markDirty('quickLib'); markDirty('bomTable');
   toast('已同步 '+added+' 个新零件到通用库！'+(skipped>0?'（跳过 '+skipped+' 个已存在的）':''), 'success');
 }
 
@@ -2610,8 +2780,8 @@ function addBomEntry() {
     if (!existingGlobal) { store.library.push(Object.assign({}, libEntry, {id: e()})); }
   }
 
-  var saved = saveStore();
-  clearAddForm(); renderBomTable(); renderBomStats(); updateBadges();
+  var saved = saveStoreDebounced();
+  clearAddForm(); markDirty('bomTable'); markDirty('bomStats'); markDirty('badges');
   if (!saved) {
     toast('⚠️ 数据保存失败', 'error');
   } else {
@@ -2660,7 +2830,7 @@ function deleteBomEntry(id) {
   var proj = store.projects[store.currentProject];
   if (proj.archived) { toast('该项目已归档，无法删除', 'error'); return; }
   proj.bom = proj.bom.filter(function(i){return i.id!==id;});
-  saveStore(); renderBomTable(); renderBomStats(); updateBadges(); toast('已删除');
+  saveStoreDebounced(); removeBomRow(id); markDirty('bomStats'); markDirty('badges'); toast('已删除');
 }
 
 // ============================================================
@@ -2769,7 +2939,7 @@ function saveEditEntry() {
     var rmLIdx = localLib2.findIndex(function(l){return l.name===editedName&&l.model===editedModel;});
     if (rmLIdx >= 0) localLib2.splice(rmLIdx, 1);
   }
-  saveStore(); closeModal('modal-edit'); renderBomTable(); renderBomStats(); renderLibrary(); updateBadges(); toast('修改已保存', 'success');
+  saveStoreDebounced(); closeModal('modal-edit'); updateBomRow(id); markDirty('bomStats'); markDirty('library'); markDirty('badges'); toast('修改已保存', 'success');
 }
 
 // ============================================================
@@ -2845,7 +3015,7 @@ function renderQuickLib() {
       '</select>';
     var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
     var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" step="0.1" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)" data-id="'+l.id+'"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -2918,7 +3088,7 @@ function clearQuickLibFields() {
     cleared++;
   });
   saveLocalLib(localLib);
-  saveStore();
+  saveStoreDebounced();
   if (cleared > 0) toast('已清空 '+cleared+' 个零件的到货状态和库存', 'success');
 }
 
@@ -2936,7 +3106,7 @@ function updateLibArrived(id, val) {
   if (localItem) { localItem.arrived = val; saveLocalLib(localLib); }
   else {
     var globalItem = store.library.find(function(l){ return l.id === id; });
-    if (globalItem) { globalItem.arrived = val; saveStore(); }
+    if (globalItem) { globalItem.arrived = val; saveStoreDebounced(); }
   }
 }
 
@@ -2948,7 +3118,7 @@ function updateLibStock(id, val) {
   if (localItem) { localItem.stock = v; saveLocalLib(localLib); }
   else {
     var globalItem = store.library.find(function(l){ return l.id === id; });
-    if (globalItem) { globalItem.stock = v; saveStore(); }
+    if (globalItem) { globalItem.stock = v; saveStoreDebounced(); }
   }
 }
 function quickSelectAll() {
@@ -2984,7 +3154,7 @@ function batchAddFromLib() {
     });
     added++;
   });
-  quickSelectedIds.clear(); saveStore(); renderBomTable(); renderBomStats(); updateBadges(); renderQuickLib();
+  quickSelectedIds.clear(); saveStoreDebounced(); markDirty('bomTable'); markDirty('bomStats'); markDirty('badges'); markDirty('quickLib');
   toast('已批量添加 '+added+' 个零件到BOM', 'success');
 }
 
@@ -3117,7 +3287,7 @@ function renderLibrary() {
     var promoteBtnHtml = isLocal
       ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
       : '';
-    return '<tr>'+
+    return '<tr data-id="'+l.id+'">'+
       '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
       '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
       '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
@@ -3214,8 +3384,8 @@ function saveLibEntry() {
     }
   });
 
-  var saved = saveStore();
-  closeModal('modal-lib'); renderLibrary(); updateBadges(); renderQuickLib(); renderBomTable();
+  var saved = saveStoreDebounced();
+  closeModal('modal-lib'); markDirty('library'); markDirty('badges'); markDirty('quickLib'); markDirty('bomTable');
   if (!saved) {
     toast('⚠️ 保存失败，请检查浏览器存储空间', 'error');
   } else {
@@ -3237,7 +3407,7 @@ function deleteLib(id) {
   } else {
     store.library = store.library.filter(function(x){return x.id!==id;});
   }
-  saveStore(); renderLibrary(); updateBadges(); renderQuickLib(); toast('已删除');
+  saveStoreDebounced(); markDirty('library'); markDirty('badges'); markDirty('quickLib'); toast('已删除');
 }
 
 // Promote a local lib item to global library
@@ -3252,7 +3422,7 @@ function promoteLocalLib(id) {
   store.library.push(Object.assign({}, l, {id: e()})); // new id in global
   var proj = store.projects[store.currentProject];
   proj.localLibrary = proj.localLibrary.filter(function(x){return x.id!==id;});
-  saveStore(); renderLibrary(); updateBadges(); renderQuickLib();
+  saveStoreDebounced(); markDirty('library'); markDirty('badges'); markDirty('quickLib');
   toast('「'+l.name+'」已升级到通用零件库 🌐', 'success');
 }
 
@@ -3316,7 +3486,7 @@ function batchDeleteLib() {
   } else {
     store.library = store.library.filter(function(x) { return !idSet[x.id]; });
   }
-  saveStore(); renderLibrary(); updateBadges(); renderQuickLib();
+  saveStoreDebounced(); markDirty('library'); markDirty('badges'); markDirty('quickLib');
   toast('已批量删除 ' + ids.length + ' 个零件', 'success');
 }
 
@@ -3452,11 +3622,10 @@ function updatePurchaseArrival(itemId, newStatus) {
   var item = proj.bom.find(function(i){ return i.id === itemId; });
   if (!item) return;
   item.arrived = newStatus;
-  saveStore();
+  saveStoreDebounced();
 
   // Re-render the purchase list + BOM table to reflect the change
-  renderSavedPurchaseList();
-  renderBomTable(); renderBomStats();
+  markDirty('purchaseList'); markDirty('bomTable'); markDirty('bomStats');
   toast('到货状态已更新', 'success');
 }
 
@@ -3510,7 +3679,7 @@ function renderSavedPurchaseList() {
 
   // Save updated HTML (but NOT the item IDs — those are only updated on "generate")
   proj.purchaseList = result;
-  saveStore();
+  saveStoreDebounced();
 
   // Render
   document.getElementById('purchaseTbody').innerHTML = result.html;
@@ -3562,7 +3731,7 @@ function generatePurchaseList() {
   proj.purchaseBomHash = calcBomHash(bom);
   proj.purchaseGenItemIds = currentItemIds;
   proj.purchaseNewItemIds = newItemIds;
-  saveStore();
+  saveStoreDebounced();
 
   // Render
   document.getElementById('purchaseTbody').innerHTML = result.html;
@@ -3879,9 +4048,9 @@ function importLibExcel(input) {
           console.log('[importLibExcel] added: '+name);
         }
       }
-      var saved = saveStore();
+      var saved = saveStoreDebounced();
       if (!saved) { input.value = ''; return; }
-      renderLibrary(); updateBadges(); renderQuickLib();
+      markDirty('library'); markDirty('badges'); markDirty('quickLib');
       console.log('[importLibExcel] result: added='+added+' updated='+updated+' skipped='+skipped+' afterCount='+targetList.length);
       var msgs = ['新增 '+added+' 个'];
       if (updated > 0) msgs.push('更新 '+updated+' 个（同名覆盖）');
@@ -4327,7 +4496,7 @@ function doImport() {
     if (parsed.categories&&Array.isArray(parsed.categories)) store.categories = parsed.categories;
     if (parsed.units&&Array.isArray(parsed.units)) store.units = parsed.units;
     if (parsed.currentProject&&parsed.projects&&parsed.projects[parsed.currentProject]) store.currentProject = parsed.currentProject;
-    saveStore(); closeModal('modal-import'); refreshAll(); toast('导入成功', 'success');
+    saveStoreDebounced(); closeModal('modal-import'); refreshAll(); toast('导入成功', 'success');
   } catch(err) { toast('导入失败：JSON格式错误', 'error'); }
 }
 
@@ -4510,7 +4679,7 @@ function importFromTencentDocsFile(input) {
         store.currentProject = pid;
       }
 
-      saveStore(); refreshAll();
+      saveStoreDebounced(); refreshAll();
       // Also add unique parts to library
       var libAdded = 0;
       bom.forEach(function(item) {
@@ -4519,7 +4688,7 @@ function importFromTencentDocsFile(input) {
           libAdded++;
         }
       });
-      saveStore(); refreshAll();
+      saveStoreDebounced(); refreshAll();
       showPage('page-bom');
       toast('导入成功：「'+projName+'」共 '+bom.length+' 个零件'+(libAdded>0?' （新增 '+libAdded+' 个零件到库）':''), 'success');
     } catch(err) { toast('导入失败：'+err.message, 'error'); }
@@ -4647,7 +4816,7 @@ function cloudUploadAttachment(attId, callback) {
         att.cloudPath = cloudPath;
         att.cloudSha = data.content.sha;
         att.cloudUrl = data.content.download_url || ('https://raw.githubusercontent.com/'+ATTACHMENT_REPO_OWNER+'/'+ATTACHMENT_REPO_NAME+'/'+ATTACHMENT_REPO_BRANCH+'/'+cloudPath);
-        saveStore();
+        saveStoreDebounced();
       }
       if (callback) callback(null, '上传成功');
     }).catch(function(err) {
@@ -4672,7 +4841,7 @@ function cloudDownloadAttachment(attId, callback) {
     idbPut(attId, att.name, att.type, buffer).then(function() {
       att.cloudSynced = true;
       att.cloudSha = data.sha;
-      saveStore();
+      saveStoreDebounced();
       if (callback) callback(null, '下载成功');
     }).catch(function(err) {
       if (callback) callback('写入本地失败：'+err.message);
@@ -4699,7 +4868,7 @@ function cloudDeleteAttachment(attId, callback) {
     att.cloudPath = null;
     att.cloudSha = null;
     att.cloudUrl = null;
-    saveStore();
+    saveStoreDebounced();
     if (callback) callback(null, '云端已删除');
   }).catch(function(err) {
     if (callback) callback(err.message||'云端删除失败');
@@ -4855,7 +5024,7 @@ function cloudListAndSync() {
         }
       }
     });
-    saveStore();
+    saveStoreDebounced();
     if (toDownload.length) {
       toast('发现 '+toDownload.length+' 个云端文件需要下载到本地...', 'info');
       var done = 0;
@@ -4907,7 +5076,7 @@ function handleAttachmentUpload(input) {
         prog.textContent = '已处理 '+done+'/'+total+' 个文件...';
         if (done === total) {
           prog.textContent = '';
-          saveStore();
+          saveStoreDebounced();
           renderAttachmentsList();
           toast('成功上传 '+(done-errors)+' 个附件（暂存于本地IndexedDB，可手动上传到云端）', 'success');
         }
@@ -4986,7 +5155,7 @@ function deleteAttachmentLocal(attId) {
   var proj = store.projects[store.currentProject]; if (!proj) return;
   idbDelete(attId).then(function() {
     proj.attachments = (proj.attachments||[]).filter(function(a){ return a.id !== attId; });
-    saveStore();
+    saveStoreDebounced();
     renderAttachmentsList();
     toast('附件已删除', 'success');
   }).catch(function(){ toast('删除失败，请重试', 'error'); });
