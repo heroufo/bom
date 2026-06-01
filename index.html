@@ -1260,6 +1260,7 @@ function flushDirty() {
 window.addEventListener('beforeunload', function() {
   if (_saveDebounceTimer) { clearTimeout(_saveDebounceTimer); _saveDebounceTimer = null; }
   saveStoreRaw();
+});
 
 // ============================================================
 // GIST CLOUD SYNC
