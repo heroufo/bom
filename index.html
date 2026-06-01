@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.31</title>
+<title>BOM 智能管理工具 v5.32</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -527,6 +527,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           <div class="quick-search-row">
             <input class="form-control" placeholder="搜索名称/供应商/型号..." id="quickSearch" oninput="renderQuickLib()">
             <select class="form-control" style="max-width:100px;" id="quickCatFilter" onchange="renderQuickLib()"><option value="">全部分类</option></select>
+            <button class="btn btn-sm btn-ghost" onclick="toggleQuickSortName()" id="quickSortNameBtn" title="按名称排序">🔤 名称</button>
+            <button class="btn btn-sm btn-ghost" onclick="toggleQuickSortModel()" id="quickSortModelBtn" title="按型号排序">📐 型号</button>
           </div>
           <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
             <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:60px;">分类</th><th style="width:72px;">到货</th><th style="width:60px;">库存</th><th style="width:52px;">数量</th>
@@ -2773,6 +2775,8 @@ function saveEditEntry() {
 // QUICK SELECT
 // ============================================================
 var quickSelectedIds = new Set();
+var quickSortField = ''; // '' | 'name' | 'model'
+var quickSortDir = '';   // '' | 'asc' | 'desc'
 
 function refreshQuickCatFilter() {
   var sel = document.getElementById('quickCatFilter'); if (!sel) return;
@@ -2810,6 +2814,19 @@ function renderQuickLib() {
     return mk && mc;
   });
 
+  // 排序
+  if (quickSortField && quickSortDir) {
+    var sf = quickSortField;
+    var sd = quickSortDir;
+    filtered.sort(function(a, b) {
+      var va = (a[sf] || '').toString().toLowerCase();
+      var vb = (b[sf] || '').toString().toLowerCase();
+      if (va < vb) return sd === 'asc' ? -1 : 1;
+      if (va > vb) return sd === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
   var tbody = document.getElementById('quickLibTbody');
   if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">暂无匹配零件</div><div class="empty-desc">零件库为空或没有匹配的搜索结果</div></td></tr>'; return; }
 
@@ -2835,6 +2852,43 @@ function renderQuickLib() {
 function toggleQuickSelect(id, row) { var chk = document.getElementById('qchk_'+id); if (!chk) return; chk.checked = !chk.checked; onQuickCheck(id, chk); }
 function onQuickCheck(id, chk) { if (chk.checked) quickSelectedIds.add(id); else quickSelectedIds.delete(id); updateQuickCount(); }
 function updateQuickCount() { document.getElementById('quickSelCount').textContent = '已选 '+quickSelectedIds.size+' 件'; }
+
+function toggleQuickSortName() {
+  if (quickSortField === 'model') { quickSortField = ''; quickSortDir = ''; }
+  if (quickSortField === 'name') {
+    if (quickSortDir === 'asc') { quickSortDir = 'desc'; }
+    else if (quickSortDir === 'desc') { quickSortField = ''; quickSortDir = ''; }
+  } else {
+    quickSortField = 'name'; quickSortDir = 'asc';
+  }
+  updateQuickSortBtns();
+  renderQuickLib();
+}
+function toggleQuickSortModel() {
+  if (quickSortField === 'name') { quickSortField = ''; quickSortDir = ''; }
+  if (quickSortField === 'model') {
+    if (quickSortDir === 'asc') { quickSortDir = 'desc'; }
+    else if (quickSortDir === 'desc') { quickSortField = ''; quickSortDir = ''; }
+  } else {
+    quickSortField = 'model'; quickSortDir = 'asc';
+  }
+  updateQuickSortBtns();
+  renderQuickLib();
+}
+function updateQuickSortBtns() {
+  var btnN = document.getElementById('quickSortNameBtn');
+  var btnM = document.getElementById('quickSortModelBtn');
+  if (btnN) {
+    if (quickSortField === 'name' && quickSortDir === 'asc') { btnN.textContent = '🔤 名称↑'; btnN.style.background = 'var(--primary)'; btnN.style.color = '#fff'; }
+    else if (quickSortField === 'name' && quickSortDir === 'desc') { btnN.textContent = '🔤 名称↓'; btnN.style.background = 'var(--primary)'; btnN.style.color = '#fff'; }
+    else { btnN.textContent = '🔤 名称'; btnN.style.background = ''; btnN.style.color = ''; }
+  }
+  if (btnM) {
+    if (quickSortField === 'model' && quickSortDir === 'asc') { btnM.textContent = '📐 型号↑'; btnM.style.background = 'var(--primary)'; btnM.style.color = '#fff'; }
+    else if (quickSortField === 'model' && quickSortDir === 'desc') { btnM.textContent = '📐 型号↓'; btnM.style.background = 'var(--primary)'; btnM.style.color = '#fff'; }
+    else { btnM.textContent = '📐 型号'; btnM.style.background = ''; btnM.style.color = ''; }
+  }
+}
 
 // 清空当前显示零件的到货状态和库存
 function clearQuickLibFields() {
@@ -4182,6 +4236,14 @@ function acSearch(val) {
   localMatches.concat(globalMatches).forEach(function(m){
     var key = (m.name||'')+'|'+(m.supplier||'')+'|'+(m.model||'');
     if (!seen[key]) { seen[key]=true; matches.push(m); }
+  });
+  // 按型号规格从小到大排序
+  matches.sort(function(a, b) {
+    var ma = (a.model || '').toString().toLowerCase();
+    var mb = (b.model || '').toString().toLowerCase();
+    if (ma < mb) return -1;
+    if (ma > mb) return 1;
+    return 0;
   });
   matches = matches.slice(0, 30);
   if (!matches.length) return;
