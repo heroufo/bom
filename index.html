@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.29</title>
+<title>BOM 智能管理工具 v5.30</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -540,6 +540,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
               <option value="auto">自动判断</option><option value="采购">全部采购</option><option value="库存">全部库存</option>
             </select>
             <button class="btn btn-primary btn-sm" onclick="batchAddFromLib()">加入BOM</button>
+            <button class="btn btn-sm" onclick="clearQuickLibFields()" title="清空当前显示的到货状态和库存" style="color:var(--text-muted);">🗑清空到货/库存</button>
           </div>
         </div>
       </div>
@@ -2782,6 +2783,37 @@ function toggleQuickSelect(id, row) { var chk = document.getElementById('qchk_'+
 function onQuickCheck(id, chk) { if (chk.checked) quickSelectedIds.add(id); else quickSelectedIds.delete(id); updateQuickCount(); }
 function updateQuickCount() { document.getElementById('quickSelCount').textContent = '已选 '+quickSelectedIds.size+' 件'; }
 
+// 清空当前显示零件的到货状态和库存
+function clearQuickLibFields() {
+  if (!confirm('确定清空当前显示范围内所有零件的到货状态和库存？')) return;
+  var localLib = getLocalLib();
+  var tbody = document.getElementById('quickLibTbody');
+  var rows = tbody.querySelectorAll('tr');
+  var cleared = 0;
+  rows.forEach(function(row) {
+    var chk = row.querySelector('input[type="checkbox"]');
+    if (!chk) return;
+    var id = chk.id.replace('qchk_', '');
+    // Clear arrival dropdown
+    var arrSel = document.getElementById('qarr_'+id);
+    if (arrSel) arrSel.value = '';
+    // Clear stock input
+    var stkInp = document.getElementById('qstk_'+id);
+    if (stkInp) stkInp.value = '';
+    // Sync to library
+    var localItem = localLib.find(function(l){ return l.id === id; });
+    if (localItem) { localItem.arrived = ''; localItem.stock = ''; }
+    else {
+      var globalItem = store.library.find(function(l){ return l.id === id; });
+      if (globalItem) { globalItem.arrived = ''; globalItem.stock = ''; }
+    }
+    cleared++;
+  });
+  saveLocalLib(localLib);
+  saveStore();
+  if (cleared > 0) toast('已清空 '+cleared+' 个零件的到货状态和库存', 'success');
+}
+
 // 快速选件面板内直接修改到货状态（同步到本地库/全局库）
 function updateLibArrived(id, val) {
   // 归档项目 + 非管理员 → 禁止修改
@@ -2830,11 +2862,17 @@ function batchAddFromLib() {
     if (!l) return;
     var qtyEl = document.getElementById('qqty_'+id);
     var qty = qtyEl ? (parseInt(qtyEl.value)||1) : 1;
-    var status = statusMode; if (status==='auto') status = qty>0?'采购':'库存';
+    // 读取零件库中的库存和到货状态
+    var libStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? Number(l.stock) : 0;
+    var libArrived = l.arrived || '';
+    // 自动判断：库存 >= 需求数量 → 库存，否则 → 采购
+    var status = statusMode;
+    if (status === 'auto') status = libStock >= qty ? '库存' : '采购';
+    var actualPurchase = status === '采购' ? Math.max(0, qty - libStock) : 0;
     store.projects[store.currentProject].bom.push({
       id:e(), category:l.category||getCategories()[0], name:l.name, supplier:l.supplier||'',
-      model:l.model||'', qty:qty, unit:l.unit||'个', stock:0, status:status,
-      actualPurchase: status==='采购'?qty:0, arrived:'', taobaoLink:l.taobaoLink||'', remark:''
+      model:l.model||'', qty:qty, unit:l.unit||'个', stock:libStock, status:status,
+      actualPurchase: actualPurchase, arrived:libArrived, taobaoLink:l.taobaoLink||'', remark:''
     });
     added++;
   });
