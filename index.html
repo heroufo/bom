@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.27</title>
+<title>BOM 智能管理工具 v5.28</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -426,7 +426,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.27 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.28 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -2750,7 +2750,13 @@ function renderQuickLib() {
   tbody.innerHTML = filtered.map(function(l) {
     var srcBadge = l._src==='local' ? '<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px;">本项目</span>' : '';
     var curArrived = l.arrived || '';
-    var arrivedSel = '<select id="qarr_'+l.id+'" onclick="event.stopPropagation()" onchange="updateLibArrived(\''+l.id+'\',this.value)" style="width:68px;font-size:11px;padding:1px 2px;border:1px solid var(--border);border-radius:3px;background:var(--card-bg);color:var(--text);">'+
+    // 归档项目 + 非管理员 → 禁用到货下拉框
+    var archivedDisabled = '';
+    var proj = store.projects[store.currentProject];
+    if (proj && proj.archived && currentUser && currentUser.role !== 'admin') {
+      archivedDisabled = ' disabled';
+    }
+    var arrivedSel = '<select id="qarr_'+l.id+'" onclick="event.stopPropagation()" onchange="updateLibArrived(\''+l.id+'\',this.value)" style="width:68px;font-size:11px;padding:1px 2px;border:1px solid var(--border);border-radius:3px;background:var(--card-bg);color:var(--text);"'+archivedDisabled+'>'+
       ['','已到','未到','部分到'].map(function(v){ return '<option value="'+v+'"'+(curArrived===v?' selected':'')+'>'+( v||'-')+'</option>'; }).join('')+
       '</select>';
     var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
@@ -2766,6 +2772,13 @@ function updateQuickCount() { document.getElementById('quickSelCount').textConte
 
 // 快速选件面板内直接修改到货状态（同步到本地库/全局库）
 function updateLibArrived(id, val) {
+  // 归档项目 + 非管理员 → 禁止修改
+  var proj = store.projects[store.currentProject];
+  if (proj && proj.archived && currentUser && currentUser.role !== 'admin') {
+    toast('项目已归档，仅管理员可修改到货状态', 'warn');
+    renderQuickLib(); // 恢复下拉框值
+    return;
+  }
   var localLib = getLocalLib();
   var localItem = localLib.find(function(l){ return l.id === id; });
   if (localItem) { localItem.arrived = val; saveLocalLib(localLib); }
@@ -3232,8 +3245,12 @@ function buildArrivalSelect(item) {
     {v:'部分到', label:'◐ 部分到'}
   ];
   var html = '<select class="arrival-select" onchange="updatePurchaseArrival(\''+item.id+'\',this.value)" data-prev="'+esc(currentVal)+'"';
-  // Guests cannot modify arrival
+  // Guests cannot modify arrival; non-admin cannot modify arrival on archived projects
   if (currentUser && currentUser.role === 'guest') html += ' disabled';
+  else if (currentUser && currentUser.role !== 'admin') {
+    var p = store.projects[store.currentProject];
+    if (p && p.archived) html += ' disabled';
+  }
   html += '>';
   options.forEach(function(opt){
     html += '<option value="'+opt.v+'"'+(opt.v===currentVal?' selected':'')+'>'+opt.label+'</option>';
@@ -3249,6 +3266,11 @@ function updatePurchaseArrival(itemId, newStatus) {
 
   // Only buyer and admin can modify (guest select is disabled, but double-check)
   if (currentUser && currentUser.role === 'guest') return;
+  // Non-admin cannot modify arrival on archived projects
+  if (currentUser && currentUser.role !== 'admin' && proj.archived) {
+    toast('项目已归档，仅管理员可修改到货状态', 'warn');
+    return;
+  }
 
   var item = proj.bom.find(function(i){ return i.id === itemId; });
   if (!item) return;
@@ -4036,7 +4058,7 @@ function acSearch(val) {
   var seen = {};
   var matches = [];
   localMatches.concat(globalMatches).forEach(function(m){
-    var key = (m.name||'')+'|'+(m.supplier||'');
+    var key = (m.name||'')+'|'+(m.supplier||'')+'|'+(m.model||'');
     if (!seen[key]) { seen[key]=true; matches.push(m); }
   });
   matches = matches.slice(0, 30);
@@ -4539,7 +4561,7 @@ function renderAttachmentsList() {
       : '<span style="color:var(--text-muted);">☁️ 未同步到云端</span>';
     headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;">'
       + '<span>共 '+totalFiles+' 个附件 '+syncSummary+'</span>'
-      + '<span><button class="btn btn-sm btn-outline admin-only" onclick="cloudListAndSync()" title="查看云端文件并下载本地缺失的">🔄 从云端同步</button>'
+      + '<span><button class="btn btn-sm btn-outline" onclick="cloudListAndSync()" title="查看云端文件并下载本地缺失的">🔄 从云端同步</button>'
       + ' <button class="btn btn-sm btn-outline admin-only" onclick="batchUploadToCloud()" title="将所有本地附件上传到云端">📤 全部上传云端</button></span>'
       + '</div>';
   }
@@ -4555,8 +4577,8 @@ function renderAttachmentsList() {
       var timeStr = att.uploadTime ? new Date(att.uploadTime).toLocaleDateString('zh-CN') : '-';
       var cloudIcon = att.cloudSynced ? '<span style="color:var(--success);font-size:14px;" title="已同步到云端">☁️</span>' : '<span style="color:var(--text-muted);font-size:14px;" title="仅本地存储">💻</span>';
       var cloudBtn = att.cloudSynced
-        ? '<button class="btn btn-sm btn-outline" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="重新上传">🔄</button>'
-        : '<button class="btn btn-sm btn-outline" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="上传到云端">☁️上传</button>';
+        ? '<button class="btn btn-sm btn-outline admin-only" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="重新上传">🔄</button>'
+        : '<button class="btn btn-sm btn-outline admin-only" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="上传到云端">☁️上传</button>';
       return '<tr style="border-bottom:1px solid var(--border);">'
         + '<td style="padding:7px 10px;">📄 '+esc(att.name)+'</td>'
         + '<td style="text-align:center;color:var(--text-muted);">'+sizeStr+'</td>'
