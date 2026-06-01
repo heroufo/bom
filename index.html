@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.26</title>
+<title>BOM 智能管理工具 v5.27</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -188,8 +188,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 /* AUTOCOMPLETE */
 .autocomplete-wrap{position:relative}
-.autocomplete-list{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--card-bg);border:1px solid var(--primary);border-top:none;border-radius:0 0 var(--radius) var(--radius);max-height:380px;overflow-y:auto;box-shadow:var(--shadow-md)}
-.single-part-ac{left:50%;transform:translateX(-50%);right:auto;width:360px;max-width:90vw;border-top:1px solid var(--primary);border-radius:var(--radius);margin-top:2px}
+.autocomplete-list{position:fixed;z-index:9999;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:380px;overflow-y:auto;box-shadow:0 6px 24px rgba(0,0,0,.2);display:none}
+.autocomplete-list:not(.autocomplete-hidden){display:block}
+.single-part-ac{border-top:2px solid var(--primary);border-radius:var(--radius)}
 .sp-search-wrap{position:relative;flex:0 0 auto}
 .autocomplete-item{padding:7px 10px;cursor:pointer;transition:background .08s;border-bottom:1px solid var(--border-light);display:flex;flex-direction:column;gap:1px}
 .ac-table tbody tr.autocomplete-item{display:table-row}
@@ -198,6 +199,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .autocomplete-item .ac-supplier{font-size:11px;color:var(--text-secondary)}
 .autocomplete-item .ac-model{font-size:11px;color:var(--primary)}
 .autocomplete-hidden{display:none!important}
+.ac-positioned{display:block!important}
 
 /* BOM本地零件行高亮 */
 .bom-row-local{background:linear-gradient(90deg,var(--accent-bg) 0,var(--accent-bg) 4px,transparent 4px)}
@@ -407,8 +409,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   .add-form-field{flex:1 1 auto;min-width:90px}
 }
 
-/* AUTOCOMPLETE TABLE */
-.ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md);min-width:360px}
+/* AUTOCOMPLETE TABLE - 用 fixed 突破容器限制 */
+.ac-table-wrap{position:fixed;z-index:9999;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:hidden;box-shadow:0 6px 24px rgba(0,0,0,.2);min-width:360px;display:none}
+.ac-table-wrap:not(.autocomplete-hidden){display:block}
 .ac-list-inner{width:100%}
 .autocomplete-item{padding:8px 12px;cursor:pointer;transition:background .08s;border-bottom:1px solid var(--border-light);display:block!important}
 .autocomplete-item:hover,.autocomplete-item.selected{background:var(--primary-bg)}
@@ -423,7 +426,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.26 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.27 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -854,13 +857,13 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="card-body">
       <div class="notice notice-info">数据自动同步到 GitHub Gist，不同浏览器打开同一链接时自动保持一致。管理员需在每个浏览器上配置一次 Token。</div>
       <div style="margin-bottom:10px;">
-        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">GitHub Token（需 gist 权限）</label>
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">GitHub Token（需 gist + repo 权限）</label>
         <div style="display:flex;gap:8px;">
           <input class="form-control" id="gistTokenInput" type="password" placeholder="ghp_..." style="flex:1;max-width:400px;">
           <button class="btn btn-primary btn-sm" onclick="saveGistToken()">💾 保存</button>
           <button class="btn btn-outline btn-sm" onclick="testGistConnection()">🔍 测试连接</button>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">在 <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--primary);">github.com/settings/tokens</a> 创建，勾选 gist 权限即可</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">在 <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--primary);">github.com/settings/tokens</a> 创建，勾选 <b>gist</b> 和 <b>repo</b> 权限（附件云端存储需要 repo 权限）</div>
       </div>
       <div id="cloudSyncStatus" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">状态：检查中...</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1016,7 +1019,8 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="modal-title">📎 项目附件</div>
   <div id="attachments-proj-name" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
   <div class="admin-only" style="margin-bottom:12px;border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg-alt);">
-    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">上传加工图纸 / 文件（单文件最大 50MB，存储于本地 IndexedDB）</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">📎 上传加工图纸 / 文件（单文件最大 50MB）</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">文件存入本地 IndexedDB · 点击 <b>☁️上传</b> 同步到 GitHub 云端 · 其他电脑通过 <b>🔄从云端同步</b> 获取</div>
     <input type="file" id="attachmentFileInput" multiple accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip" onchange="handleAttachmentUpload(this)" style="display:none;">
     <button class="btn btn-primary btn-sm" onclick="document.getElementById('attachmentFileInput').click()">+ 选择文件</button>
     <div id="attachmentUploadProgress" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
@@ -1058,6 +1062,11 @@ const GIST_ID = '9d77de825894e88a4641ad4ff2d327c4';
 const GIST_FILENAME = 'bom-data.json';
 const GIST_TOKEN_KEY = 'bom_gist_token';
 const GIST_SYNC_KEY = 'bom_gist_sync';
+// GitHub repo settings for cloud attachment storage
+const ATTACHMENT_REPO_OWNER = 'heroufo';
+const ATTACHMENT_REPO_NAME = 'bom';
+const ATTACHMENT_REPO_BRANCH = 'main';
+const ATTACHMENT_CLOUD_PREFIX = 'attachments';
 
 function loadStore() {
   try {
@@ -3849,6 +3858,7 @@ function renderSinglePartChart() {
       return '<div class="autocomplete-item" onmousedown="selectSinglePart('+i+')"><div class="ac-name">'+esc(r.name)+'</div><div class="ac-supplier">供应商：'+esc(r.supplier||'-')+' | 分类：'+esc(r.category||'-')+'</div><div class="ac-model">使用 '+r.count+' 次 / '+r.projects.size+' 个项目</div></div>';
     }).join('');
     acList.classList.remove('autocomplete-hidden');
+    positionAC(document.getElementById('singlePartSearch'), acList, 360);
   } else {
     acList.classList.add('autocomplete-hidden');
     // If searching but no results, show placeholder
@@ -3964,10 +3974,56 @@ document.addEventListener('click', function(e){
   }
 });
 
+// Reposition AC dropdowns on scroll/resize
+window.addEventListener('scroll', function(){ repositionAllAC(); }, true);
+window.addEventListener('resize', function(){ repositionAllAC(); });
+function repositionAllAC() {
+  var acList = document.getElementById('acList');
+  var inpName = document.getElementById('inp-name');
+  if (acList && inpName && !acList.classList.contains('autocomplete-hidden')) {
+    positionAC(inpName, acList, 360);
+  }
+  var spAc = document.getElementById('singlePartAC');
+  var spInp = document.getElementById('singlePartSearch');
+  if (spAc && spInp && !spAc.classList.contains('autocomplete-hidden')) {
+    positionAC(spInp, spAc, 360);
+  }
+}
+
 // ============================================================
 // AUTOCOMPLETE
 // ============================================================
 var acSelected = -1;
+
+// 将 autocomplete 下拉框定位为 fixed，突破容器限制，自适应页面高度
+function positionAC(inputEl, listEl, minWidth) {
+  var rect = inputEl.getBoundingClientRect();
+  var vh = window.innerHeight;
+  var gapBelow = vh - rect.bottom;        // 下方可用空间
+  var gapAbove = rect.top;                 // 上方可用空间
+  var maxH = 420;                          // 默认最大高度
+  var preferBelow = true;
+
+  // 智能选择显示方向：下方空间不足时翻到上方
+  if (gapBelow < 200 && gapAbove > gapBelow) {
+    preferBelow = false;
+  }
+  if (preferBelow) {
+    maxH = Math.min(maxH, gapBelow - 8);   // 留8px边距
+    listEl.style.top = rect.bottom + 'px';
+    listEl.style.borderRadius = '0 0 var(--radius) var(--radius)';
+    listEl.style.borderTop = 'none';
+  } else {
+    maxH = Math.min(maxH, gapAbove - 8);
+    listEl.style.top = (rect.top - maxH - 2) + 'px';
+    listEl.style.borderRadius = 'var(--radius) var(--radius) 0 0';
+    listEl.style.borderTop = '2px solid var(--primary)';
+    listEl.style.borderBottom = 'none';
+  }
+  listEl.style.left = rect.left + 'px';
+  listEl.style.width = Math.max(rect.width, (minWidth||260)) + 'px';
+  listEl.style.maxHeight = maxH + 'px';
+}
 
 function acSearch(val) {
   hideAC(); if (!val||val.length<1) return;
@@ -4000,6 +4056,7 @@ function acSearch(val) {
         '</div>';
     }).join('')+'</div>';
   list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
+  positionAC(document.getElementById('inp-name'), list, 360);
 }
 
 function hideAC() { document.getElementById('acList').classList.add('autocomplete-hidden'); }
@@ -4271,9 +4328,10 @@ function importFromTencentDocsFile(input) {
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 // ============================================================
-// PROJECT ATTACHMENTS — IndexedDB 存储方案（容量 >50MB）
-// 附件元数据（id/name/type/size/uploadTime/projId）存于 store，
-// 文件二进制内容（ArrayBuffer）存于 IndexedDB，两者通过 id 关联。
+// PROJECT ATTACHMENTS — IndexedDB 本地 + GitHub 云端双存储
+// 附件元数据（id/name/type/size/uploadTime/cloudSynced/cloudPath/cloudSha/projId）存于 store，
+// 文件二进制内容（ArrayBuffer）存于 IndexedDB，云端存于 GitHub 仓库 attachments/ 目录。
+// 两台电脑共享：A电脑上传到云端 → B电脑从云端下载到本地 IndexedDB。
 // ============================================================
 
 var _idb = null;
@@ -4320,6 +4378,141 @@ function idbDelete(id) {
   });
 }
 
+// ============================================================
+// GitHub Cloud Attachment Functions
+// ============================================================
+function _ghApi(path, method, body) {
+  var token = getGistToken(); // 复用同一个 token
+  if (!token) return Promise.reject(new Error('未配置 GitHub Token'));
+  var url = 'https://api.github.com/repos/'+ATTACHMENT_REPO_OWNER+'/'+ATTACHMENT_REPO_NAME+'/contents/'+path;
+  var opts = {
+    method: method || 'GET',
+    headers: { 'Authorization': 'token '+token, 'Accept': 'application/vnd.github+json' }
+  };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  return fetch(url, opts).then(function(r) {
+    if (!r.ok) return r.json().then(function(d){ throw new Error(d.message||'GitHub API '+r.status); });
+    return r.json();
+  });
+}
+
+// 上传单个附件到 GitHub 云端
+// 安全 Base64 编码（分块处理大文件，避免栈溢出）
+function _arrayBufferToBase64(buffer) {
+  var bytes = new Uint8Array(buffer);
+  var chunkSize = 0x8000; // 32KB chunks
+  var parts = [];
+  for (var i = 0; i < bytes.length; i += chunkSize) {
+    parts.push(String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(parts.join(''));
+}
+
+// 安全 Base64 解码为 ArrayBuffer
+function _base64ToArrayBuffer(b64) {
+  var binary = atob(b64.replace(/\s/g, ''));
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function cloudUploadAttachment(attId, callback) {
+  var proj = store.projects[store.currentProject]; if (!proj) return;
+  var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
+  if (!att) return;
+  idbGet(attId).then(function(record) {
+    if (!record) { if (callback) callback('文件本地数据不存在'); return; }
+    var b64 = _arrayBufferToBase64(record.buffer);
+    var cloudPath = ATTACHMENT_CLOUD_PREFIX+'/'+store.currentProject+'/'+attId+'/'+encodeURIComponent(att.name);
+    var body = {
+      message: 'Upload attachment: '+att.name,
+      content: b64,
+      branch: ATTACHMENT_REPO_BRANCH
+    };
+    if (att.cloudSha) body.sha = att.cloudSha;
+    _ghApi(cloudPath, 'PUT', body).then(function(data) {
+      if (data.content) {
+        att.cloudSynced = true;
+        att.cloudPath = cloudPath;
+        att.cloudSha = data.content.sha;
+        att.cloudUrl = data.content.download_url || ('https://raw.githubusercontent.com/'+ATTACHMENT_REPO_OWNER+'/'+ATTACHMENT_REPO_NAME+'/'+ATTACHMENT_REPO_BRANCH+'/'+cloudPath);
+        saveStore();
+      }
+      if (callback) callback(null, '上传成功');
+    }).catch(function(err) {
+      if (callback) callback(err.message||'上传失败');
+    });
+  }).catch(function(err) {
+    if (callback) callback(err.message||'读取本地文件失败');
+  });
+}
+
+// 从 GitHub 云端下载附件到本地 IndexedDB
+function cloudDownloadAttachment(attId, callback) {
+  var proj = store.projects[store.currentProject]; if (!proj) return;
+  var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
+  if (!att || !att.cloudPath) {
+    if (callback) callback('附件无云端记录');
+    return;
+  }
+  _ghApi(att.cloudPath, 'GET').then(function(data) {
+    if (!data.content) { if (callback) callback('云端文件为空'); return; }
+    var buffer = _base64ToArrayBuffer(data.content);
+    idbPut(attId, att.name, att.type, buffer).then(function() {
+      att.cloudSynced = true;
+      att.cloudSha = data.sha;
+      saveStore();
+      if (callback) callback(null, '下载成功');
+    }).catch(function(err) {
+      if (callback) callback('写入本地失败：'+err.message);
+    });
+  }).catch(function(err) {
+    if (callback) callback(err.message||'下载失败');
+  });
+}
+
+// 从云端删除附件
+function cloudDeleteAttachment(attId, callback) {
+  var proj = store.projects[store.currentProject]; if (!proj) return;
+  var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
+  if (!att || !att.cloudPath || !att.cloudSha) {
+    if (callback) callback(null, '云端无记录，无需删除');
+    return;
+  }
+  _ghApi(att.cloudPath, 'DELETE', {
+    message: 'Delete attachment: '+att.name,
+    sha: att.cloudSha,
+    branch: ATTACHMENT_REPO_BRANCH
+  }).then(function() {
+    att.cloudSynced = false;
+    att.cloudPath = null;
+    att.cloudSha = null;
+    att.cloudUrl = null;
+    saveStore();
+    if (callback) callback(null, '云端已删除');
+  }).catch(function(err) {
+    if (callback) callback(err.message||'云端删除失败');
+  });
+}
+
+// 从云端列出当前项目的所有附件文件
+function cloudListProjectAttachments(callback) {
+  var path = ATTACHMENT_CLOUD_PREFIX+'/'+store.currentProject;
+  _ghApi(path, 'GET').then(function(data) {
+    if (!Array.isArray(data)) { if (callback) callback([]); return; }
+    var files = data.map(function(f) {
+      return { name: f.name, path: f.path, sha: f.sha, size: f.size, downloadUrl: f.download_url };
+    });
+    if (callback) callback(files);
+  }).catch(function(err) {
+    // 目录不存在也视为空
+    if (callback) callback([]);
+  });
+}
+
 function openAttachmentsModal() {
   if (!store.currentProject) { toast('请先选择一个项目','warn'); return; }
   var proj = store.projects[store.currentProject];
@@ -4334,21 +4527,129 @@ function renderAttachmentsList() {
   var proj = store.projects[store.currentProject];
   var attachments = (proj && proj.attachments) ? proj.attachments : [];
   var el = document.getElementById('attachmentsList');
+
+  // 统计云端同步状态
+  var totalFiles = attachments.length;
+  var syncedFiles = attachments.filter(function(a){ return a.cloudSynced; }).length;
+
+  var headerHtml = '';
+  if (totalFiles > 0) {
+    var syncSummary = syncedFiles === totalFiles ? '<span style="color:var(--success);">☁️ 全部已同步到云端</span>'
+      : syncedFiles > 0 ? '<span style="color:var(--warning);">☁️ '+syncedFiles+'/'+totalFiles+' 已同步</span>'
+      : '<span style="color:var(--text-muted);">☁️ 未同步到云端</span>';
+    headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;">'
+      + '<span>共 '+totalFiles+' 个附件 '+syncSummary+'</span>'
+      + '<span><button class="btn btn-sm btn-outline admin-only" onclick="cloudListAndSync()" title="查看云端文件并下载本地缺失的">🔄 从云端同步</button>'
+      + ' <button class="btn btn-sm btn-outline admin-only" onclick="batchUploadToCloud()" title="将所有本地附件上传到云端">📤 全部上传云端</button></span>'
+      + '</div>';
+  }
+
   if (!attachments.length) {
-    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">暂无附件，请上传文件</div>';
+    el.innerHTML = headerHtml + '<div style="text-align:center;padding:24px;color:var(--text-muted);">暂无附件，请上传文件</div>';
     return;
   }
-  el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg-alt);"><th style="padding:6px 10px;text-align:left;">文件名</th><th style="width:80px;text-align:center;">大小</th><th style="width:120px;text-align:center;">上传时间</th><th style="width:120px;text-align:center;" class="no-print">操作</th></tr></thead><tbody>'+
+
+  el.innerHTML = headerHtml + '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg-alt);"><th style="padding:6px 10px;text-align:left;">文件名</th><th style="width:70px;text-align:center;">大小</th><th style="width:60px;text-align:center;">云端</th><th style="width:110px;text-align:center;">上传时间</th><th style="width:180px;text-align:center;" class="no-print">操作</th></tr></thead><tbody>'+
     attachments.map(function(att) {
       var sizeStr = att.size > 1048576 ? (att.size/1048576).toFixed(1)+'MB' : (att.size > 1024 ? (att.size/1024).toFixed(0)+'KB' : att.size+'B');
       var timeStr = att.uploadTime ? new Date(att.uploadTime).toLocaleDateString('zh-CN') : '-';
+      var cloudIcon = att.cloudSynced ? '<span style="color:var(--success);font-size:14px;" title="已同步到云端">☁️</span>' : '<span style="color:var(--text-muted);font-size:14px;" title="仅本地存储">💻</span>';
+      var cloudBtn = att.cloudSynced
+        ? '<button class="btn btn-sm btn-outline" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="重新上传">🔄</button>'
+        : '<button class="btn btn-sm btn-outline" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="上传到云端">☁️上传</button>';
       return '<tr style="border-bottom:1px solid var(--border);">'
         + '<td style="padding:7px 10px;">📄 '+esc(att.name)+'</td>'
         + '<td style="text-align:center;color:var(--text-muted);">'+sizeStr+'</td>'
+        + '<td style="text-align:center;">'+cloudIcon+'</td>'
         + '<td style="text-align:center;color:var(--text-muted);">'+timeStr+'</td>'
-        + '<td style="text-align:center;" class="no-print"><button class="btn btn-sm btn-outline" onclick="downloadAttachment(\''+att.id+'\')">下载</button> <button class="btn btn-sm btn-danger admin-only" onclick="deleteAttachment(\''+att.id+'\')">删除</button></td>'
+        + '<td style="text-align:center;white-space:nowrap;" class="no-print">'
+        + '<button class="btn btn-sm btn-primary" onclick="downloadAttachment(\''+att.id+'\')">⬇下载</button> '
+        + cloudBtn + ' '
+        + '<button class="btn btn-sm btn-danger admin-only" onclick="deleteAttachmentConfirm(\''+att.id+'\')">🗑</button>'
+        + '</td>'
         + '</tr>';
     }).join('')+'</tbody></table>';
+}
+
+function batchUploadToCloud() {
+  var proj = store.projects[store.currentProject];
+  var attachments = (proj && proj.attachments) ? proj.attachments : [];
+  var unsynced = attachments.filter(function(a){ return !a.cloudSynced; });
+  if (!unsynced.length) { toast('所有附件已同步到云端', 'info'); return; }
+  var token = getGistToken();
+  if (!token) { toast('请先在「设置 → 云同步」中配置 GitHub Token（需勾选 repo 权限）', 'warn'); return; }
+  var total = unsynced.length; var done = 0; var errors = 0;
+  toast('开始上传 '+total+' 个文件到云端...', 'info');
+  unsynced.forEach(function(att) {
+    cloudUploadAttachment(att.id, function(err) {
+      if (err) errors++; else done++;
+      if (done + errors === total) {
+        renderAttachmentsList();
+        toast('云端同步完成：成功 '+done+'，失败 '+errors, errors?'warn':'success');
+      }
+    });
+  });
+}
+
+function cloudListAndSync() {
+  var token = getGistToken();
+  if (!token) { toast('请先在「设置 → 云同步」中配置 GitHub Token（需勾选 repo 权限）', 'warn'); return; }
+  var proj = store.projects[store.currentProject];
+  if (!proj.attachments) proj.attachments = [];
+
+  toast('正在检查云端附件...', 'info');
+  cloudListProjectAttachments(function(cloudFiles) {
+    if (!cloudFiles || !cloudFiles.length) {
+      toast('云端暂无附件文件', 'info');
+      return;
+    }
+    // 对比云端和本地：云端有但本地没有的 → 下载
+    var localIds = {};
+    (proj.attachments||[]).forEach(function(a){ localIds[a.id] = a; });
+
+    var toDownload = [];
+    cloudFiles.forEach(function(cf) {
+      // 从路径解析 attId: attachments/projId/attId/filename
+      var parts = cf.path.split('/');
+      if (parts.length >= 4) {
+        var attId = parts[2];
+        var existing = localIds[attId];
+        if (!existing) {
+          // 本地没有这个附件 → 创建元数据记录
+          var att = { id: attId, name: decodeURIComponent(parts[3]), type: '', size: cf.size||0,
+            uploadTime: new Date().toISOString(), cloudSynced: true, cloudPath: cf.path, cloudSha: cf.sha, cloudUrl: cf.downloadUrl };
+          proj.attachments.push(att);
+          localIds[attId] = att;
+          toDownload.push(att);
+        } else if (!existing.cloudSynced && cf.path === existing.cloudPath) {
+          // 本地有元数据但未同步 → 更新状态
+          existing.cloudSynced = true;
+          existing.cloudSha = cf.sha;
+          existing.cloudUrl = cf.downloadUrl;
+        } else if (existing.cloudSynced && existing.cloudSha !== cf.sha) {
+          // 云端版本更新 → 提示
+          toDownload.push(existing);
+        }
+      }
+    });
+    saveStore();
+    if (toDownload.length) {
+      toast('发现 '+toDownload.length+' 个云端文件需要下载到本地...', 'info');
+      var done = 0;
+      toDownload.forEach(function(att) {
+        cloudDownloadAttachment(att.id, function(err) {
+          done++;
+          if (done === toDownload.length) {
+            renderAttachmentsList();
+            toast('云端同步完成：已下载 '+done+' 个文件', 'success');
+          }
+        });
+      });
+    } else {
+      renderAttachmentsList();
+      toast('云端附件已是最新', 'success');
+    }
+  });
 }
 
 function handleAttachmentUpload(input) {
@@ -4361,7 +4662,7 @@ function handleAttachmentUpload(input) {
   var total = files.length;
   var done = 0;
   var errors = 0;
-  var MAX_SIZE = 50 * 1024 * 1024; // 50MB 单文件上限（IndexedDB空间充足）
+  var MAX_SIZE = 50 * 1024 * 1024; // 50MB 单文件上限
   Array.from(files).forEach(function(file) {
     if (file.size > MAX_SIZE) {
       errors++; done++;
@@ -4375,7 +4676,8 @@ function handleAttachmentUpload(input) {
       idbPut(attId, file.name, file.type, e.target.result).then(function() {
         proj.attachments.push({
           id: attId, name: file.name, type: file.type,
-          size: file.size, uploadTime: new Date().toISOString()
+          size: file.size, uploadTime: new Date().toISOString(),
+          cloudSynced: false, cloudPath: null, cloudSha: null, cloudUrl: null
         });
         done++;
         prog.textContent = '已处理 '+done+'/'+total+' 个文件...';
@@ -4383,7 +4685,7 @@ function handleAttachmentUpload(input) {
           prog.textContent = '';
           saveStore();
           renderAttachmentsList();
-          toast('成功上传 '+(done-errors)+' 个附件（存储于IndexedDB）', 'success');
+          toast('成功上传 '+(done-errors)+' 个附件（暂存于本地IndexedDB，可手动上传到云端）', 'success');
         }
       }).catch(function(err) {
         errors++; done++;
@@ -4403,18 +4705,56 @@ function downloadAttachment(attId) {
   var proj = store.projects[store.currentProject]; if (!proj) return;
   var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
   if (!att) return;
+  // 优先尝试本地 IndexedDB 下载
   idbGet(attId).then(function(record) {
-    if (!record) { toast('文件数据不存在，可能已被清除', 'warn'); return; }
-    var blob = new Blob([record.buffer], { type: att.type || 'application/octet-stream' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = att.name; a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
-  }).catch(function(){ toast('下载失败，请重试', 'error'); });
+    if (record && record.buffer) {
+      var blob = new Blob([record.buffer], { type: att.type || 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = att.name; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    } else if (att.cloudSynced && att.cloudUrl) {
+      // 本地没有，从云端直接下载
+      toast('本地文件不存在，正在从云端下载...', 'info');
+      cloudDownloadAttachment(attId, function(err) {
+        if (err) { toast('下载失败：'+err, 'error'); return; }
+        // 重试下载
+        downloadAttachment(attId);
+      });
+    } else {
+      toast('文件不存在且无云端备份', 'warn');
+    }
+  }).catch(function() {
+    if (att.cloudSynced && att.cloudUrl) {
+      toast('正在从云端下载...', 'info');
+      cloudDownloadAttachment(attId, function(err) {
+        if (err) { toast('下载失败：'+err, 'error'); return; }
+        downloadAttachment(attId);
+      });
+    } else {
+      toast('下载失败，请重试', 'error');
+    }
+  });
 }
 
-function deleteAttachment(attId) {
-  if (!confirm('确定要删除该附件吗？')) return;
+function deleteAttachmentConfirm(attId) {
+  var proj = store.projects[store.currentProject]; if (!proj) return;
+  var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
+  if (!att) return;
+  var msg = '确定要删除附件「'+att.name+'」吗？';
+  if (att.cloudSynced) msg += '\n\n该附件在云端也有备份，是否同时从云端删除？';
+  if (!confirm(msg)) return;
+  // 先删云端
+  if (att.cloudSynced) {
+    cloudDeleteAttachment(attId, function() {
+      deleteAttachmentLocal(attId);
+    });
+  } else {
+    deleteAttachmentLocal(attId);
+  }
+}
+
+function deleteAttachmentLocal(attId) {
   var proj = store.projects[store.currentProject]; if (!proj) return;
   idbDelete(attId).then(function() {
     proj.attachments = (proj.attachments||[]).filter(function(a){ return a.id !== attId; });
