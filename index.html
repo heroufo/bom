@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.32</title>
+<title>BOM 智能管理工具 v5.33</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -580,11 +580,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <div class="add-form-row">
               <div class="add-form-field form-field-qty">
                 <label>数量</label>
-                <input class="form-control" type="number" id="inp-qty" value="1" min="1" oninput="autoUpdateStatus()">
+                <input class="form-control" type="number" id="inp-qty" value="1" min="0.1" step="0.1" oninput="autoUpdateStatus()">
               </div>
               <div class="add-form-field form-field-stock">
                 <label>库存</label>
-                <input class="form-control" type="number" id="inp-stock" value="0" min="0" oninput="autoUpdateStatus()">
+                <input class="form-control" type="number" id="inp-stock" value="0" min="0" step="0.1" oninput="autoUpdateStatus()">
               </div>
               <div class="add-form-field form-field-status">
                 <label>状态</label>
@@ -978,9 +978,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="edit-model"></div>
   <div class="form-row">
-    <div class="form-group"><label>数量</label><input class="form-control" type="number" id="edit-qty"></div>
+    <div class="form-group"><label>数量</label><input class="form-control" type="number" id="edit-qty" step="0.1"></div>
     <div class="form-group"><label>单位</label><select class="form-control" id="edit-unit"></select></div>
-    <div class="form-group"><label>库存</label><input class="form-control" type="number" id="edit-stock"></div>
+    <div class="form-group"><label>库存</label><input class="form-control" type="number" id="edit-stock" step="0.1"></div>
     <div class="form-group"><label>状态</label><select class="form-control" id="edit-status"><option>采购</option><option>库存</option></select></div>
     <div class="form-group"><label>到货状态</label><select class="form-control" id="edit-arrived"><option value="">-</option><option>已到</option><option>未到</option><option>部分到</option></select></div>
   </div>
@@ -1459,6 +1459,7 @@ function currentBom() {
   return [];
 }
 function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtNum(n) { if (n == null || n === '') return '0'; var v = Number(n); return v % 1 === 0 ? String(v) : v.toFixed(1); }
 function toast(msg, type) {
   type = type || 'info';
   const t = document.createElement('div');
@@ -2439,9 +2440,9 @@ function bomRowHtml(item, seq) {
     '<td><span style="display:inline-block;'+supplierStyle+'">'+esc(supplier)+'</span></td>'+
     '<td><b>'+esc(item.name)+localBadge+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
-    '<td style="text-align:center;font-weight:600;">'+item.qty+'</td>'+
+    '<td style="text-align:center;font-weight:600;">'+fmtNum(item.qty)+'</td>'+
     '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
-    '<td style="text-align:center;">'+(item.stock||0)+'</td>'+
+    '<td style="text-align:center;">'+fmtNum(item.stock)+'</td>'+
     '<td>'+sb+'</td>'+
     '<td style="text-align:center;font-weight:600;color:var(--accent);">'+(item.actualPurchase||0)+'</td>'+
     '<td>'+ab+'</td>'+
@@ -2574,8 +2575,8 @@ function addBomEntry() {
   if (proj.archived) { toast('该项目已归档，无法添加零部件', 'error'); return; }
   var name = document.getElementById('inp-name').value.trim();
   if (!name) { toast('请输入零件名称','error'); return; }
-  var qty = parseInt(document.getElementById('inp-qty').value) || 1;
-  var stock = parseInt(document.getElementById('inp-stock').value) || 0;
+  var qty = parseFloat(document.getElementById('inp-qty').value) || 1;
+  var stock = parseFloat(document.getElementById('inp-stock').value) || 0;
   var status = document.getElementById('inp-status').value;
   if (status === 'auto') status = stock >= qty ? '库存' : '采购';
   var actualPurchase = status === '采购' ? Math.max(0, qty - stock) : 0;
@@ -2622,8 +2623,8 @@ function addBomEntry() {
 function autoUpdateStatus() {
   var statusEl = document.getElementById('inp-status');
   if (!statusEl || statusEl.value !== 'auto') return; // 仅自动模式生效
-  var qty = parseInt(document.getElementById('inp-qty').value) || 0;
-  var stock = parseInt(document.getElementById('inp-stock').value) || 0;
+  var qty = parseFloat(document.getElementById('inp-qty').value) || 0;
+  var stock = parseFloat(document.getElementById('inp-stock').value) || 0;
   if (qty <= 0) return;
   // 不修改下拉框显示值，仅更新内部标记；实际判断在 addBomEntry 中执行
   // 这里用视觉提示告诉用户自动判断结果
@@ -2712,8 +2713,8 @@ function saveEditEntry() {
   if (proj && proj.archived) { toast('该项目已归档，无法修改', 'error'); closeModal('modal-edit'); return; }
   var id = document.getElementById('edit-idx').value;
   var bom = currentBom(); var idx = bom.findIndex(function(i){return i.id===id;}); if (idx<0) return;
-  var qty = parseInt(document.getElementById('edit-qty').value)||1;
-  var stock = parseInt(document.getElementById('edit-stock').value)||0;
+  var qty = parseFloat(document.getElementById('edit-qty').value)||1;
+  var stock = parseFloat(document.getElementById('edit-stock').value)||0;
   var status = document.getElementById('edit-status').value;
   var actualPurchase = status==='采购' ? Math.max(0,qty-stock) : 0;
   bom[idx] = Object.assign({}, bom[idx], {
@@ -2843,8 +2844,8 @@ function renderQuickLib() {
       ['','已到','未到','部分到'].map(function(v){ return '<option value="'+v+'"'+(curArrived===v?' selected':'')+'>'+( v||'-')+'</option>'; }).join('')+
       '</select>';
     var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
-    var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
+    var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" step="0.1" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -2968,7 +2969,7 @@ function batchAddFromLib() {
     var l = localLib.find(function(x){return x.id===id;}) || store.library.find(function(x){return x.id===id;});
     if (!l) return;
     var qtyEl = document.getElementById('qqty_'+id);
-    var qty = qtyEl ? (parseInt(qtyEl.value)||1) : 1;
+    var qty = qtyEl ? (parseFloat(qtyEl.value)||1) : 1;
     // 读取零件库中的库存和到货状态
     var libStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? Number(l.stock) : 0;
     var libArrived = l.arrived || '';
@@ -3402,9 +3403,9 @@ function buildPurchaseRow(item, seq, isNew) {
     '<td>'+esc(item.supplier||'')+'</td>'+
     '<td><b>'+esc(item.name)+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
-    '<td style="text-align:center;font-weight:600;color:var(--accent);">'+(item.actualPurchase||item.qty)+'</td>'+
+    '<td style="text-align:center;font-weight:600;color:var(--accent);">'+fmtNum(item.actualPurchase||item.qty)+'</td>'+
     '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
-    '<td style="text-align:center;">'+(item.stock||0)+'</td>'+
+    '<td style="text-align:center;">'+fmtNum(item.stock)+'</td>'+
     '<td>'+ab+'</td>'+
     '<td style="font-size:12px;">'+tl+'</td>'+
     '<td style="font-size:11px;color:var(--text-secondary);">'+esc(item.remark||'')+'</td>'+
@@ -4471,11 +4472,11 @@ function importFromTencentDocsFile(input) {
           name: entryName,
           supplier: colMap.supplier!==undefined ? String(row[colMap.supplier]||'').trim() : '',
           model: colMap.model!==undefined ? String(row[colMap.model]||'').trim() : '',
-          qty: parseInt(row[colMap.qty]) || 1,
+          qty: parseFloat(row[colMap.qty]) || 1,
           unit: colMap.unit!==undefined ? String(row[colMap.unit]||'').trim() : '个',
-          stock: parseInt(row[colMap.stock]) || 0,
+          stock: parseFloat(row[colMap.stock]) || 0,
           status: colMap.status!==undefined ? String(row[colMap.status]||'').trim() : '采购',
-          actualPurchase: parseInt(row[colMap.actualPurchase]) || 0,
+          actualPurchase: parseFloat(row[colMap.actualPurchase]) || 0,
           arrived: colMap.arrived!==undefined ? String(row[colMap.arrived]||'').trim() : '',
           taobaoLink: colMap.taobao!==undefined ? String(row[colMap.taobao]||'').trim() : '',
           remark: colMap.remark!==undefined ? String(row[colMap.remark]||'').trim() : ''
