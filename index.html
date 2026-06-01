@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.25</title>
+<title>BOM 智能管理工具 v5.26</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -409,11 +409,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 
 /* AUTOCOMPLETE TABLE */
 .ac-table-wrap{position:absolute;top:100%;left:0;z-index:200;background:var(--card-bg);border:2px solid var(--primary);border-radius:0 0 var(--radius) var(--radius);max-height:400px;overflow-y:auto;overflow-x:hidden;box-shadow:var(--shadow-md);min-width:360px}
-.ac-table{width:100%;border-collapse:collapse;font-size:13px}
-.ac-table thead th{background:var(--primary);color:#fff;padding:6px 10px;text-align:left;font-weight:600;position:sticky;top:0;z-index:1;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
-.ac-table tbody td{padding:5px 10px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .08s;white-space:nowrap}
-.ac-table tbody tr:hover,.ac-table tbody tr.selected{background:var(--primary-bg)}
-.ac-table tbody tr .ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;margin-left:6px;vertical-align:middle}
+.ac-list-inner{width:100%}
+.autocomplete-item{padding:8px 12px;cursor:pointer;transition:background .08s;border-bottom:1px solid var(--border-light);display:block!important}
+.autocomplete-item:hover,.autocomplete-item.selected{background:var(--primary-bg)}
+.autocomplete-item .ac-name{font-weight:600;color:var(--text);font-size:13px;line-height:1.4}
+.ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;margin-left:6px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -423,7 +423,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.25 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.26 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -437,7 +437,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.25</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.26</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -521,7 +521,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <select class="form-control" style="max-width:100px;" id="quickCatFilter" onchange="renderQuickLib()"><option value="">全部分类</option></select>
           </div>
           <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
-            <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:60px;">分类</th><th style="width:52px;">到货</th><th style="width:44px;">库存</th><th style="width:52px;">数量</th>
+            <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:60px;">分类</th><th style="width:72px;">到货</th><th style="width:60px;">库存</th><th style="width:52px;">数量</th>
           </tr></thead><tbody id="quickLibTbody"></tbody></table></div>
           <div class="quick-selected-bar">
             <span class="quick-selected-count" id="quickSelCount">已选 0 件</span>
@@ -1016,7 +1016,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="modal-title">📎 项目附件</div>
   <div id="attachments-proj-name" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
   <div class="admin-only" style="margin-bottom:12px;border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg-alt);">
-    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">上传加工图纸 / 文件（每个文件建议不超过 2MB）</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">上传加工图纸 / 文件（单文件最大 50MB，存储于本地 IndexedDB）</div>
     <input type="file" id="attachmentFileInput" multiple accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip" onchange="handleAttachmentUpload(this)" style="display:none;">
     <button class="btn btn-primary btn-sm" onclick="document.getElementById('attachmentFileInput').click()">+ 选择文件</button>
     <div id="attachmentUploadProgress" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
@@ -2343,13 +2343,24 @@ function renderBomTable() {
 // ============================================================
 // SUPPLIER COLOR MAPPING
 // ============================================================
-var SUPPLIER_COLORS = ['#eff6ff','#f0fdf4','#fefce8','#fff7ed','#fdf4ff','#f0f9ff','#fdf2f8','#f7fee7','#fff1f2','#ecfdf5'];
+// 颜色格式：[浅色模式背景, 深色模式背景]（通过 CSS class 区分）
+var SUPPLIER_COLORS = [
+  '#3b82f6','#22c55e','#f59e0b','#ef4444',
+  '#a855f7','#06b6d4','#f97316','#84cc16',
+  '#ec4899','#14b8a6'
+];
+var SUPPLIER_TEXT_COLORS = [
+  '#fff','#fff','#fff','#fff',
+  '#fff','#fff','#fff','#fff',
+  '#fff','#fff'
+];
 var _supplierColorMap = {};
 var _supplierColorIdx = 0;
 function getSupplierColor(supplier) {
-  if (!supplier || supplier === '-') return '';
+  if (!supplier || supplier === '-') return null;
   if (!_supplierColorMap[supplier]) {
-    _supplierColorMap[supplier] = SUPPLIER_COLORS[_supplierColorIdx % SUPPLIER_COLORS.length];
+    var idx = _supplierColorIdx % SUPPLIER_COLORS.length;
+    _supplierColorMap[supplier] = { bg: SUPPLIER_COLORS[idx], text: SUPPLIER_TEXT_COLORS[idx] };
     _supplierColorIdx++;
   }
   return _supplierColorMap[supplier];
@@ -2361,7 +2372,10 @@ function bomRowHtml(item, seq) {
   var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" style="color:var(--primary);font-size:11px;" title="'+esc(item.taobaoLink)+'">打开</a>' : '<span style="color:var(--text-muted)">-</span>';
   var supplier = item.supplier || '-';
-  var supplierBg = getSupplierColor(supplier);
+  var supplierColor = getSupplierColor(supplier);
+  var supplierStyle = supplierColor
+    ? 'background:'+supplierColor.bg+';color:'+supplierColor.text+';font-weight:600;font-size:12px;text-align:center;border-radius:3px;padding:1px 4px;'
+    : 'font-size:12px;font-weight:500;';
   var actionCol = '';
   if (currentUser && currentUser.role === 'admin') {
     actionCol = '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="openEditModal(\''+item.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteBomEntry(\''+item.id+'\')">删除</button></div></td>';
@@ -2373,7 +2387,7 @@ function bomRowHtml(item, seq) {
   return '<tr'+rowClass+'>'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
-    '<td style="font-size:12px;font-weight:500;background:'+supplierBg+';">'+esc(supplier)+'</td>'+
+    '<td><span style="display:inline-block;'+supplierStyle+'">'+esc(supplier)+'</span></td>'+
     '<td><b>'+esc(item.name)+localBadge+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
     '<td style="text-align:center;font-weight:600;">'+item.qty+'</td>'+
@@ -2726,9 +2740,13 @@ function renderQuickLib() {
 
   tbody.innerHTML = filtered.map(function(l) {
     var srcBadge = l._src==='local' ? '<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px;">本项目</span>' : '';
-    var arrivedTxt = l.arrived || '-';
-    var stockTxt = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '-';
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td style="font-size:12px;text-align:center;">'+esc(arrivedTxt)+'</td><td style="font-size:12px;text-align:center;">'+esc(String(stockTxt))+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
+    var curArrived = l.arrived || '';
+    var arrivedSel = '<select id="qarr_'+l.id+'" onclick="event.stopPropagation()" onchange="updateLibArrived(\''+l.id+'\',this.value)" style="width:68px;font-size:11px;padding:1px 2px;border:1px solid var(--border);border-radius:3px;background:var(--card-bg);color:var(--text);">'+
+      ['','已到','未到','部分到'].map(function(v){ return '<option value="'+v+'"'+(curArrived===v?' selected':'')+'>'+( v||'-')+'</option>'; }).join('')+
+      '</select>';
+    var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
+    var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -2736,6 +2754,29 @@ function renderQuickLib() {
 function toggleQuickSelect(id, row) { var chk = document.getElementById('qchk_'+id); if (!chk) return; chk.checked = !chk.checked; onQuickCheck(id, chk); }
 function onQuickCheck(id, chk) { if (chk.checked) quickSelectedIds.add(id); else quickSelectedIds.delete(id); updateQuickCount(); }
 function updateQuickCount() { document.getElementById('quickSelCount').textContent = '已选 '+quickSelectedIds.size+' 件'; }
+
+// 快速选件面板内直接修改到货状态（同步到本地库/全局库）
+function updateLibArrived(id, val) {
+  var localLib = getLocalLib();
+  var localItem = localLib.find(function(l){ return l.id === id; });
+  if (localItem) { localItem.arrived = val; saveLocalLib(localLib); }
+  else {
+    var globalItem = store.library.find(function(l){ return l.id === id; });
+    if (globalItem) { globalItem.arrived = val; saveStore(); }
+  }
+}
+
+// 快速选件面板内直接修改库存数量（同步到本地库/全局库）
+function updateLibStock(id, val) {
+  var v = val === '' ? '' : Number(val);
+  var localLib = getLocalLib();
+  var localItem = localLib.find(function(l){ return l.id === id; });
+  if (localItem) { localItem.stock = v; saveLocalLib(localLib); }
+  else {
+    var globalItem = store.library.find(function(l){ return l.id === id; });
+    if (globalItem) { globalItem.stock = v; saveStore(); }
+  }
+}
 function quickSelectAll() {
   document.querySelectorAll('#quickLibTbody input[type=checkbox]').forEach(function(chk){chk.checked=true;quickSelectedIds.add(chk.id.replace('qchk_',''));}); updateQuickCount();
 }
@@ -3519,8 +3560,9 @@ function exportSupplierExcel(supplierName) {
   ws['!cols'] = [{wch:6},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
   var wb = XLSX.utils.book_new();
   var safeSupplier = supplierName.replace(/[\\\/\?\*\[\]]/g,'_');
+  var projPrefix = projName.substring(0, 4).replace(/[\\\/\?\*\[\]]/g,'_') || 'BOM';
   XLSX.utils.book_append_sheet(wb, ws, safeSupplier.substring(0,31));
-  XLSX.writeFile(wb, '采购清单_' + safeSupplier + '.xlsx');
+  XLSX.writeFile(wb, projPrefix + '_采购清单_' + safeSupplier + '.xlsx');
   toast('「'+supplierName+'」采购清单已导出（'+supplierItems.length+' 项）', 'success');
 }
 
@@ -3944,16 +3986,19 @@ function acSearch(val) {
   matches = matches.slice(0, 30);
   if (!matches.length) return;
   var list = document.getElementById('acList');
-  // 扩展表格：名称 / 供应商 / 型号规格 / 分类
-  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:30%;">名称</th><th style="width:22%;">供应商</th><th style="width:35%;">型号规格</th><th style="width:13%;">分类</th></tr></thead><tbody>'+
+  // 多行展示：每条结果独立显示名称+供应商+型号规格，去掉分类列
+  list.innerHTML = '<div class="ac-list-inner">'+
     matches.map(function(m,i){
       var srcBadge = m._src==='local' ? ' <span class="ac-local-badge">本项目</span>' : '';
-      return '<tr class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')">'+
-        '<td style="font-weight:600;">'+esc(m.name)+srcBadge+'</td>'+
-        '<td style="color:var(--text-secondary);font-size:11px;">'+esc(m.supplier||'-')+'</td>'+
-        '<td style="color:var(--primary);">'+esc(m.model||'-')+'</td>'+
-        '<td style="color:var(--text-muted);font-size:11px;">'+esc(m.category||'-')+'</td></tr>';
-    }).join('')+'</tbody></table>';
+      var supplierStr = m.supplier ? '<span style="color:var(--text-secondary);">供应商：'+esc(m.supplier)+'</span>' : '';
+      var modelStr = m.model ? '<span style="color:var(--primary);">型号：'+esc(m.model)+'</span>' : '';
+      var unitStr = m.unit ? '<span style="color:var(--text-muted);">单位：'+esc(m.unit)+'</span>' : '';
+      var subLine = [supplierStr, modelStr, unitStr].filter(Boolean).join('<span style="color:var(--border);margin:0 4px;">|</span>');
+      return '<div class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')">'+
+        '<div class="ac-name">'+esc(m.name)+srcBadge+'</div>'+
+        (subLine ? '<div style="font-size:11px;margin-top:2px;">'+subLine+'</div>' : '')+
+        '</div>';
+    }).join('')+'</div>';
   list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
 }
 
@@ -4226,8 +4271,55 @@ function importFromTencentDocsFile(input) {
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 // ============================================================
-// PROJECT ATTACHMENTS
+// PROJECT ATTACHMENTS — IndexedDB 存储方案（容量 >50MB）
+// 附件元数据（id/name/type/size/uploadTime/projId）存于 store，
+// 文件二进制内容（ArrayBuffer）存于 IndexedDB，两者通过 id 关联。
 // ============================================================
+
+var _idb = null;
+function getIDB() {
+  return new Promise(function(resolve, reject) {
+    if (_idb) { resolve(_idb); return; }
+    var req = indexedDB.open('bom_attachments', 1);
+    req.onupgradeneeded = function(e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains('files')) {
+        db.createObjectStore('files', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = function(e) { _idb = e.target.result; resolve(_idb); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+function idbPut(id, name, type, buffer) {
+  return getIDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').put({ id: id, name: name, type: type, buffer: buffer });
+      tx.oncomplete = resolve; tx.onerror = function(){ reject(tx.error); };
+    });
+  });
+}
+function idbGet(id) {
+  return getIDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction('files', 'readonly');
+      var req = tx.objectStore('files').get(id);
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  });
+}
+function idbDelete(id) {
+  return getIDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').delete(id);
+      tx.oncomplete = resolve; tx.onerror = function(){ reject(tx.error); };
+    });
+  });
+}
+
 function openAttachmentsModal() {
   if (!store.currentProject) { toast('请先选择一个项目','warn'); return; }
   var proj = store.projects[store.currentProject];
@@ -4269,35 +4361,41 @@ function handleAttachmentUpload(input) {
   var total = files.length;
   var done = 0;
   var errors = 0;
+  var MAX_SIZE = 50 * 1024 * 1024; // 50MB 单文件上限（IndexedDB空间充足）
   Array.from(files).forEach(function(file) {
-    if (file.size > 2 * 1024 * 1024) {
-      errors++;
-      done++;
-      toast('文件「'+file.name+'」超过2MB限制，已跳过', 'warn');
-      if (done === total) { prog.textContent = ''; saveStore(); renderAttachmentsList(); }
+    if (file.size > MAX_SIZE) {
+      errors++; done++;
+      toast('文件「'+file.name+'」超过50MB限制，已跳过', 'warn');
+      if (done === total) { prog.textContent = ''; renderAttachmentsList(); }
       return;
     }
     var reader = new FileReader();
     reader.onload = function(e) {
-      proj.attachments.push({
-        id: e_id(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        dataUrl: e.target.result,
-        uploadTime: new Date().toISOString()
+      var attId = e_id();
+      idbPut(attId, file.name, file.type, e.target.result).then(function() {
+        proj.attachments.push({
+          id: attId, name: file.name, type: file.type,
+          size: file.size, uploadTime: new Date().toISOString()
+        });
+        done++;
+        prog.textContent = '已处理 '+done+'/'+total+' 个文件...';
+        if (done === total) {
+          prog.textContent = '';
+          saveStore();
+          renderAttachmentsList();
+          toast('成功上传 '+(done-errors)+' 个附件（存储于IndexedDB）', 'success');
+        }
+      }).catch(function(err) {
+        errors++; done++;
+        toast('文件「'+file.name+'」写入失败：'+err.message, 'error');
+        if (done === total) { prog.textContent = ''; renderAttachmentsList(); }
       });
-      done++;
-      prog.textContent = '已处理 '+done+'/'+total+' 个文件...';
-      if (done === total) {
-        prog.textContent = '';
-        saveStore();
-        renderAttachmentsList();
-        toast('成功上传 '+(done-errors)+' 个附件', 'success');
-      }
     };
-    reader.onerror = function() { done++; errors++; if (done===total) { saveStore(); renderAttachmentsList(); } };
-    reader.readAsDataURL(file);
+    reader.onerror = function() {
+      errors++; done++;
+      if (done === total) { prog.textContent = ''; renderAttachmentsList(); }
+    };
+    reader.readAsArrayBuffer(file);
   });
 }
 
@@ -4305,19 +4403,25 @@ function downloadAttachment(attId) {
   var proj = store.projects[store.currentProject]; if (!proj) return;
   var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
   if (!att) return;
-  var a = document.createElement('a');
-  a.href = att.dataUrl;
-  a.download = att.name;
-  a.click();
+  idbGet(attId).then(function(record) {
+    if (!record) { toast('文件数据不存在，可能已被清除', 'warn'); return; }
+    var blob = new Blob([record.buffer], { type: att.type || 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = att.name; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }).catch(function(){ toast('下载失败，请重试', 'error'); });
 }
 
 function deleteAttachment(attId) {
   if (!confirm('确定要删除该附件吗？')) return;
   var proj = store.projects[store.currentProject]; if (!proj) return;
-  proj.attachments = (proj.attachments||[]).filter(function(a){ return a.id !== attId; });
-  saveStore();
-  renderAttachmentsList();
-  toast('附件已删除', 'success');
+  idbDelete(attId).then(function() {
+    proj.attachments = (proj.attachments||[]).filter(function(a){ return a.id !== attId; });
+    saveStore();
+    renderAttachmentsList();
+    toast('附件已删除', 'success');
+  }).catch(function(){ toast('删除失败，请重试', 'error'); });
 }
 
 // e_id helper（避免与外部 e() 冲突）
