@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.22</title>
+<title>BOM 智能管理工具 v5.25</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -423,7 +423,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="login-box">
     <div class="login-logo">
       <div class="login-logo-title">BOM <span>智能管理工具</span></div>
-      <div class="login-logo-sub">v5.22 · 请登录后使用</div>
+      <div class="login-logo-sub">v5.25 · 请登录后使用</div>
     </div>
     <label>用户名</label>
     <input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -437,7 +437,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.17</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.25</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -483,8 +483,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <label>当前项目</label>
       <select class="form-control" style="max-width:280px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
       <span id="projNameDisplay" class="proj-name-display" style="display:none;"></span>
-      <button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button>
+      <button class="btn btn-primary admin-only" onclick="openNewProjectModal()">+ 新建项目</button>
       <button class="btn btn-success btn-lg admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()" style="margin-left:auto;">📋 一键生成实采清单</button>
+      <button class="btn btn-icon" onclick="openAttachmentsModal()" title="查看/上传项目附件" id="attachmentsBtn">📎 附件</button>
     </div>
     <div class="proj-bar-tools">
       <select class="form-control" style="max-width:130px;" id="bomGroupBy" onchange="renderBomTable()">
@@ -520,7 +521,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <select class="form-control" style="max-width:100px;" id="quickCatFilter" onchange="renderQuickLib()"><option value="">全部分类</option></select>
           </div>
           <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
-            <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:72px;">分类</th><th style="width:52px;">数量</th>
+            <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:60px;">分类</th><th style="width:52px;">到货</th><th style="width:44px;">库存</th><th style="width:52px;">数量</th>
           </tr></thead><tbody id="quickLibTbody"></tbody></table></div>
           <div class="quick-selected-bar">
             <span class="quick-selected-count" id="quickSelCount">已选 0 件</span>
@@ -612,7 +613,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <button class="btn btn-sm btn-ghost" onclick="sortBomByCategory()">按分类</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomByArrival()">按到货</button>
-            <button class="btn btn-sm btn-success" onclick="syncBomToLibrary()" title="将BOM中零件库没有的零件同步到通用库">🔄 同步到库</button>
+            <button class="btn btn-sm btn-success admin-only" onclick="syncBomToLibrary()" title="将BOM中零件库没有的零件同步到通用库">🔄 同步到库</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -1008,6 +1009,20 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
   <div class="form-group" style="margin-bottom:12px;"><label>备注（选填）</label><input class="form-control" id="user-remark" placeholder="可选备注信息"></div>
   <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-user')">取消</button><button class="btn btn-primary" onclick="saveUser()">保存</button></div>
+</div></div>
+
+<!-- Project Attachments -->
+<div class="modal-overlay" id="modal-attachments"><div class="modal wide">
+  <div class="modal-title">📎 项目附件</div>
+  <div id="attachments-proj-name" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
+  <div class="admin-only" style="margin-bottom:12px;border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg-alt);">
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">上传加工图纸 / 文件（每个文件建议不超过 2MB）</div>
+    <input type="file" id="attachmentFileInput" multiple accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip" onchange="handleAttachmentUpload(this)" style="display:none;">
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('attachmentFileInput').click()">+ 选择文件</button>
+    <div id="attachmentUploadProgress" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
+  </div>
+  <div id="attachmentsList" style="max-height:320px;overflow-y:auto;"></div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-attachments')">关闭</button></div>
 </div></div>
 
 <script>
@@ -2126,27 +2141,54 @@ function applyFontSize() {
   else if (store.fontSize === 1.3) { body.classList.add('font-xl'); document.getElementById('fontSizeLabel').textContent = '特大'; }
   else { document.getElementById('fontSizeLabel').textContent = '标准'; }
 }
+function getProjectYear(projName) {
+  var prefix = (projName || '').substring(0, 2);
+  var yr = parseInt(prefix, 10);
+  if (!isNaN(yr) && yr >= 20 && yr <= 99) return '20' + (yr < 10 ? '0' + yr : yr) + '年';
+  return '其他';
+}
+
 function renderProjectsTable() {
   var tbody = document.getElementById('projectsTbody');
   var projs = Object.values(store.projects);
   if (!projs.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">暂无项目</div><div class="empty-desc">点击「新建项目」开始管理您的BOM清单</div><div class="empty-action"><button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button></div></div></td></tr>'; return; }
-  tbody.innerHTML = projs.map(function(p) {
-    var pc = p.bom.filter(function(i){return i.status==='采购';}).length;
-    var sc = p.bom.filter(function(i){return i.status==='库存';}).length;
-    var isArchived = p.archived === true;
-    var rowClass = isArchived ? 'archived-row' : '';
-    var statusBadge = isArchived ? '<span class="archived-badge">📦 已归档</span>' : '<span class="badge badge-stock">活跃</span>';
-    var currentBadge = p.id===store.currentProject ? '<span class="badge" style="background:#dcfce7;color:#166534;">当前</span>' : '';
-    var actions = '<div class="row-actions" style="display:flex;gap:4px;flex-wrap:wrap;">'
-      + '<button class="btn btn-sm btn-primary" onclick="switchProject(\''+p.id+'\');showPage(\'page-bom\')">进入</button>'
-      + '<button class="btn btn-sm btn-outline" onclick="openEditProjectModal(\''+p.id+'\')">编辑</button>'
-      + (isArchived
-        ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="toggleArchiveProject(\''+p.id+'\')">取消归档</button>'
-        : '<button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:var(--warning);" onclick="toggleArchiveProject(\''+p.id+'\')">归档</button>')
-      + '<button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">删除</button>'
-      + '</div>';
-    return '<tr class="'+rowClass+'"><td><b>'+esc(p.name)+'</b> '+currentBadge+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+statusBadge+'</td><td>'+esc(p.created||'-')+'</td><td>'+actions+'</td></tr>';
-  }).join('');
+
+  // 按年份分组
+  var yearGroups = {};
+  projs.forEach(function(p) {
+    var yr = getProjectYear(p.name);
+    if (!yearGroups[yr]) yearGroups[yr] = [];
+    yearGroups[yr].push(p);
+  });
+  // 年份排序：降序（最新年在前），"其他"放最后
+  var years = Object.keys(yearGroups).sort(function(a, b) {
+    if (a === '其他') return 1;
+    if (b === '其他') return -1;
+    return b.localeCompare(a);
+  });
+
+  var rows = '';
+  years.forEach(function(yr) {
+    rows += '<tr style="background:linear-gradient(90deg,#e0f2fe,#f0f9ff);"><td colspan="7" style="font-weight:700;font-size:13px;color:#0369a1;padding:6px 12px;letter-spacing:1px;">📅 ' + esc(yr) + '（共 ' + yearGroups[yr].length + ' 个项目）</td></tr>';
+    yearGroups[yr].forEach(function(p) {
+      var pc = p.bom.filter(function(i){return i.status==='采购';}).length;
+      var sc = p.bom.filter(function(i){return i.status==='库存';}).length;
+      var isArchived = p.archived === true;
+      var rowClass = isArchived ? 'archived-row' : '';
+      var statusBadge = isArchived ? '<span class="archived-badge">📦 已归档</span>' : '<span class="badge badge-stock">活跃</span>';
+      var currentBadge = p.id===store.currentProject ? '<span class="badge" style="background:#dcfce7;color:#166534;">当前</span>' : '';
+      var actions = '<div class="row-actions" style="display:flex;gap:4px;flex-wrap:nowrap;white-space:nowrap;">'
+        + '<button class="btn btn-sm btn-primary" onclick="switchProject(\''+p.id+'\');showPage(\'page-bom\')">进入</button>'
+        + '<button class="btn btn-sm btn-outline" onclick="openEditProjectModal(\''+p.id+'\')">编辑</button>'
+        + (isArchived
+          ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="toggleArchiveProject(\''+p.id+'\')">取消归档</button>'
+          : '<button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:var(--warning);" onclick="toggleArchiveProject(\''+p.id+'\')">归档</button>')
+        + '<button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">删除</button>'
+        + '</div>';
+      rows += '<tr class="'+rowClass+'"><td><b>'+esc(p.name)+'</b> '+currentBadge+'</td><td>'+p.bom.length+'</td><td><span class="badge badge-purchase">'+pc+'</span></td><td><span class="badge badge-stock">'+sc+'</span></td><td>'+statusBadge+'</td><td>'+esc(p.created||'-')+'</td><td>'+actions+'</td></tr>';
+    });
+  });
+  tbody.innerHTML = rows;
 }
 
 // ============================================================
@@ -2155,6 +2197,8 @@ function renderProjectsTable() {
 function renderBomTable() {
   var tbody = document.getElementById('bomTbody');
   if (!tbody) return;
+  // 重置供应商颜色映射，保证每次渲染颜色稳定
+  resetSupplierColorMap();
 
   // ============================================================
   // CRITICAL: 直接从 localStorage 读取权威数据，不依赖内存 store 变量
@@ -2296,11 +2340,28 @@ function renderBomTable() {
   if (typeof checkPurchaseBomChanged === 'function') checkPurchaseBomChanged();
 }
 
+// ============================================================
+// SUPPLIER COLOR MAPPING
+// ============================================================
+var SUPPLIER_COLORS = ['#eff6ff','#f0fdf4','#fefce8','#fff7ed','#fdf4ff','#f0f9ff','#fdf2f8','#f7fee7','#fff1f2','#ecfdf5'];
+var _supplierColorMap = {};
+var _supplierColorIdx = 0;
+function getSupplierColor(supplier) {
+  if (!supplier || supplier === '-') return '';
+  if (!_supplierColorMap[supplier]) {
+    _supplierColorMap[supplier] = SUPPLIER_COLORS[_supplierColorIdx % SUPPLIER_COLORS.length];
+    _supplierColorIdx++;
+  }
+  return _supplierColorMap[supplier];
+}
+function resetSupplierColorMap() { _supplierColorMap = {}; _supplierColorIdx = 0; }
+
 function bomRowHtml(item, seq) {
   var sb = item.status==='采购' ? '<span class="badge badge-purchase">采购</span>' : '<span class="badge badge-stock">库存</span>';
   var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" style="color:var(--primary);font-size:11px;" title="'+esc(item.taobaoLink)+'">打开</a>' : '<span style="color:var(--text-muted)">-</span>';
   var supplier = item.supplier || '-';
+  var supplierBg = getSupplierColor(supplier);
   var actionCol = '';
   if (currentUser && currentUser.role === 'admin') {
     actionCol = '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="openEditModal(\''+item.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteBomEntry(\''+item.id+'\')">删除</button></div></td>';
@@ -2312,7 +2373,7 @@ function bomRowHtml(item, seq) {
   return '<tr'+rowClass+'>'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
-    '<td style="font-size:12px;font-weight:500;">'+esc(supplier)+'</td>'+
+    '<td style="font-size:12px;font-weight:500;background:'+supplierBg+';">'+esc(supplier)+'</td>'+
     '<td><b>'+esc(item.name)+localBadge+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
     '<td style="text-align:center;font-weight:600;">'+item.qty+'</td>'+
@@ -2661,11 +2722,13 @@ function renderQuickLib() {
   });
 
   var tbody = document.getElementById('quickLibTbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">暂无匹配零件</div><div class="empty-desc">零件库为空或没有匹配的搜索结果</div></td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">暂无匹配零件</div><div class="empty-desc">零件库为空或没有匹配的搜索结果</div></td></tr>'; return; }
 
   tbody.innerHTML = filtered.map(function(l) {
     var srcBadge = l._src==='local' ? '<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px;">本项目</span>' : '';
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
+    var arrivedTxt = l.arrived || '-';
+    var stockTxt = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '-';
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td style="font-size:12px;text-align:center;">'+esc(arrivedTxt)+'</td><td style="font-size:12px;text-align:center;">'+esc(String(stockTxt))+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -3068,7 +3131,7 @@ function buildPurchaseHTML(bom, newItemIds) {
     });
     Object.keys(groups).sort().forEach(function(key) {
       var items = groups[key];
-      html += '<tr class="category-row"><td colspan="10">🏭 供应商：'+esc(key)+'（'+items.length+' 项）</td></tr>';
+      html += '<tr class="category-row"><td colspan="10">🏭 供应商：'+esc(key)+'（'+items.length+' 项）<button class="btn btn-sm btn-outline admin-only" style="margin-left:12px;font-size:11px;padding:2px 8px;" onclick="exportSupplierExcel(\''+esc(key).replace(/'/g, "\\'")+'\')" title="导出该供应商采购清单">📥 导出</button></td></tr>';
       items.forEach(function(item) {
         html += buildPurchaseRow(item, seq++, false);
       });
@@ -3440,6 +3503,25 @@ function exportPurchaseExcel() {
   var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '实采清单');
   XLSX.writeFile(wb, '实采清单_按模板.xlsx');
   toast('实采清单已按模板格式导出Excel', 'success');
+}
+
+function exportSupplierExcel(supplierName) {
+  var bom = currentBom();
+  var supplierItems = bom.filter(function(i){ return i.status==='采购' && (i.supplier||'未知供应商') === supplierName; });
+  if (!supplierItems.length) { toast('该供应商无采购项','warn'); return; }
+  var projName = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : '';
+  var projNum = (projName.match(/\d/g)||[]).slice(0,4).join('');
+  var data = [['序号','供应商','名称','规格型号','数量','单位','项目编号','备注']];
+  supplierItems.forEach(function(item,i) {
+    data.push([i+1, item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:6},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
+  var wb = XLSX.utils.book_new();
+  var safeSupplier = supplierName.replace(/[\\\/\?\*\[\]]/g,'_');
+  XLSX.utils.book_append_sheet(wb, ws, safeSupplier.substring(0,31));
+  XLSX.writeFile(wb, '采购清单_' + safeSupplier + '.xlsx');
+  toast('「'+supplierName+'」采购清单已导出（'+supplierItems.length+' 项）', 'success');
 }
 
 function exportLibTemplate() {
@@ -3862,13 +3944,15 @@ function acSearch(val) {
   matches = matches.slice(0, 30);
   if (!matches.length) return;
   var list = document.getElementById('acList');
-  // Compact table: name + model only, one line per part
-  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:45%;">名称</th><th style="width:55%;">型号规格</th></tr></thead><tbody>'+
+  // 扩展表格：名称 / 供应商 / 型号规格 / 分类
+  list.innerHTML = '<table class="ac-table"><thead><tr><th style="width:30%;">名称</th><th style="width:22%;">供应商</th><th style="width:35%;">型号规格</th><th style="width:13%;">分类</th></tr></thead><tbody>'+
     matches.map(function(m,i){
       var srcBadge = m._src==='local' ? ' <span class="ac-local-badge">本项目</span>' : '';
       return '<tr class="autocomplete-item" data-idx="'+i+'" onmousedown="selectAC('+i+')">'+
         '<td style="font-weight:600;">'+esc(m.name)+srcBadge+'</td>'+
-        '<td style="color:var(--primary);">'+esc(m.model||'-')+'</td></tr>';
+        '<td style="color:var(--text-secondary);font-size:11px;">'+esc(m.supplier||'-')+'</td>'+
+        '<td style="color:var(--primary);">'+esc(m.model||'-')+'</td>'+
+        '<td style="color:var(--text-muted);font-size:11px;">'+esc(m.category||'-')+'</td></tr>';
     }).join('')+'</tbody></table>';
   list.classList.remove('autocomplete-hidden'); list._data = matches; acSelected = -1;
 }
@@ -4140,6 +4224,104 @@ function importFromTencentDocsFile(input) {
 // MODAL
 // ============================================================
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ============================================================
+// PROJECT ATTACHMENTS
+// ============================================================
+function openAttachmentsModal() {
+  if (!store.currentProject) { toast('请先选择一个项目','warn'); return; }
+  var proj = store.projects[store.currentProject];
+  document.getElementById('attachments-proj-name').textContent = '项目：' + (proj.name || '');
+  document.getElementById('attachmentUploadProgress').textContent = '';
+  document.getElementById('attachmentFileInput').value = '';
+  renderAttachmentsList();
+  document.getElementById('modal-attachments').classList.add('show');
+}
+
+function renderAttachmentsList() {
+  var proj = store.projects[store.currentProject];
+  var attachments = (proj && proj.attachments) ? proj.attachments : [];
+  var el = document.getElementById('attachmentsList');
+  if (!attachments.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">暂无附件，请上传文件</div>';
+    return;
+  }
+  el.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg-alt);"><th style="padding:6px 10px;text-align:left;">文件名</th><th style="width:80px;text-align:center;">大小</th><th style="width:120px;text-align:center;">上传时间</th><th style="width:120px;text-align:center;" class="no-print">操作</th></tr></thead><tbody>'+
+    attachments.map(function(att) {
+      var sizeStr = att.size > 1048576 ? (att.size/1048576).toFixed(1)+'MB' : (att.size > 1024 ? (att.size/1024).toFixed(0)+'KB' : att.size+'B');
+      var timeStr = att.uploadTime ? new Date(att.uploadTime).toLocaleDateString('zh-CN') : '-';
+      return '<tr style="border-bottom:1px solid var(--border);">'
+        + '<td style="padding:7px 10px;">📄 '+esc(att.name)+'</td>'
+        + '<td style="text-align:center;color:var(--text-muted);">'+sizeStr+'</td>'
+        + '<td style="text-align:center;color:var(--text-muted);">'+timeStr+'</td>'
+        + '<td style="text-align:center;" class="no-print"><button class="btn btn-sm btn-outline" onclick="downloadAttachment(\''+att.id+'\')">下载</button> <button class="btn btn-sm btn-danger admin-only" onclick="deleteAttachment(\''+att.id+'\')">删除</button></td>'
+        + '</tr>';
+    }).join('')+'</tbody></table>';
+}
+
+function handleAttachmentUpload(input) {
+  var files = input.files;
+  if (!files || !files.length) return;
+  if (!store.currentProject) return;
+  var proj = store.projects[store.currentProject];
+  if (!proj.attachments) proj.attachments = [];
+  var prog = document.getElementById('attachmentUploadProgress');
+  var total = files.length;
+  var done = 0;
+  var errors = 0;
+  Array.from(files).forEach(function(file) {
+    if (file.size > 2 * 1024 * 1024) {
+      errors++;
+      done++;
+      toast('文件「'+file.name+'」超过2MB限制，已跳过', 'warn');
+      if (done === total) { prog.textContent = ''; saveStore(); renderAttachmentsList(); }
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      proj.attachments.push({
+        id: e_id(),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl: e.target.result,
+        uploadTime: new Date().toISOString()
+      });
+      done++;
+      prog.textContent = '已处理 '+done+'/'+total+' 个文件...';
+      if (done === total) {
+        prog.textContent = '';
+        saveStore();
+        renderAttachmentsList();
+        toast('成功上传 '+(done-errors)+' 个附件', 'success');
+      }
+    };
+    reader.onerror = function() { done++; errors++; if (done===total) { saveStore(); renderAttachmentsList(); } };
+    reader.readAsDataURL(file);
+  });
+}
+
+function downloadAttachment(attId) {
+  var proj = store.projects[store.currentProject]; if (!proj) return;
+  var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
+  if (!att) return;
+  var a = document.createElement('a');
+  a.href = att.dataUrl;
+  a.download = att.name;
+  a.click();
+}
+
+function deleteAttachment(attId) {
+  if (!confirm('确定要删除该附件吗？')) return;
+  var proj = store.projects[store.currentProject]; if (!proj) return;
+  proj.attachments = (proj.attachments||[]).filter(function(a){ return a.id !== attId; });
+  saveStore();
+  renderAttachmentsList();
+  toast('附件已删除', 'success');
+}
+
+// e_id helper（避免与外部 e() 冲突）
+function e_id() { return Math.random().toString(36).substring(2, 10); }
 document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
   overlay.addEventListener('click', function(e) {
     if (e.target === this && this.id !== 'modal-lib') this.classList.remove('show');
