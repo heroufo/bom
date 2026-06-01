@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.28</title>
+<title>BOM 智能管理工具 v5.29</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -417,6 +417,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .autocomplete-item:hover,.autocomplete-item.selected{background:var(--primary-bg)}
 .autocomplete-item .ac-name{font-weight:600;color:var(--text);font-size:13px;line-height:1.4}
 .ac-local-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 4px;margin-left:6px;vertical-align:middle}
+
+/* Disabled controls for non-admin */
+.ctrl-disabled{opacity:0.45;pointer-events:none;cursor:not-allowed;filter:grayscale(0.6);position:relative}
+.ctrl-disabled::after{content:'🔒';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;z-index:1}
+.ctrl-disabled-btn{opacity:0.4;pointer-events:none;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -469,7 +474,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="tab active" onclick="showPage('page-bom')" id="tab-bom">BOM清单 <span class="tab-badge" id="badge-bom">0</span></div>
   <div class="tab" onclick="showPage('page-purchase')" id="tab-purchase">实采清单 <span class="tab-badge" id="badge-purchase" style="background:var(--accent)">0</span></div>
   <div class="tab admin-only" onclick="showPage('page-library')" id="tab-library">零件库 <span class="tab-badge" id="badge-library" style="background:var(--success)">0</span></div>
-  <div class="tab admin-only" onclick="showPage('page-stats')" id="tab-stats">复用统计</div>
+  <div class="tab" onclick="showPage('page-stats')" id="tab-stats">复用统计</div>
   <div class="tab admin-only" onclick="showPage('page-projects')" id="tab-projects">项目管理</div>
   <div class="tab admin-only" onclick="showPage('page-settings')" id="tab-settings">设置</div>
   <div class="tab admin-only" onclick="showPage('page-users')" id="tab-users">👤 用户管理</div>
@@ -484,7 +489,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="proj-bar no-print">
     <div class="proj-bar-main">
       <label>当前项目</label>
-      <select class="form-control" style="max-width:280px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
+      <select class="form-control" style="max-width:500px;font-size:16px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
       <span id="projNameDisplay" class="proj-name-display" style="display:none;"></span>
       <button class="btn btn-primary admin-only" onclick="openNewProjectModal()">+ 新建项目</button>
       <button class="btn btn-success btn-lg admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()" style="margin-left:auto;">📋 一键生成实采清单</button>
@@ -1018,7 +1023,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <div class="modal-overlay" id="modal-attachments"><div class="modal wide">
   <div class="modal-title">📎 项目附件</div>
   <div id="attachments-proj-name" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
-  <div class="admin-only" style="margin-bottom:12px;border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg-alt);">
+  <div id="attachmentUploadArea" style="margin-bottom:12px;border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg-alt);">
     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">📎 上传加工图纸 / 文件（单文件最大 50MB）</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">文件存入本地 IndexedDB · 点击 <b>☁️上传</b> 同步到 GitHub 云端 · 其他电脑通过 <b>🔄从云端同步</b> 获取</div>
     <input type="file" id="attachmentFileInput" multiple accept=".pdf,.png,.jpg,.jpeg,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.zip" onchange="handleAttachmentUpload(this)" style="display:none;">
@@ -1736,9 +1741,11 @@ function refreshAll() {
 // PAGES
 // ============================================================
 function showPage(id) {
-  // Permission check: non-admin can only access bom and purchase pages
+  // Permission check: non-admin can only access bom, purchase pages; buyer also gets stats
   if (currentUser && currentUser.role !== 'admin') {
-    if (id !== 'page-bom' && id !== 'page-purchase') {
+    var allowedPages = ['page-bom', 'page-purchase'];
+    if (currentUser.role === 'buyer') allowedPages.push('page-stats');
+    if (allowedPages.indexOf(id) === -1) {
       toast('权限不足，无法访问该页面', 'error'); return;
     }
   }
@@ -1892,9 +1899,14 @@ function applyRoleUI() {
   // Toggle BOM action column header
   var actionHeader = document.getElementById('bomActionColHeader');
   if (actionHeader) actionHeader.style.display = isAdmin ? '' : 'none';
+  // Stats tab visible for admin and buyer
+  var statsTab = document.getElementById('tab-stats');
+  if (statsTab) statsTab.style.display = (currentUser.role === 'admin' || currentUser.role === 'buyer') ? '' : 'none';
   // If non-admin is on an admin-only page, redirect to bom
   var activePage = document.querySelector('.page.active');
-  if (!isAdmin && activePage && activePage.id !== 'page-bom' && activePage.id !== 'page-purchase') {
+  var nonAdminAllowed = ['page-bom', 'page-purchase'];
+  if (currentUser.role === 'buyer') nonAdminAllowed.push('page-stats');
+  if (!isAdmin && activePage && nonAdminAllowed.indexOf(activePage.id) === -1) {
     showPage('page-bom');
   }
 
@@ -4442,6 +4454,7 @@ function _base64ToArrayBuffer(b64) {
 }
 
 function cloudUploadAttachment(attId, callback) {
+  if (currentUser && currentUser.role !== 'admin') { toast('权限不足，仅管理员可上传附件到云端', 'error'); return; }
   var proj = store.projects[store.currentProject]; if (!proj) return;
   var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
   if (!att) return;
@@ -4541,6 +4554,15 @@ function openAttachmentsModal() {
   document.getElementById('attachments-proj-name').textContent = '项目：' + (proj.name || '');
   document.getElementById('attachmentUploadProgress').textContent = '';
   document.getElementById('attachmentFileInput').value = '';
+  // Toggle upload area disabled state for non-admin
+  var uploadArea = document.getElementById('attachmentUploadArea');
+  if (uploadArea) {
+    if (currentUser && currentUser.role !== 'admin') {
+      uploadArea.classList.add('ctrl-disabled');
+    } else {
+      uploadArea.classList.remove('ctrl-disabled');
+    }
+  }
   renderAttachmentsList();
   document.getElementById('modal-attachments').classList.add('show');
 }
@@ -4549,6 +4571,7 @@ function renderAttachmentsList() {
   var proj = store.projects[store.currentProject];
   var attachments = (proj && proj.attachments) ? proj.attachments : [];
   var el = document.getElementById('attachmentsList');
+  var isAdmin = currentUser && currentUser.role === 'admin';
 
   // 统计云端同步状态
   var totalFiles = attachments.length;
@@ -4559,10 +4582,12 @@ function renderAttachmentsList() {
     var syncSummary = syncedFiles === totalFiles ? '<span style="color:var(--success);">☁️ 全部已同步到云端</span>'
       : syncedFiles > 0 ? '<span style="color:var(--warning);">☁️ '+syncedFiles+'/'+totalFiles+' 已同步</span>'
       : '<span style="color:var(--text-muted);">☁️ 未同步到云端</span>';
+    var batchBtnDisabled = isAdmin ? '' : ' disabled';
+    var batchBtnClass = isAdmin ? '' : ' ctrl-disabled-btn';
     headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;">'
       + '<span>共 '+totalFiles+' 个附件 '+syncSummary+'</span>'
       + '<span><button class="btn btn-sm btn-outline" onclick="cloudListAndSync()" title="查看云端文件并下载本地缺失的">🔄 从云端同步</button>'
-      + ' <button class="btn btn-sm btn-outline admin-only" onclick="batchUploadToCloud()" title="将所有本地附件上传到云端">📤 全部上传云端</button></span>'
+      + ' <button class="btn btn-sm btn-outline'+batchBtnClass+'"'+batchBtnDisabled+' onclick="batchUploadToCloud()" title="将所有本地附件上传到云端">📤 全部上传云端</button></span>'
       + '</div>';
   }
 
@@ -4576,9 +4601,11 @@ function renderAttachmentsList() {
       var sizeStr = att.size > 1048576 ? (att.size/1048576).toFixed(1)+'MB' : (att.size > 1024 ? (att.size/1024).toFixed(0)+'KB' : att.size+'B');
       var timeStr = att.uploadTime ? new Date(att.uploadTime).toLocaleDateString('zh-CN') : '-';
       var cloudIcon = att.cloudSynced ? '<span style="color:var(--success);font-size:14px;" title="已同步到云端">☁️</span>' : '<span style="color:var(--text-muted);font-size:14px;" title="仅本地存储">💻</span>';
+      var disabledBtnClass = isAdmin ? '' : ' ctrl-disabled-btn';
+      var disabledAttr = isAdmin ? '' : ' disabled';
       var cloudBtn = att.cloudSynced
-        ? '<button class="btn btn-sm btn-outline admin-only" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="重新上传">🔄</button>'
-        : '<button class="btn btn-sm btn-outline admin-only" onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="上传到云端">☁️上传</button>';
+        ? '<button class="btn btn-sm btn-outline'+disabledBtnClass+'"'+disabledAttr+' onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="重新上传">🔄</button>'
+        : '<button class="btn btn-sm btn-outline'+disabledBtnClass+'"'+disabledAttr+' onclick="cloudUploadAttachment(\''+att.id+'\',function(err,msg){ toast(msg||err,err?\'error\':\'success\'); renderAttachmentsList(); })" title="上传到云端">☁️上传</button>';
       return '<tr style="border-bottom:1px solid var(--border);">'
         + '<td style="padding:7px 10px;">📄 '+esc(att.name)+'</td>'
         + '<td style="text-align:center;color:var(--text-muted);">'+sizeStr+'</td>'
@@ -4587,13 +4614,14 @@ function renderAttachmentsList() {
         + '<td style="text-align:center;white-space:nowrap;" class="no-print">'
         + '<button class="btn btn-sm btn-primary" onclick="downloadAttachment(\''+att.id+'\')">⬇下载</button> '
         + cloudBtn + ' '
-        + '<button class="btn btn-sm btn-danger admin-only" onclick="deleteAttachmentConfirm(\''+att.id+'\')">🗑</button>'
+        + '<button class="btn btn-sm btn-danger'+disabledBtnClass+'"'+disabledAttr+' onclick="deleteAttachmentConfirm(\''+att.id+'\')">🗑</button>'
         + '</td>'
         + '</tr>';
     }).join('')+'</tbody></table>';
 }
 
 function batchUploadToCloud() {
+  if (currentUser && currentUser.role !== 'admin') { toast('权限不足，仅管理员可上传附件到云端', 'error'); return; }
   var proj = store.projects[store.currentProject];
   var attachments = (proj && proj.attachments) ? proj.attachments : [];
   var unsynced = attachments.filter(function(a){ return !a.cloudSynced; });
@@ -4675,6 +4703,7 @@ function cloudListAndSync() {
 }
 
 function handleAttachmentUpload(input) {
+  if (currentUser && currentUser.role !== 'admin') { toast('权限不足，仅管理员可上传附件', 'error'); return; }
   var files = input.files;
   if (!files || !files.length) return;
   if (!store.currentProject) return;
@@ -4760,6 +4789,10 @@ function downloadAttachment(attId) {
 }
 
 function deleteAttachmentConfirm(attId) {
+  // 非管理员禁止删除附件
+  if (currentUser && currentUser.role !== 'admin') {
+    toast('权限不足，仅管理员可删除附件', 'error'); return;
+  }
   var proj = store.projects[store.currentProject]; if (!proj) return;
   var att = (proj.attachments||[]).find(function(a){ return a.id === attId; });
   if (!att) return;
