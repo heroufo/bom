@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.30</title>
+<title>BOM 智能管理工具 v5.31</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -578,11 +578,11 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <div class="add-form-row">
               <div class="add-form-field form-field-qty">
                 <label>数量</label>
-                <input class="form-control" type="number" id="inp-qty" value="1" min="1">
+                <input class="form-control" type="number" id="inp-qty" value="1" min="1" oninput="autoUpdateStatus()">
               </div>
               <div class="add-form-field form-field-stock">
                 <label>库存</label>
-                <input class="form-control" type="number" id="inp-stock" value="0" min="0">
+                <input class="form-control" type="number" id="inp-stock" value="0" min="0" oninput="autoUpdateStatus()">
               </div>
               <div class="add-form-field form-field-status">
                 <label>状态</label>
@@ -730,6 +730,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         <select class="form-control" style="max-width:120px;" id="libCatFilter" onchange="renderLibrary()"><option value="">全部分类</option></select>
         <button class="btn btn-sm btn-ghost" onclick="toggleLibSortName()" id="libSortNameBtn">🔤 名称</button>
         <button class="btn btn-sm btn-ghost" onclick="toggleLibSortSupplier()" id="libSortSupplierBtn">🏭 供应商</button>
+        <button class="btn btn-sm btn-ghost" onclick="toggleLibSortModel()" id="libSortModelBtn">📐 型号</button>
         <button class="btn btn-sm btn-ghost" onclick="clearLibFilter()">清除</button>
       </div>
     </div>
@@ -811,7 +812,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- ========== PROJECTS PAGE ========== -->
 <div class="page" id="page-projects">
   <div class="card">
-    <div class="card-header"><div class="card-header-left">项目管理</div><div style="display:flex;gap:6px;"><button class="btn btn-icon" onclick="document.getElementById('tencentFileInput').click()">📄 从腾讯文档导入</button><button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button><input type="file" id="tencentFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFromTencentDocsFile(this)"></div></div>
+    <div class="card-header"><div class="card-header-left">项目管理</div><div style="display:flex;gap:6px;"><button class="btn btn-sm btn-ghost" onclick="toggleProjSort()" id="projSortBtn" title="按项目名称排序">🔤 名称</button><button class="btn btn-icon" onclick="document.getElementById('tencentFileInput').click()">📄 从腾讯文档导入</button><button class="btn btn-primary btn-sm" onclick="openNewProjectModal()">+ 新建项目</button><input type="file" id="tencentFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFromTencentDocsFile(this)"></div></div>
     <div class="card-body" style="padding-bottom:0;">
       <div class="notice notice-info" style="margin-bottom:10px;">「从腾讯文档导入」：在腾讯文档中将表格导出为 CSV 或 Excel (.xlsx)，再点击此按钮上传。格式：第1行=项目名 → 第2行="清单" → 第3行=表头（序号/供应商/名称/名称型号/数量/单位/库存/状态/实采/到货状态/备注）→ 之后为数据行。</div>
     </div>
@@ -2170,6 +2171,20 @@ function getProjectYear(projName) {
   return '其他';
 }
 
+function toggleProjSort() {
+  if (projSortDir === '') { projSortDir = 'asc'; }
+  else if (projSortDir === 'asc') { projSortDir = 'desc'; }
+  else { projSortDir = ''; }
+  // Update button visual
+  var btn = document.getElementById('projSortBtn');
+  if (btn) {
+    if (projSortDir === 'asc') btn.innerHTML = '🔤 名称 ▲';
+    else if (projSortDir === 'desc') btn.innerHTML = '🔤 名称 ▼';
+    else btn.innerHTML = '🔤 名称';
+  }
+  renderProjectsTable();
+}
+
 function renderProjectsTable() {
   var tbody = document.getElementById('projectsTbody');
   var projs = Object.values(store.projects);
@@ -2192,7 +2207,17 @@ function renderProjectsTable() {
   var rows = '';
   years.forEach(function(yr) {
     rows += '<tr style="background:linear-gradient(90deg,#e0f2fe,#f0f9ff);"><td colspan="7" style="font-weight:700;font-size:13px;color:#0369a1;padding:6px 12px;letter-spacing:1px;">📅 ' + esc(yr) + '（共 ' + yearGroups[yr].length + ' 个项目）</td></tr>';
-    yearGroups[yr].forEach(function(p) {
+    // 如果启用了名称排序，对年份组内项目排序
+    var projectsInYear = yearGroups[yr];
+    if (projSortDir) {
+      projectsInYear = projectsInYear.slice().sort(function(a, b) {
+        var na = (a.name || '').toLowerCase();
+        var nb = (b.name || '').toLowerCase();
+        if (projSortDir === 'asc') return na < nb ? -1 : na > nb ? 1 : 0;
+        return na > nb ? -1 : na < nb ? 1 : 0;
+      });
+    }
+    projectsInYear.forEach(function(p) {
       var pc = p.bom.filter(function(i){return i.status==='采购';}).length;
       var sc = p.bom.filter(function(i){return i.status==='库存';}).length;
       var isArchived = p.archived === true;
@@ -2302,7 +2327,7 @@ function renderBomTable() {
   // 将标记传递到 filtered 中的 BOM item
   filtered.forEach(function(item){
     var k = (item.name||'')+'|'+(item.supplier||'');
-    if (localKeys[k] && !globalKeys[k]) {
+    if (localKeys[k]) {
       item._localOnly = true;
     }
   });
@@ -2591,12 +2616,40 @@ function addBomEntry() {
   }
 }
 
+// 实时更新状态：数量-库存>0 → 采购，数量-库存≤0 → 库存
+function autoUpdateStatus() {
+  var statusEl = document.getElementById('inp-status');
+  if (!statusEl || statusEl.value !== 'auto') return; // 仅自动模式生效
+  var qty = parseInt(document.getElementById('inp-qty').value) || 0;
+  var stock = parseInt(document.getElementById('inp-stock').value) || 0;
+  if (qty <= 0) return;
+  // 不修改下拉框显示值，仅更新内部标记；实际判断在 addBomEntry 中执行
+  // 这里用视觉提示告诉用户自动判断结果
+  var hint = document.getElementById('statusAutoHint');
+  if (!hint) {
+    hint = document.createElement('span');
+    hint.id = 'statusAutoHint';
+    hint.style.cssText = 'font-size:10px;margin-left:4px;padding:1px 5px;border-radius:3px;';
+    statusEl.parentNode.appendChild(hint);
+  }
+  if (qty - stock > 0) {
+    hint.textContent = '→ 采购';
+    hint.style.background = '#fef3c7'; hint.style.color = '#92400e';
+  } else {
+    hint.textContent = '→ 库存';
+    hint.style.background = '#d1fae5'; hint.style.color = '#065f46';
+  }
+}
+
 function clearAddForm() {
   ['inp-name','inp-supplier','inp-model','inp-taobao','inp-remark'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('inp-qty').value = 1; document.getElementById('inp-stock').value = 0;
   document.getElementById('inp-arrived').value = ''; document.getElementById('inp-status').value = 'auto';
   document.getElementById('chk-save-lib-global').checked = true;
   document.getElementById('chk-save-lib-local').checked = false;
+  // 清除自动判断提示
+  var hint = document.getElementById('statusAutoHint');
+  if (hint) hint.textContent = '';
 }
 
 function deleteBomEntry(id) {
@@ -2886,10 +2939,11 @@ function batchAddFromLib() {
 var libTab = 'global'; // 'global' | 'local'
 var libSortField = ''; // '' | 'name' | 'supplier'
 var libSortDir = '';   // '' | 'asc' | 'desc'
+var projSortDir = '';  // '' | 'asc' | 'desc' — 项目名称排序
 
 function toggleLibSortName() {
-  // Clear supplier sort if active
-  if (libSortField === 'supplier') { libSortField = ''; libSortDir = ''; }
+  // Clear other sorts if active
+  if (libSortField === 'supplier' || libSortField === 'model') { libSortField = ''; libSortDir = ''; }
   if (libSortField === 'name') {
     if (libSortDir === 'asc') { libSortDir = 'desc'; }
     else if (libSortDir === 'desc') { libSortField = ''; libSortDir = ''; }
@@ -2900,8 +2954,8 @@ function toggleLibSortName() {
   renderLibrary();
 }
 function toggleLibSortSupplier() {
-  // Clear name sort if active
-  if (libSortField === 'name') { libSortField = ''; libSortDir = ''; }
+  // Clear other sorts if active
+  if (libSortField === 'name' || libSortField === 'model') { libSortField = ''; libSortDir = ''; }
   if (libSortField === 'supplier') {
     if (libSortDir === 'asc') { libSortDir = 'desc'; }
     else if (libSortDir === 'desc') { libSortField = ''; libSortDir = ''; }
@@ -2911,9 +2965,22 @@ function toggleLibSortSupplier() {
   updateLibSortBtns();
   renderLibrary();
 }
+function toggleLibSortModel() {
+  // Clear other sorts if active
+  if (libSortField === 'name' || libSortField === 'supplier') { libSortField = ''; libSortDir = ''; }
+  if (libSortField === 'model') {
+    if (libSortDir === 'asc') { libSortDir = 'desc'; }
+    else if (libSortDir === 'desc') { libSortField = ''; libSortDir = ''; }
+  } else {
+    libSortField = 'model'; libSortDir = 'asc';
+  }
+  updateLibSortBtns();
+  renderLibrary();
+}
 function updateLibSortBtns() {
   var btnN = document.getElementById('libSortNameBtn');
   var btnS = document.getElementById('libSortSupplierBtn');
+  var btnM = document.getElementById('libSortModelBtn');
   if (btnN) {
     if (libSortField === 'name' && libSortDir === 'asc') { btnN.textContent = '🔤 名称↑'; btnN.style.background = 'var(--primary)'; btnN.style.color = '#fff'; }
     else if (libSortField === 'name' && libSortDir === 'desc') { btnN.textContent = '🔤 名称↓'; btnN.style.background = 'var(--primary)'; btnN.style.color = '#fff'; }
@@ -2923,6 +2990,11 @@ function updateLibSortBtns() {
     if (libSortField === 'supplier' && libSortDir === 'asc') { btnS.textContent = '🏭 供应商↑'; btnS.style.background = 'var(--primary)'; btnS.style.color = '#fff'; }
     else if (libSortField === 'supplier' && libSortDir === 'desc') { btnS.textContent = '🏭 供应商↓'; btnS.style.background = 'var(--primary)'; btnS.style.color = '#fff'; }
     else { btnS.textContent = '🏭 供应商'; btnS.style.background = ''; btnS.style.color = ''; }
+  }
+  if (btnM) {
+    if (libSortField === 'model' && libSortDir === 'asc') { btnM.textContent = '📐 型号↑'; btnM.style.background = 'var(--primary)'; btnM.style.color = '#fff'; }
+    else if (libSortField === 'model' && libSortDir === 'desc') { btnM.textContent = '📐 型号↓'; btnM.style.background = 'var(--primary)'; btnM.style.color = '#fff'; }
+    else { btnM.textContent = '📐 型号'; btnM.style.background = ''; btnM.style.color = ''; }
   }
 }
 
