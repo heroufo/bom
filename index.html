@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.37.2</title>
+<title>BOM 智能管理工具 v5.37.3</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -3327,6 +3327,8 @@ function addBomEntry() {
     taobaoLink: document.getElementById('inp-taobao').value.trim(),
     remark: document.getElementById('inp-remark').value.trim()
   };
+  // 如果是从零件库预填的，记录来源库ID用于后续同步
+  if (_prefilledLibId) { entry.libRefId = _prefilledLibId; _prefilledLibId = null; }
 
   proj.bom.push(entry);
 
@@ -3718,7 +3720,8 @@ function batchAddFromLib() {
     store.projects[store.currentProject].bom.push({
       id:e(), category:l.category||getCategories()[0], name:l.name, supplier:l.supplier||'',
       model:l.model||'', qty:qty, unit:l.unit||'个', stock:libStock, status:status,
-      actualPurchase: actualPurchase, arrived:libArrived, taobaoLink:l.taobaoLink||'', remark:''
+      actualPurchase: actualPurchase, arrived:libArrived, taobaoLink:l.taobaoLink||'', remark:'',
+      libRefId: l.id
     });
     added++;
   });
@@ -3874,6 +3877,7 @@ function clearLibFilter() { document.getElementById('libSearch').value=''; docum
 
 function prefillFromLib(id) {
   var l = store.library.find(function(x){return x.id===id;}); if (!l) return;
+  _prefilledLibId = id; // 记录来源库ID，添加到BOM时会带上
   document.getElementById('inp-name').value = l.name||'';
   document.getElementById('inp-supplier').value = l.supplier||'';
   document.getElementById('inp-model').value = l.model||'';
@@ -3942,16 +3946,30 @@ function updateLibEntry() {
   // Keep the original id, update all other fields
   Object.keys(baseFields).forEach(function(k){ existing[k] = baseFields[k]; });
 
-  // Sync the updated info to ALL projects' BOMs (match by old name+model)
+  // Sync the updated info to ALL projects' BOMs
+  // 优先用 libRefId 精确匹配，兜底用 oldName+oldModel 模糊匹配
   for (var pid in store.projects) {
     var projBom = store.projects[pid].bom;
     if (!projBom) continue;
     projBom.forEach(function(item){
-      // Match by old name+model (what it was before this update) or by same id if tracked
-      if ((item.name||'').toLowerCase()===oldName.toLowerCase() && (item.model||'').toLowerCase()===oldModel.toLowerCase()) {
+      // 1) 精确匹配：libRefId 指向当前编辑的库条目
+      if (item.libRefId && item.libRefId === editId) {
         item.name = name; item.model = model; item.supplier = baseFields.supplier;
         item.category = baseFields.category; item.unit = baseFields.unit;
         item.taobaoLink = baseFields.taobaoLink; item.remark = baseFields.remark;
+        return;
+      }
+      // 2) 兜底匹配：按旧名称+型号（trim 后不区分大小写）
+      var itemName = (item.name||'').trim().toLowerCase();
+      var itemModel = (item.model||'').trim().toLowerCase();
+      var matchName = (oldName||'').trim().toLowerCase();
+      var matchModel = (oldModel||'').trim().toLowerCase();
+      if (itemName === matchName && itemModel === matchModel) {
+        item.name = name; item.model = model; item.supplier = baseFields.supplier;
+        item.category = baseFields.category; item.unit = baseFields.unit;
+        item.taobaoLink = baseFields.taobaoLink; item.remark = baseFields.remark;
+        // 补上 libRefId，下次就能精确匹配了
+        item.libRefId = editId;
       }
     });
   }
@@ -4429,6 +4447,7 @@ function exportPurchaseCSV() {
 // ============================================================
 var _importedData = [];
 var _cachedFromPreview = null; // cache raw rows parsed from file, for reuse without re-reading
+var _prefilledLibId = null; // 从零件库预填时的来源库ID
 
 function openImportModal() {
   if (!store.currentProject) { toast('请先选择项目','warn'); return; }
