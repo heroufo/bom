@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.38.1</title>
+<title>BOM 智能管理工具 v5.38.2</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -2954,19 +2954,24 @@ function bomRowHtml(item, seq) {
     if (item.libRefId) {
       libItem = findLibById(item.libRefId);
     }
-    // 第二层：兜底 — 无 libRefId 的老数据按名称+型号模糊匹配（不区分大小写）
+    // 第二层：兜底 — 无 libRefId 的老数据按名称+型号模糊匹配
     if (!libItem) {
       var itemName = ((item.name||'').trim()).toLowerCase();
       var itemModel = ((item.model||'').trim()).toLowerCase();
       if (itemName) {
         var allLib = (store.library||[]).concat();
-        // 也搜当前项目本地库
         if (proj && Array.isArray(proj.localLibrary)) { allLib = allLib.concat(proj.localLibrary); }
+        // 先试名称+型号全匹配
         libItem = allLib.find(function(x){
           return ((x.name||'').trim()).toLowerCase() === itemName &&
                  ((x.model||'').trim()).toLowerCase() === itemModel;
         });
-        // 兜底匹配到的，自动补上 libRefId，下次就是精确匹配
+        // 全匹配失败（型号可能已变更），退而求其次仅按名称匹配
+        if (!libItem) {
+          libItem = allLib.find(function(x){
+            return ((x.name||'').trim()).toLowerCase() === itemName;
+          });
+        }
         if (libItem && libItem.id) { item.libRefId = libItem.id; }
       }
     }
@@ -3015,7 +3020,7 @@ function syncBomItemFromLib(itemId) {
   var libItem = null;
   // 优先用 libRefId 精确查找
   if (item.libRefId) { libItem = findLibById(item.libRefId); }
-  // 兜底：无 libRefId 的老数据按名称+型号匹配
+  // 兜底：无 libRefId 的老数据按名称+型号匹配（型号变更时退而求其次仅按名称）
   if (!libItem) {
     var itemName = ((item.name||'').trim()).toLowerCase();
     var itemModel = ((item.model||'').trim()).toLowerCase();
@@ -3027,6 +3032,11 @@ function syncBomItemFromLib(itemId) {
         return ((x.name||'').trim()).toLowerCase() === itemName &&
                ((x.model||'').trim()).toLowerCase() === itemModel;
       });
+      if (!libItem) {
+        libItem = allLib.find(function(x){
+          return ((x.name||'').trim()).toLowerCase() === itemName;
+        });
+      }
       if (libItem && libItem.id) { item.libRefId = libItem.id; }
     }
   }
