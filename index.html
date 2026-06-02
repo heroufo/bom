@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.37</title>
+<title>BOM 智能管理工具 v5.37.1</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -627,7 +627,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         <div class="card-header no-print">
           <div class="card-header-left">📋 零部件清单 <span id="bomGroupLabel" style="font-size:11px;color:var(--text-muted);font-weight:400;"></span></div>
           <div style="display:flex;gap:6px;">
-            <input class="form-control" style="width:120px;font-size:12px;" placeholder="搜索..." id="bomSearch" oninput="renderBomTable()">
+            <input class="form-control" style="width:120px;font-size:12px;" placeholder="搜索..." id="bomSearch" oninput="debouncedBomSearch()">
             <select class="form-control" style="width:90px;font-size:12px;" id="bomFilterStatus" onchange="renderBomTable()"><option value="">全部状态</option><option value="采购">采购</option><option value="库存">库存</option></select>
             <button class="btn btn-sm btn-ghost" onclick="sortBomByCategory()">按分类</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
@@ -1023,7 +1023,9 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <label><input type="checkbox" id="lib-save-global" checked>通用</label>
       <label><input type="checkbox" id="lib-save-local">本项目</label>
     </div>
-    <button class="btn btn-gray" onclick="closeModal('modal-lib')">取消</button><button class="btn btn-success" onclick="saveLibEntry()">保存到零件库</button>
+    <button class="btn btn-gray" onclick="closeModal('modal-lib')">取消</button>
+    <button class="btn btn-primary" id="libUpdateBtn" onclick="updateLibEntry()" style="display:none;">更新该零件</button>
+    <button class="btn btn-success" onclick="addLibEntry()">新增到零件库</button>
   </div>
 </div></div>
 
@@ -2728,6 +2730,11 @@ function renderProjectsTable() {
 // ============================================================
 // BOM TABLE
 // ============================================================
+var _bomSearchTimer = null;
+function debouncedBomSearch() {
+  if (_bomSearchTimer) clearTimeout(_bomSearchTimer);
+  _bomSearchTimer = setTimeout(function(){ renderBomTable(); }, 200);
+}
 function renderBomTable() {
   var tbody = document.getElementById('bomTbody');
   if (!tbody) return;
@@ -2775,19 +2782,13 @@ function renderBomTable() {
     }
   }
 
-  // 5. 获取搜索/过滤参数（trim 防止空格干扰）
+  // 5. 获取搜索/过滤参数
   var searchEl = document.getElementById('bomSearch');
   var filterEl = document.getElementById('bomFilterStatus');
   var groupEl = document.getElementById('bomGroupBy');
-  var rawSearchVal = searchEl ? (searchEl.value || '') : '';
-  var searchVal = rawSearchVal.trim().toLowerCase();
+  var searchVal = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
   var statusFilter = filterEl ? (filterEl.value || '').trim() : '';
   var groupBy = groupEl && groupEl.value || 'none';
-
-  // 5b. 防呆：若输入框有异常空白值，自动清理恢复
-  if (rawSearchVal && !searchVal) {
-    searchEl.value = '';
-  }
 
   // 6. 过滤（含高级筛选）
   var advCat = ''; var advSup = ''; var advStk = ''; var advArr = '';
@@ -3903,12 +3904,69 @@ function openLibModal(id) {
   document.getElementById('lib-save-local').checked = isLocal;
   document.getElementById('modal-lib')._editId = id || null;
   document.getElementById('modal-lib')._isLocal = isLocal;
+  // Show/hide update button based on whether editing existing part
+  var updateBtn = document.getElementById('libUpdateBtn');
+  if (updateBtn) updateBtn.style.display = (id && l) ? '' : 'none';
   document.getElementById('modal-lib').classList.add('show');
 }
 
 function editLib(id) { openLibModal(id); }
 
-function saveLibEntry() {
+function updateLibEntry() {
+  var editId = document.getElementById('modal-lib')._editId;
+  var isLocal = document.getElementById('modal-lib')._isLocal;
+  if (!editId) { toast('无法定位要更新的零件','error'); return; }
+  var name = document.getElementById('lib-name').value.trim();
+  if (!name) { toast('请输入零件名称','error'); return; }
+  var model = document.getElementById('lib-model').value.trim();
+
+  var baseFields = {
+    name: name,
+    supplier: document.getElementById('lib-supplier').value.trim(),
+    model: model,
+    category: document.getElementById('lib-category').value,
+    unit: document.getElementById('lib-unit').value,
+    taobaoLink: document.getElementById('lib-taobao').value.trim(),
+    remark: document.getElementById('lib-remark').value.trim()
+  };
+
+  // Update the existing entry in-place within its source library
+  var source = isLocal ? getLocalLib() : store.library;
+  var existing = source.find(function(x){ return x.id === editId; });
+  if (existing) {
+    // Keep the original id, update all other fields
+    Object.keys(baseFields).forEach(function(k){ existing[k] = baseFields[k]; });
+  } else {
+    toast('零件在库中已不存在','error'); return;
+  }
+
+  // Also sync the updated info to all projects' BOMs (match by old name/model and new name)
+  // We need both the old identity (from before the edit) and the new identity
+  // Actually, after the update, we match by the new name+model in the projects
+  var oldName = existing.name; var oldModel = existing.model;
+  for (var pid in store.projects) {
+    var projBom = store.projects[pid].bom;
+    if (!projBom) continue;
+    projBom.forEach(function(item){
+      // Match by old name+model (what it was before this update) or by same id if tracked
+      if ((item.name||'').toLowerCase()===oldName.toLowerCase() && (item.model||'').toLowerCase()===oldModel.toLowerCase()) {
+        item.name = name; item.model = model; item.supplier = baseFields.supplier;
+        item.category = baseFields.category; item.unit = baseFields.unit;
+        item.taobaoLink = baseFields.taobaoLink; item.remark = baseFields.remark;
+      }
+    });
+  }
+
+  var saved = saveStoreDebounced();
+  closeModal('modal-lib'); markDirty('library'); markDirty('badges'); markDirty('quickLib'); markDirty('bomTable');
+  if (!saved) {
+    toast('⚠️ 保存失败，请检查浏览器存储空间', 'error');
+  } else {
+    toast('零件「'+name+'」已更新，所有项目已同步', 'success');
+  }
+}
+
+function addLibEntry() {
   var name = document.getElementById('lib-name').value.trim();
   if (!name) { toast('请输入零件名称','error'); return; }
   var model = document.getElementById('lib-model').value.trim();
@@ -3926,34 +3984,9 @@ function saveLibEntry() {
     remark: document.getElementById('lib-remark').value.trim()
   };
 
-  var syncTarget = function(targetList, listLabel) {
-    // Find existing by name+model
-    var existing = targetList.find(function(l){
-      return l.name.toLowerCase()===name.toLowerCase() && (l.model||'').toLowerCase()===model.toLowerCase();
-    });
-    if (existing) {
-      existing.name = name; existing.model = model;
-      Object.keys(baseFields).forEach(function(k){ existing[k] = baseFields[k]; });
-    } else {
-      targetList.push(Object.assign({id: e()}, baseFields));
-    }
-  };
-
-  if (saveGlobal) syncTarget(store.library, '通用库');
-  if (saveLocal) syncTarget(getLocalLib(), '本项目库');
-
-  // Sync to ALL projects' BOMs (not just current)
-  for (var pid in store.projects) {
-    var projBom = store.projects[pid].bom;
-    if (!projBom) continue;
-    projBom.forEach(function(item){
-      if (item.name.toLowerCase()===name.toLowerCase() && (item.model||'').toLowerCase()===model.toLowerCase()) {
-        item.name = name; item.model = model; item.supplier = baseFields.supplier;
-        item.category = baseFields.category; item.unit = baseFields.unit;
-        item.taobaoLink = baseFields.taobaoLink;
-      }
-    });
-  }
+  // Always create as a NEW entry (do NOT match existing)
+  if (saveGlobal) { store.library.push(Object.assign({id: e()}, baseFields)); }
+  if (saveLocal) { getLocalLib().push(Object.assign({id: e()}, baseFields)); }
 
   var saved = saveStoreDebounced();
   closeModal('modal-lib'); markDirty('library'); markDirty('badges'); markDirty('quickLib'); markDirty('bomTable');
@@ -3963,7 +3996,7 @@ function saveLibEntry() {
     var targets = [];
     if (saveGlobal) targets.push('通用库');
     if (saveLocal) targets.push('本项目库');
-    toast('零件「'+name+'」已保存到 '+targets.join(' + '), 'success');
+    toast('零件「'+name+'」已新增到 '+targets.join(' + '), 'success');
   }
 }
 
