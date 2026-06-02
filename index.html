@@ -3625,9 +3625,43 @@ function updatePurchaseArrival(itemId, newStatus) {
   item.arrived = newStatus;
   saveStoreDebounced();
 
-  // Re-render the purchase list + BOM table to reflect the change
-  markDirty('purchaseList'); markDirty('bomTable'); markDirty('bomStats');
+  // 局部更新 BOM 行（避免全表重建），同时刷新实采页单行和统计
+  updateBomRow(itemId);
+  updatePurchaseRow(itemId);
+  markDirty('bomStats');
   toast('到货状态已更新', 'success');
+}
+
+// 实采页：局部更新单行的到货 select（避免全表重建）
+function updatePurchaseRow(itemId) {
+  var tbody = document.getElementById('purchaseTbody');
+  if (!tbody) return;
+  var oldRow = tbody.querySelector('tr[data-item-id="'+itemId+'"]');
+  if (!oldRow) return; // 实采页未渲染或该条目不在当前实采清单中，忽略
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) return;
+  var item = proj.bom.find(function(i){ return i.id === itemId; });
+  if (!item) return;
+  // 只替换到货 select 列，避免全行重建影响序号等
+  var sel = oldRow.querySelector('select.arrival-select');
+  if (sel) {
+    var newSel = document.createElement('select');
+    newSel.className = 'arrival-select';
+    newSel.setAttribute('onchange', "updatePurchaseArrival('"+itemId+"',this.value)");
+    newSel.setAttribute('data-prev', item.arrived || '');
+    var options = [{v:'', label:'- 待到货'},{v:'已到', label:'✓ 已到'},{v:'未到', label:'✗ 未到'},{v:'部分到', label:'◐ 部分到'}];
+    options.forEach(function(opt){
+      var o = document.createElement('option');
+      o.value = opt.v;
+      o.textContent = opt.label;
+      if (opt.v === (item.arrived || '')) o.selected = true;
+      newSel.appendChild(o);
+    });
+    // 权限：guest 禁用
+    if (currentUser && currentUser.role === 'guest') newSel.disabled = true;
+    else if (currentUser && currentUser.role !== 'admin' && proj.archived) newSel.disabled = true;
+    sel.parentNode.replaceChild(newSel, sel);
+  }
 }
 
 // Render the saved purchase list (called when switching to purchase page)
