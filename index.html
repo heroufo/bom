@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.36.2</title>
+<title>BOM 智能管理工具 v5.37</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -91,7 +91,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',-apple-system,sans-serif;backgr
 .btn-ghost-header:hover{color:var(--header-text);background:rgba(255,255,255,.08)}
 
 /* TABS */
-.tabs{background:var(--bg);padding:12px 20px 0;display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap}
+.tabs{background:var(--bg);padding:12px 20px 0;display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:56px;z-index:99}
 .tab{padding:9px 18px;cursor:pointer;font-weight:500;color:var(--text-secondary);border-radius:8px 8px 0 0;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;background:transparent;border:1px solid transparent;border-bottom:none;position:relative}
 .tab:hover{color:var(--primary);background:var(--card-bg)}
 .tab.active{color:var(--primary);background:var(--card-bg);border-color:var(--border);font-weight:600;box-shadow:0 -2px 8px rgba(0,0,0,.04)}
@@ -206,7 +206,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .bom-row-local td:first-child{padding-left:12px;font-weight:700}
 
 /* PROJECT BAR (new two-row) */
-.proj-bar{background:var(--card-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;border:1px solid var(--border);overflow:hidden}
+.proj-bar{background:var(--card-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;border:1px solid var(--border);overflow:hidden;position:sticky;top:104px;z-index:98}
 .proj-bar-main{display:flex;gap:8px;align-items:center;padding:10px 14px;flex-wrap:wrap}
 .proj-bar-main label{font-weight:600;color:var(--text-secondary);white-space:nowrap;font-size:13px}
 .proj-bar-tools{display:flex;gap:6px;align-items:center;padding:7px 14px;border-top:1px solid var(--border-light);background:var(--bg);flex-wrap:wrap}
@@ -492,6 +492,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <select class="form-control" style="max-width:500px;font-size:16px;" id="projSelect" onchange="switchProject(this.value)"><option value="">-- 选择项目 --</option></select>
       <span id="projNameDisplay" class="proj-name-display" style="display:none;"></span>
       <button class="btn btn-primary admin-only" onclick="openNewProjectModal()">+ 新建项目</button>
+      <button class="btn btn-icon admin-only" onclick="refreshCurrentProject()" title="刷新当前项目数据">🔄 刷新</button>
       <button class="btn btn-success btn-lg admin-only" id="genPurchaseBtn" onclick="generatePurchaseList()" style="margin-left:auto;">📋 一键生成实采清单</button>
       <button class="btn btn-icon" onclick="openAttachmentsModal()" title="查看/上传项目附件" id="attachmentsBtn">📎 附件</button>
     </div>
@@ -2519,6 +2520,23 @@ function switchProject(id) {
   refreshAll();
   toast('已切换到：'+store.projects[id].name);
 }
+
+function refreshCurrentProject() {
+  if (!store.currentProject) { toast('请先选择项目','warn'); return; }
+  // 重置筛选和勾选状态
+  var advBar = document.getElementById('bomAdvFilterBar');
+  if (advBar) { advBar.style.display = 'none'; }
+  var advBtn = document.getElementById('bomAdvFilterBtn');
+  if (advBtn) { advBtn.textContent = '🔻筛选'; }
+  var els = ['advFilterCategory','advFilterSupplier','advFilterStock','advFilterArrival','bomSearch','bomFilterStatus'];
+  els.forEach(function(eid){ var el = document.getElementById(eid); if (el) el.value = ''; });
+  bomSelectedIds.clear();
+  var bar = document.getElementById('bomBatchBar');
+  if (bar) bar.style.display = 'none';
+  refreshAll();
+  toast('项目数据已刷新', 'success');
+}
+
 function openNewProjectModal() { document.getElementById('newProjectName').value=''; document.getElementById('newProjectDesc').value=''; document.getElementById('modal-project').classList.add('show'); setTimeout(function(){document.getElementById('newProjectName').focus();},100); }
 function createProject() {
   var name = document.getElementById('newProjectName').value.trim();
@@ -3924,14 +3942,18 @@ function saveLibEntry() {
   if (saveGlobal) syncTarget(store.library, '通用库');
   if (saveLocal) syncTarget(getLocalLib(), '本项目库');
 
-  // Also update in current project BOM if this item exists there
-  var bom = currentBom();
-  bom.forEach(function(item){
-    if (item.name.toLowerCase()===name.toLowerCase() && (item.model||'').toLowerCase()===model.toLowerCase()) {
-      item.name = name; item.model = model; item.supplier = baseFields.supplier;
-      item.category = baseFields.category; item.unit = baseFields.unit;
-    }
-  });
+  // Sync to ALL projects' BOMs (not just current)
+  for (var pid in store.projects) {
+    var projBom = store.projects[pid].bom;
+    if (!projBom) continue;
+    projBom.forEach(function(item){
+      if (item.name.toLowerCase()===name.toLowerCase() && (item.model||'').toLowerCase()===model.toLowerCase()) {
+        item.name = name; item.model = model; item.supplier = baseFields.supplier;
+        item.category = baseFields.category; item.unit = baseFields.unit;
+        item.taobaoLink = baseFields.taobaoLink;
+      }
+    });
+  }
 
   var saved = saveStoreDebounced();
   closeModal('modal-lib'); markDirty('library'); markDirty('badges'); markDirty('quickLib'); markDirty('bomTable');
