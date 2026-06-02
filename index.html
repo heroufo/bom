@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.37.1</title>
+<title>BOM 智能管理工具 v5.37.2</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -3933,17 +3933,16 @@ function updateLibEntry() {
   // Update the existing entry in-place within its source library
   var source = isLocal ? getLocalLib() : store.library;
   var existing = source.find(function(x){ return x.id === editId; });
-  if (existing) {
-    // Keep the original id, update all other fields
-    Object.keys(baseFields).forEach(function(k){ existing[k] = baseFields[k]; });
-  } else {
-    toast('零件在库中已不存在','error'); return;
-  }
+  if (!existing) { toast('零件在库中已不存在','error'); return; }
 
-  // Also sync the updated info to all projects' BOMs (match by old name/model and new name)
-  // We need both the old identity (from before the edit) and the new identity
-  // Actually, after the update, we match by the new name+model in the projects
+  // CRITICAL: capture old identity BEFORE updating existing in-place,
+  // otherwise oldName/oldModel would equal the new values and projects won't match.
   var oldName = existing.name; var oldModel = existing.model;
+
+  // Keep the original id, update all other fields
+  Object.keys(baseFields).forEach(function(k){ existing[k] = baseFields[k]; });
+
+  // Sync the updated info to ALL projects' BOMs (match by old name+model)
   for (var pid in store.projects) {
     var projBom = store.projects[pid].bom;
     if (!projBom) continue;
