@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.38</title>
+<title>BOM 智能管理工具 v5.38.1</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -2946,12 +2946,33 @@ function bomRowHtml(item, seq) {
 
   // 方案A：检查零件库是否有新版本（仅非归档项目显示）
   var staleBadge = '';
-  if (item.libRefId) {
-    var proj = store.projects[store.currentProject];
-    var isArchived = proj && proj.archived;
-    if (!isArchived) {
-      var libItem = findLibById(item.libRefId);
-      if (libItem && libItem.updatedAt && item.libSyncedAt && libItem.updatedAt > item.libSyncedAt) {
+  var proj = store.projects[store.currentProject];
+  var isArchived = proj && proj.archived;
+  if (!isArchived) {
+    var libItem = null;
+    // 第一层：精确匹配 libRefId
+    if (item.libRefId) {
+      libItem = findLibById(item.libRefId);
+    }
+    // 第二层：兜底 — 无 libRefId 的老数据按名称+型号模糊匹配（不区分大小写）
+    if (!libItem) {
+      var itemName = ((item.name||'').trim()).toLowerCase();
+      var itemModel = ((item.model||'').trim()).toLowerCase();
+      if (itemName) {
+        var allLib = (store.library||[]).concat();
+        // 也搜当前项目本地库
+        if (proj && Array.isArray(proj.localLibrary)) { allLib = allLib.concat(proj.localLibrary); }
+        libItem = allLib.find(function(x){
+          return ((x.name||'').trim()).toLowerCase() === itemName &&
+                 ((x.model||'').trim()).toLowerCase() === itemModel;
+        });
+        // 兜底匹配到的，自动补上 libRefId，下次就是精确匹配
+        if (libItem && libItem.id) { item.libRefId = libItem.id; }
+      }
+    }
+    if (libItem && libItem.updatedAt) {
+      // libSyncedAt 缺失视为从未同步（老数据），只要库有 updatedAt 就显示标记
+      if (!item.libSyncedAt || libItem.updatedAt > item.libSyncedAt) {
         staleBadge = ' <span title="零件库中有新版本，点击同步" style="display:inline-block;font-size:9px;background:#f59e0b;color:#fff;border-radius:3px;padding:0 4px;margin-left:4px;vertical-align:middle;cursor:pointer;" onclick="syncBomItemFromLib(\''+item.id+'\')">⚠ 库有新版本</span>';
       }
     }
@@ -2990,9 +3011,26 @@ function getBomItem(id) {
 // 方案A：单行同步 — 从零件库拉取最新数据覆盖 BOM 条目
 function syncBomItemFromLib(itemId) {
   var item = getBomItem(itemId);
-  if (!item || !item.libRefId) { toast('该零件未关联零件库，无法同步','warn'); return; }
-  var libItem = findLibById(item.libRefId);
-  if (!libItem) { toast('零件在库中已不存在','error'); return; }
+  if (!item) { toast('零件不存在','error'); return; }
+  var libItem = null;
+  // 优先用 libRefId 精确查找
+  if (item.libRefId) { libItem = findLibById(item.libRefId); }
+  // 兜底：无 libRefId 的老数据按名称+型号匹配
+  if (!libItem) {
+    var itemName = ((item.name||'').trim()).toLowerCase();
+    var itemModel = ((item.model||'').trim()).toLowerCase();
+    if (itemName) {
+      var proj = store.projects[store.currentProject];
+      var allLib = (store.library||[]).concat();
+      if (proj && Array.isArray(proj.localLibrary)) { allLib = allLib.concat(proj.localLibrary); }
+      libItem = allLib.find(function(x){
+        return ((x.name||'').trim()).toLowerCase() === itemName &&
+               ((x.model||'').trim()).toLowerCase() === itemModel;
+      });
+      if (libItem && libItem.id) { item.libRefId = libItem.id; }
+    }
+  }
+  if (!libItem) { toast('该零件未关联零件库，无法同步','warn'); return; }
 
   // 检查是否真的有更新
   if (item.libSyncedAt && libItem.updatedAt && libItem.updatedAt <= item.libSyncedAt) {
