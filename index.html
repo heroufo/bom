@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.36</title>
+<title>BOM 智能管理工具 v5.36.1</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -503,7 +503,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         <option value="none">不分组</option>
       </select>
       <button class="btn btn-icon" onclick="exportBomExcel()">📥 导出Excel</button>
-      <button class="btn btn-icon" onclick="openImportModal()">📤 导入CSV</button>
+      <button class="btn btn-icon" onclick="openImportModal()">📤 导入</button>
       <button class="btn btn-icon" onclick="exportBomToTencentDocs()">📄 导出文档</button>
     </div>
   </div>
@@ -1127,15 +1127,15 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
 </div></div>
 
-<!-- CSV Import modal -->
-<div class="modal-overlay" id="modal-import"><div class="modal wide">
-  <div class="modal-title">📤 导入CSV到BOM</div>
+<!-- CSV/Excel Import modal -->
+<div class="modal-overlay" id="modal-csv-import"><div class="modal wide">
+  <div class="modal-title">📤 导入CSV/Excel到BOM</div>
   <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
-    请选择CSV文件导入。格式要求：<b>分类, 供应商, 名称, 型号, 数量, 单位, 库存, 状态, 实际采购数, 到货状态, 淘宝链接, 备注</b>（不含表头）<br>
+    支持导入 <b>CSV</b> 或 <b>Excel (.xlsx/.xls)</b> 文件。格式要求：<b>分类, 供应商, 名称, 型号, 数量, 单位, 库存, 状态, 实际采购数, 到货状态, 淘宝链接, 备注</b>（不含表头）<br>
     可先<a href="#" onclick="downloadImportTemplate();return false;" style="color:var(--primary);">下载导入模板</a>参考格式。
   </div>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-    <input type="file" id="importCsvFile" accept=".csv" onchange="handleCsvFile(this)" style="flex:1;">
+    <input type="file" id="importCsvFile" accept=".csv,.xlsx,.xls" onchange="handleImportFile(this)" style="flex:1;">
   </div>
   <div id="importPreview" style="max-height:300px;overflow-y:auto;font-size:12px;margin-bottom:10px;display:none;">
     <div style="font-weight:600;margin-bottom:4px;">预览（前10行）：</div>
@@ -1148,7 +1148,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div id="importSummary" style="margin-top:6px;color:var(--text-secondary);"></div>
   </div>
   <div class="modal-actions">
-    <button class="btn btn-gray" onclick="closeModal('modal-import')">取消</button>
+    <button class="btn btn-gray" onclick="closeModal('modal-csv-import')">取消</button>
     <button class="btn btn-outline" onclick="downloadImportTemplate()">📥 下载模板</button>
     <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled>确认导入</button>
   </div>
@@ -4370,106 +4370,107 @@ function exportPurchaseCSV() {
 }
 
 // ============================================================
-// CSV IMPORT
+// CSV / EXCEL IMPORT
 // ============================================================
 var _importedData = [];
+var _cachedFromPreview = null; // cache raw rows parsed from file, for reuse without re-reading
 
 function openImportModal() {
   if (!store.currentProject) { toast('请先选择项目','warn'); return; }
   var proj = store.projects[store.currentProject];
   if (proj && proj.archived) { toast('该项目已归档，无法导入','warn'); return; }
   _importedData = [];
+  _cachedFromPreview = null;
   document.getElementById('importCsvFile').value = '';
   document.getElementById('importPreview').style.display = 'none';
   document.getElementById('importConfirmBtn').disabled = true;
   document.getElementById('importPreviewTbody').innerHTML = '';
   document.getElementById('importSummary').textContent = '';
-  document.getElementById('modal-import').classList.add('show');
+  document.getElementById('modal-csv-import').classList.add('show');
 }
 
 function downloadImportTemplate() {
-  // Fields: 分类, 供应商, 名称, 型号, 数量, 单位, 库存, 状态, 实际采购数, 到货状态, 淘宝链接, 备注
   var header = '分类,供应商,名称,型号,数量,单位,库存,状态,实际采购数,到货状态,淘宝链接,备注';
   var sampleRows = [
     '标准件,XX五金,螺栓M8x30,GB/T5783,50,个,10,采购,40,未到,https://item.taobao.com/xxx,重要',
     '传感器仪表,YY电子,压力变送器,PT-100,5,台,2,库存,3,已到,,备件'
   ];
-  var content = '\ufeff' + header + '\n' + sampleRows.join('\n');
-  var blob = new Blob([content], {type:'text/csv;charset=utf-8'});
+  // CSV template
+  var csvContent = '\ufeff' + header + '\n' + sampleRows.join('\n');
+  var blob = new Blob([csvContent], {type:'text/csv;charset=utf-8'});
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'BOM导入模板.csv'; a.click();
-  toast('模板已下载', 'success');
+
+  // Also offer Excel template after a tiny delay (two downloads)
+  setTimeout(function(){
+    var rows = [header.split(',')].concat(sampleRows.map(function(r){ return r.split(','); }));
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'BOM');
+    XLSX.writeFile(wb, 'BOM导入模板.xlsx');
+    toast('CSV和Excel模板已下载', 'success');
+  }, 300);
+  toast('CSV模板已下载', 'success');
 }
 
-function handleCsvFile(input) {
+function handleImportFile(input) {
   var file = input.files[0];
   if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var text = e.target.result;
-    // Remove BOM
-    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-    var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
-    if (lines.length === 0) { toast('文件为空','error'); return; }
-    // Check if first line looks like a header
-    var firstLine = lines[0].toLowerCase();
-    var isHeader = firstLine.indexOf('分类') !== -1 || firstLine.indexOf('供应商') !== -1 || firstLine.indexOf('名称') !== -1;
-    var startIdx = isHeader ? 1 : 0;
-    var data = [];
-    var errors = [];
-    var fieldNames = ['category','supplier','name','model','qty','unit','stock','status','actualPurchase','arrived','taobaoLink','remark'];
-    for (var i = startIdx; i < lines.length; i++) {
-      var cols = parseCsvLine(lines[i]);
-      if (cols.length < 2) continue; // skip empty lines
-      if (!cols[2] || !cols[2].trim()) { errors.push('第'+(i+1)+'行：名称为空，已跳过'); continue; }
-      var entry = {};
-      for (var j = 0; j < fieldNames.length; j++) {
-        var val = (cols[j] || '').trim();
-        if (fieldNames[j] === 'qty') {
-          val = parseInt(val) || 0;
-        } else if (fieldNames[j] === 'stock') {
-          val = parseInt(val) || 0;
-        } else if (fieldNames[j] === 'actualPurchase') {
-          val = parseInt(val) || 0;
+  var ext = (file.name || '').toLowerCase();
+  if (ext.endsWith('.csv')) {
+    // CSV path
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var text = e.target.result;
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
+      if (lines.length === 0) { toast('文件为空','error'); return; }
+      var firstLine = lines[0].toLowerCase();
+      var isHeader = firstLine.indexOf('分类') !== -1 || firstLine.indexOf('供应商') !== -1 || firstLine.indexOf('名称') !== -1;
+      var startIdx = isHeader ? 1 : 0;
+      _cachedFromPreview = [];
+      for (var i = startIdx; i < lines.length; i++) {
+        var cols = parseCsvLine(lines[i]);
+        if (cols.length < 2) continue;
+        _cachedFromPreview.push(cols);
+      }
+      processRows(_cachedFromPreview, isHeader);
+    };
+    reader.readAsText(file, 'UTF-8');
+  } else {
+    // Excel path (.xlsx / .xls)
+    var reader2 = new FileReader();
+    reader2.onload = function(e) {
+      try {
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:'array'});
+        var firstSheet = wb.SheetNames[0];
+        var ws = wb.Sheets[firstSheet];
+        var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        if (rows.length === 0) { toast('文件为空','error'); return; }
+        // Detect header
+        var firstRow = rows[0];
+        var firstStr = (Array.isArray(firstRow) ? firstRow.join(',') : '').toLowerCase();
+        var isHeader = firstStr.indexOf('分类') !== -1 || firstStr.indexOf('供应商') !== -1 || firstStr.indexOf('名称') !== -1;
+        var startIdx = isHeader ? 1 : 0;
+        _cachedFromPreview = [];
+        for (var j = startIdx; j < rows.length; j++) {
+          var row = rows[j];
+          if (!Array.isArray(row)) continue;
+          // Convert all cells to strings
+          var strRow = row.map(function(cell){
+            if (cell === null || cell === undefined) return '';
+            return String(cell);
+          });
+          if (strRow.length < 2) continue;
+          _cachedFromPreview.push(strRow);
         }
-        entry[fieldNames[j]] = val;
+        processRows(_cachedFromPreview, isHeader);
+      } catch(err) {
+        toast('Excel解析失败：' + err.message, 'error');
       }
-      // Default status if empty
-      if (!entry.status || (entry.status !== '采购' && entry.status !== '库存')) {
-        entry.status = '采购';
-      }
-      // Default arrived if empty
-      if (!entry.arrived || (entry.arrived !== '已到' && entry.arrived !== '未到' && entry.arrived !== '部分到')) {
-        entry.arrived = '未到';
-      }
-      data.push(entry);
-    }
-    _importedData = data;
-    // Show preview
-    var preview = document.getElementById('importPreview');
-    var tbody = document.getElementById('importPreviewTbody');
-    var summary = document.getElementById('importSummary');
-    preview.style.display = 'block';
-    tbody.innerHTML = '';
-    var showCount = Math.min(data.length, 10);
-    for (var k = 0; k < showCount; k++) {
-      var e = data[k];
-      tbody.innerHTML += '<tr style="border-bottom:1px solid var(--border);">' +
-        '<td>'+(k+1)+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.supplier)+'</td><td>'+esc(e.name)+'</td>' +
-        '<td>'+esc(e.model)+'</td><td>'+e.qty+'</td><td>'+esc(e.unit)+'</td><td>'+e.stock+'</td>' +
-        '<td>'+esc(e.status)+'</td><td>'+e.actualPurchase+'</td><td>'+esc(e.arrived)+'</td>' +
-        '<td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.taobaoLink || '')+'</td>' +
-        '<td>'+esc(e.remark || '')+'</td></tr>';
-    }
-    if (data.length > 10) {
-      tbody.innerHTML += '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:4px;">... 共 ' + data.length + ' 条，仅显示前10条</td></tr>';
-    }
-    summary.textContent = '共解析 ' + data.length + ' 条数据' + (errors.length > 0 ? '，' + errors.length + ' 条错误' : '') + (isHeader ? '（已跳过表头行）' : '');
-    document.getElementById('importConfirmBtn').disabled = data.length === 0;
-    if (errors.length > 0 && errors.length <= 5) {
-      errors.forEach(function(err){ summary.textContent += '\n' + err; });
-    }
-  };
-  reader.readAsText(file, 'UTF-8');
+    };
+    reader2.readAsArrayBuffer(file);
+  }
 }
 
 function parseCsvLine(line) {
@@ -4493,6 +4494,56 @@ function parseCsvLine(line) {
   return result;
 }
 
+function processRows(rawRows, isHeader) {
+  var fieldNames = ['category','supplier','name','model','qty','unit','stock','status','actualPurchase','arrived','taobaoLink','remark'];
+  var data = [];
+  var errors = [];
+  for (var i = 0; i < rawRows.length; i++) {
+    var cols = rawRows[i];
+    if (!cols[2] || !cols[2].trim()) { errors.push('第'+(i+1+ (isHeader?1:0))+'行：名称为空，已跳过'); continue; }
+    var entry = {};
+    for (var j = 0; j < fieldNames.length; j++) {
+      var val = (cols[j] || '').trim();
+      if (fieldNames[j] === 'qty' || fieldNames[j] === 'stock' || fieldNames[j] === 'actualPurchase') {
+        val = parseInt(val) || 0;
+      }
+      entry[fieldNames[j]] = val;
+    }
+    if (!entry.status || (entry.status !== '采购' && entry.status !== '库存')) {
+      entry.status = '采购';
+    }
+    if (!entry.arrived || (entry.arrived !== '已到' && entry.arrived !== '未到' && entry.arrived !== '部分到')) {
+      entry.arrived = '未到';
+    }
+    data.push(entry);
+  }
+  _importedData = data;
+  // Show preview
+  var preview = document.getElementById('importPreview');
+  var tbody = document.getElementById('importPreviewTbody');
+  var summary = document.getElementById('importSummary');
+  preview.style.display = 'block';
+  tbody.innerHTML = '';
+  var showCount = Math.min(data.length, 10);
+  for (var k = 0; k < showCount; k++) {
+    var e = data[k];
+    tbody.innerHTML += '<tr style="border-bottom:1px solid var(--border);">' +
+      '<td>'+(k+1)+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.supplier)+'</td><td>'+esc(e.name)+'</td>' +
+      '<td>'+esc(e.model)+'</td><td>'+e.qty+'</td><td>'+esc(e.unit)+'</td><td>'+e.stock+'</td>' +
+      '<td>'+esc(e.status)+'</td><td>'+e.actualPurchase+'</td><td>'+esc(e.arrived)+'</td>' +
+      '<td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.taobaoLink || '')+'</td>' +
+      '<td>'+esc(e.remark || '')+'</td></tr>';
+  }
+  if (data.length > 10) {
+    tbody.innerHTML += '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:4px;">... 共 ' + data.length + ' 条，仅显示前10条</td></tr>';
+  }
+  summary.textContent = '共解析 ' + data.length + ' 条数据' + (errors.length > 0 ? '，' + errors.length + ' 条错误' : '') + (isHeader ? '（已跳过表头行）' : '');
+  document.getElementById('importConfirmBtn').disabled = data.length === 0;
+  if (errors.length > 0 && errors.length <= 5) {
+    errors.forEach(function(err){ summary.textContent += '\n' + err; });
+  }
+}
+
 function confirmImport() {
   if (_importedData.length === 0) { toast('没有可导入的数据','warn'); return; }
   if (!store.currentProject) { toast('请先选择项目','error'); return; }
@@ -4507,7 +4558,7 @@ function confirmImport() {
   });
   saveStoreDebounced(true);
   markDirty('bomTable'); markDirty('badges'); markDirty('quickLib'); markDirty('library');
-  closeModal('modal-import');
+  closeModal('modal-csv-import');
   refreshAll();
   toast('成功导入 ' + added + ' 条零件', 'success');
 }
