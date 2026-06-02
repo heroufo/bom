@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.36.1</title>
+<title>BOM 智能管理工具 v5.36.2</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -3433,7 +3433,8 @@ function saveEditEntry() {
   var bom = currentBom(); var idx = bom.findIndex(function(i){return i.id===id;}); if (idx<0) return;
   var qty = parseFloat(document.getElementById('edit-qty').value)||1;
   var stock = parseFloat(document.getElementById('edit-stock').value)||0;
-  var status = document.getElementById('edit-status').value;
+  // 数量-库存=0 → 自动切换为库存，反之则为采购
+  var status = (qty - stock <= 0) ? '库存' : '采购';
   var actualPurchase = status==='采购' ? Math.max(0,qty-stock) : 0;
   bom[idx] = Object.assign({}, bom[idx], {
     category: document.getElementById('edit-category').value,
