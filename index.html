@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.34</title>
+<title>BOM 智能管理工具 v5.35</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -523,6 +523,12 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           <span>📦 从零件库快速选件</span>
           <button class="btn btn-sm btn-ghost" onclick="toggleQuickPanel()" style="font-size:18px;line-height:1;padding:0 4px;">−</button>
         </div>
+        <!-- 全局智能搜索入口 -->
+        <div style="padding:6px 8px 0;border-bottom:1px solid var(--border-light);">
+          <button class="btn btn-sm" onclick="openGlobalSearch()" style="width:100%;text-align:left;background:var(--bg);color:var(--text-secondary);font-size:12px;border:1px dashed var(--border);border-radius:4px;padding:5px 10px;">
+            🔍 全局搜索：跨所有项目查找零件...
+          </button>
+        </div>
         <div id="quickPanelBody">
           <div class="quick-search-row">
             <input class="form-control" placeholder="搜索名称/供应商/型号..." id="quickSearch" oninput="renderQuickLib()">
@@ -592,7 +598,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
               </div>
               <div class="add-form-field form-field-arrived">
                 <label>到货</label>
-                <select class="form-control" id="inp-arrived"><option value="">-</option><option value="已到">已到</option><option value="未到">未到</option><option value="部分到">部分到</option></select>
+                <select class="form-control" id="inp-arrived"><option value="">-待到货</option><option value="未到" selected>✗ 未到</option><option value="已到">✓ 已到</option><option value="部分到">◐ 部分到</option></select>
               </div>
               <div class="form-field-pair">
                 <div class="pair-item pair-50"><label>淘宝链接</label><input class="form-control" id="inp-taobao" placeholder="粘贴淘宝链接..."></div>
@@ -625,12 +631,49 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomByArrival()">按到货</button>
             <button class="btn btn-sm btn-success admin-only" onclick="syncBomToLibrary()" title="将BOM中零件库没有的零件同步到通用库">🔄 同步到库</button>
+            <button class="btn btn-sm btn-outline" onclick="toggleBomAdvFilter()" id="bomAdvFilterBtn" title="高级筛选">🔻筛选</button>
           </div>
+        </div>
+        <!-- 高级筛选栏 -->
+        <div id="bomAdvFilterBar" style="display:none;padding:6px 12px;background:var(--bg);border-bottom:1px solid var(--border);font-size:12px;">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+            <span style="color:var(--text-muted);">高级筛选：</span>
+            <select class="form-control" style="max-width:110px;font-size:12px;" id="advFilterCategory" onchange="applyBomAdvFilter()"><option value="">全部分类</option></select>
+            <select class="form-control" style="max-width:120px;font-size:12px;" id="advFilterSupplier" onchange="applyBomAdvFilter()"><option value="">全部供应商</option></select>
+            <select class="form-control" style="max-width:110px;font-size:12px;" id="advFilterStock" onchange="applyBomAdvFilter()">
+              <option value="">库存不限</option>
+              <option value="ok">库存充足</option>
+              <option value="lack">库存不足</option>
+              <option value="zero">无库存</option>
+            </select>
+            <select class="form-control" style="max-width:110px;font-size:12px;" id="advFilterArrival" onchange="applyBomAdvFilter()">
+              <option value="">到货不限</option>
+              <option value="PENDING">- 待到货</option>
+              <option value="未到">✗ 未到</option>
+              <option value="已到">✓ 已到</option>
+              <option value="部分到">◐ 部分到</option>
+            </select>
+            <button class="btn btn-sm btn-ghost" onclick="clearBomAdvFilter()">清除</button>
+          </div>
+        </div>
+        <!-- 批量操作工具栏 -->
+        <div id="bomBatchBar" class="no-print" style="display:none;padding:6px 12px;background:var(--primary-bg);border-bottom:1px solid var(--border);display:none;align-items:center;gap:8px;font-size:13px;">
+          <span id="bomBatchCount" style="color:var(--primary);font-weight:600;">已选 0 项</span>
+          <span style="color:var(--text-muted);">→ 批量改为到货状态：</span>
+          <button class="btn btn-sm btn-success" onclick="batchSetArrival('已到')">✓ 已到</button>
+          <button class="btn btn-sm btn-danger" onclick="batchSetArrival('未到')">✗ 未到</button>
+          <button class="btn btn-sm btn-outline" onclick="batchSetArrival('部分到')">◐ 部分到</button>
+          <button class="btn btn-sm btn-outline" onclick="batchSetArrival('')">- 待到货</button>
+          <span style="width:1px;height:20px;background:var(--border);display:inline-block;"></span>
+          <button class="btn btn-sm btn-outline" onclick="batchCloneToBomTarget()" id="bomBatchCloneBtn" title="克隆选中零件到其他项目">📋 克隆到项目</button>
+          <div style="flex:1;"></div>
+          <button class="btn btn-sm btn-ghost" onclick="bomDeselectAll()">✕ 取消选择</button>
         </div>
         <div class="table-wrap">
           <table id="bomTable">
             <thead>
               <tr>
+                <th style="width:28px;" class="no-print"><input type="checkbox" id="bomSelectAll" onchange="bomToggleSelectAll(this.checked)" title="全选/取消"></th>
                 <th style="width:36px;">#</th>
                 <th style="width:64px;">分类</th>
                 <th style="width:80px;">供应商</th>
@@ -647,7 +690,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <th id="bomActionColHeader" style="width:70px;" class="no-print">操作</th>
               </tr>
             </thead>
-            <tbody id="bomTbody"><tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从上方零件库选件<br>或通过上方表单手动添加零件</div></div></td></tr></tbody>
+            <tbody id="bomTbody"><tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从上方零件库选件<br>或通过上方表单手动添加零件</div></div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -669,6 +712,23 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         <span style="width:1px;height:20px;background:var(--border);display:inline-block;margin:0 2px;"></span>
         <button class="btn btn-icon" onclick="exportPurchaseExcel()">📥 导出Excel</button>
         <button class="btn btn-icon" onclick="exportPurchaseCSV()">📄 导出CSV</button>
+        <button class="btn btn-sm btn-outline" onclick="togglePurchaseAdvFilter()" id="purchaseAdvFilterBtn" title="高级筛选">🔻筛选</button>
+      </div>
+    </div>
+    <!-- 实采高级筛选栏 -->
+    <div id="purchaseAdvFilterBar" style="display:none;padding:6px 12px;background:var(--bg);border-bottom:1px solid var(--border);font-size:12px;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <span style="color:var(--text-muted);">高级筛选：</span>
+        <select class="form-control" style="max-width:120px;font-size:12px;" id="purchaseFilterSupplier" onchange="applyPurchaseFilter()"><option value="">全部供应商</option></select>
+        <select class="form-control" style="max-width:110px;font-size:12px;" id="purchaseFilterArrival" onchange="applyPurchaseFilter()">
+          <option value="">到货不限</option>
+          <option value="PENDING">- 待到货</option>
+          <option value="未到">✗ 未到</option>
+          <option value="已到">✓ 已到</option>
+          <option value="部分到">◐ 部分到</option>
+        </select>
+        <input class="form-control" style="max-width:120px;font-size:12px;" id="purchaseFilterSearch" placeholder="搜索名称/型号..." oninput="applyPurchaseFilter()">
+        <button class="btn btn-sm btn-ghost" onclick="clearPurchaseFilter()">清除</button>
       </div>
     </div>
     <div class="card-body" style="padding-bottom:0;">
@@ -722,6 +782,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           🗑 批量删除
           <span id="batchDeleteCount" style="display:none;margin-left:2px;">0</span>
         </button>
+        <button class="btn btn-outline btn-sm" onclick="checkLibDuplicates()" title="检测并合并同供应商同名称同型号的重复零件">🔍 查重</button>
         <input type="file" id="libFileInput" accept=".xlsx,.xls" style="display:none" onchange="importLibExcel(this)">
       </div>
     </div>
@@ -982,7 +1043,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="form-group"><label>单位</label><select class="form-control" id="edit-unit"></select></div>
     <div class="form-group"><label>库存</label><input class="form-control" type="number" id="edit-stock" step="0.1"></div>
     <div class="form-group"><label>状态</label><select class="form-control" id="edit-status"><option>采购</option><option>库存</option></select></div>
-    <div class="form-group"><label>到货状态</label><select class="form-control" id="edit-arrived"><option value="">-</option><option>已到</option><option>未到</option><option>部分到</option></select></div>
+    <div class="form-group"><label>到货状态</label><select class="form-control" id="edit-arrived"><option value="">-待到货</option><option value="未到">✗ 未到</option><option value="已到">✓ 已到</option><option value="部分到">◐ 部分到</option></select></div>
   </div>
   <div class="form-row">
     <div class="form-group"><label>备注</label><input class="form-control" id="edit-remark" placeholder="零件独有信息..."></div>
@@ -1036,6 +1097,36 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
   <div id="attachmentsList" style="max-height:320px;overflow-y:auto;"></div>
   <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-attachments')">关闭</button></div>
+</div></div>
+
+<!-- Clone BOM items to target project -->
+<div class="modal-overlay" id="modal-clone"><div class="modal">
+  <div class="modal-title">📋 克隆零件到其他项目</div>
+  <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">已选 <b id="cloneBomCount">0</b> 个零件，选择目标项目：</div>
+  <select class="form-control" id="cloneTargetProject" style="margin-bottom:12px;"><option value="">-- 选择目标项目 --</option></select>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-clone')">取消</button><button class="btn btn-primary" onclick="doCloneBomItems()">确认克隆</button></div>
+</div></div>
+
+<!-- Lib duplicates merge modal -->
+<div class="modal-overlay" id="modal-lib-dup"><div class="modal wide">
+  <div class="modal-title">🔍 零件库查重结果</div>
+  <div id="libDupContent" style="max-height:400px;overflow-y:auto;font-size:12px;margin-bottom:12px;"></div>
+  <div class="modal-actions">
+    <button class="btn btn-gray" onclick="closeModal('modal-lib-dup')">关闭</button>
+    <button class="btn btn-danger" id="libDupMergeBtn" onclick="mergeAllDuplicates()" style="display:none;">一键合并全部重复</button>
+  </div>
+</div></div>
+
+<!-- Global smart search modal -->
+<div class="modal-overlay" id="modal-global-search"><div class="modal wide">
+  <div class="modal-title">🔍 全局智能搜索</div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;">
+    <input class="form-control" id="globalSearchInput" placeholder="输入零件名 / 型号 / 供应商，跨所有项目搜索..." oninput="performGlobalSearch()" style="flex:1;font-size:14px;" autofocus>
+    <button class="btn btn-sm btn-gray" onclick="closeModal('modal-global-search')">关闭</button>
+  </div>
+  <div id="globalSearchResults" style="max-height:400px;overflow-y:auto;font-size:12px;">
+    <div style="text-align:center;padding:20px;color:var(--text-muted);">输入关键词开始搜索...</div>
+  </div>
 </div></div>
 
 <script>
@@ -1517,6 +1608,282 @@ function currentBom() {
 }
 function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtNum(n) { if (n == null || n === '') return '0'; var v = Number(n); return v % 1 === 0 ? String(v) : v.toFixed(1); }
+
+// ============================================================
+// 全局智能搜索（跨所有项目）
+// ============================================================
+function openGlobalSearch() {
+  document.getElementById('modal-global-search').classList.add('show');
+  var inp = document.getElementById('globalSearchInput');
+  if (inp) { inp.value = ''; setTimeout(function(){ inp.focus(); }, 100); }
+  document.getElementById('globalSearchResults').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">输入关键词开始搜索...</div>';
+}
+
+function performGlobalSearch() {
+  var kw = (document.getElementById('globalSearchInput').value || '').trim().toLowerCase();
+  var container = document.getElementById('globalSearchResults');
+  if (!kw) { container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">输入关键词开始搜索...</div>'; return; }
+
+  var results = [];
+  var projects = store.projects || {};
+  Object.keys(projects).forEach(function(pid) {
+    var proj = projects[pid];
+    if (!Array.isArray(proj.bom)) return;
+    proj.bom.forEach(function(item) {
+      var nameMatch = (item.name||'').toLowerCase().indexOf(kw) >= 0;
+      var modelMatch = (item.model||'').toLowerCase().indexOf(kw) >= 0;
+      var supplierMatch = (item.supplier||'').toLowerCase().indexOf(kw) >= 0;
+      if (nameMatch || modelMatch || supplierMatch) {
+        results.push({ proj: proj.name, projId: pid, item: item,
+          highlight: nameMatch ? 'name' : (modelMatch ? 'model' : 'supplier') });
+      }
+    });
+  });
+
+  if (!results.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">未找到匹配的零件</div>';
+    return;
+  }
+
+  function hl(str, kw) {
+    var s = esc(str||'');
+    var idx = s.toLowerCase().indexOf(kw.toLowerCase());
+    if (idx < 0) return s;
+    return s.substr(0, idx) + '<b style="background:rgba(245,158,11,.3);border-radius:2px;padding:0 1px;">' + s.substr(idx, kw.length) + '</b>' + s.substr(idx + kw.length);
+  }
+
+  var html = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">共找到 '+results.length+' 条结果（跨 '+Array.from(new Set(results.map(function(r){return r.projId;}))).length+' 个项目）</div>';
+  html += '<table style="width:100%;border-collapse:collapse;">';
+  html += '<thead><tr style="background:var(--th-bg);"><th style="padding:5px;text-align:left;font-size:11px;">项目</th><th style="padding:5px;text-align:left;font-size:11px;">名称</th><th style="padding:5px;text-align:left;font-size:11px;">供应商</th><th style="padding:5px;text-align:left;font-size:11px;">型号</th><th style="padding:5px;text-align:center;font-size:11px;">数量</th><th style="padding:5px;text-align:center;font-size:11px;">到货</th></tr></thead><tbody>';
+  results.forEach(function(r, i) {
+    var arrivalBadge = r.item.arrived ? ('<span style="font-size:10px;padding:1px 4px;border-radius:3px;background:'+(r.item.arrived==='已到'?'#d1fae5':r.item.arrived==='未到'?'#fee2e2':'#fef3c7')+';color:'+(r.item.arrived==='已到'?'#065f46':r.item.arrived==='未到'?'#991b1b':'#92400e')+';">'+esc(r.item.arrived)+'</span>') : '-';
+    var isCurrent = r.projId === store.currentProject;
+    var bg = i % 2 === 0 ? '' : 'background:var(--table-stripe);';
+    html += '<tr style="'+bg+'border-bottom:1px solid var(--border-light);" '+(isCurrent?'title="当前项目"':'')+'>'+
+      '<td style="padding:5px;font-size:11px;color:var(--primary);">'+(isCurrent?'★ ':'')+esc(r.proj)+'</td>'+
+      '<td style="padding:5px;font-weight:600;">'+hl(r.item.name, kw)+'</td>'+
+      '<td style="padding:5px;color:var(--text-secondary);">'+hl(r.item.supplier, kw)+'</td>'+
+      '<td style="padding:5px;font-size:11px;">'+hl(r.item.model, kw)+'</td>'+
+      '<td style="padding:5px;text-align:center;">'+fmtNum(r.item.qty)+'</td>'+
+      '<td style="padding:5px;text-align:center;">'+arrivalBadge+'</td>'+
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+// ============================================================
+// 高级筛选（BOM + 实采页）
+// ============================================================
+function toggleBomAdvFilter() {
+  var bar = document.getElementById('bomAdvFilterBar');
+  var btn = document.getElementById('bomAdvFilterBtn');
+  if (bar.style.display === 'none') {
+    bar.style.display = 'block';
+    if (btn) btn.textContent = '🔺筛选';
+    populateAdvFilterOptions();
+  } else {
+    bar.style.display = 'none';
+    if (btn) btn.textContent = '🔻筛选';
+    clearBomAdvFilter();
+  }
+}
+
+function populateAdvFilterOptions() {
+  var bom = currentBom();
+  // 收集分类
+  var cats = new Set(); bom.forEach(function(i){ cats.add(i.category||'未分类'); });
+  var catSel = document.getElementById('advFilterCategory');
+  var curCat = catSel.value;
+  catSel.innerHTML = '<option value="">全部分类</option>';
+  Array.from(cats).sort().forEach(function(c){ catSel.innerHTML += '<option value="'+esc(c)+'"'+(c===curCat?' selected':'')+'>'+esc(c)+'</option>'; });
+  // 收集供应商
+  var sups = new Set(); bom.forEach(function(i){ if (i.supplier) sups.add(i.supplier); });
+  var supSel = document.getElementById('advFilterSupplier');
+  var curSup = supSel.value;
+  supSel.innerHTML = '<option value="">全部供应商</option>';
+  Array.from(sups).sort().forEach(function(s){ supSel.innerHTML += '<option value="'+esc(s)+'"'+(s===curSup?' selected':'')+'>'+esc(s)+'</option>'; });
+}
+
+function applyBomAdvFilter() {
+  var cat = document.getElementById('advFilterCategory').value;
+  var sup = document.getElementById('advFilterSupplier').value;
+  var stk = document.getElementById('advFilterStock').value;
+  var arr = document.getElementById('advFilterArrival').value;
+  var bom = currentBom();
+  var filtered = bom.filter(function(item) {
+    if (cat && (item.category||'未分类') !== cat) return false;
+    if (sup && (item.supplier||'') !== sup) return false;
+    if (stk === 'ok' && (item.stock||0) < (item.qty||1)) return false;
+    if (stk === 'lack' && (item.stock||0) >= (item.qty||1)) return false;
+    if (stk === 'zero' && (item.stock||0) > 0) return false;
+    if (arr === 'PENDING' && (item.arrived||'') !== '') return false;
+    if (arr && arr !== 'PENDING' && (item.arrived||'') !== arr) return false;
+    return true;
+  });
+
+  var tbody = document.getElementById('bomTbody');
+  if (!tbody) return;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">无匹配结果</div><div class="empty-desc">当前筛选条件下没有匹配的零件<br><button class="btn btn-primary btn-sm" onclick="clearBomAdvFilter()" style="margin-top:8px;">✕ 清除筛选</button></div></div></td></tr>';
+    return;
+  }
+  var html = ''; var seq = 1;
+  filtered.forEach(function(item) { html += bomRowHtml(item, seq++); });
+  tbody.innerHTML = html;
+  // 恢复勾选框状态
+  if (bomSelectedIds && bomSelectedIds.size > 0) {
+    bomSelectedIds.forEach(function(id) {
+      var chk = tbody.querySelector('input.bom-row-check[data-bom-id="'+id+'"]');
+      if (chk) chk.checked = true;
+    });
+    updateBomBatchBar();
+  }
+}
+
+function clearBomAdvFilter() {
+  var els = ['advFilterCategory','advFilterSupplier','advFilterStock','advFilterArrival'];
+  els.forEach(function(id){ var el = document.getElementById(id); if (el) el.value = ''; });
+  renderBomTable();
+}
+
+// 实采页高级筛选
+function togglePurchaseAdvFilter() {
+  var bar = document.getElementById('purchaseAdvFilterBar');
+  var btn = document.getElementById('purchaseAdvFilterBtn');
+  if (bar.style.display === 'none') {
+    bar.style.display = 'block';
+    if (btn) btn.textContent = '🔺筛选';
+    populatePurchaseFilterOptions();
+  } else {
+    bar.style.display = 'none';
+    if (btn) btn.textContent = '🔻筛选';
+    clearPurchaseFilter();
+  }
+}
+
+function populatePurchaseFilterOptions() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) return;
+  var bom = proj.bom || [];
+  var purchaseItems = bom.filter(function(i){ return i.status === '采购'; });
+  var sups = new Set(); purchaseItems.forEach(function(i){ if (i.supplier) sups.add(i.supplier); });
+  var sel = document.getElementById('purchaseFilterSupplier');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">全部供应商</option>';
+  Array.from(sups).sort().forEach(function(s){ sel.innerHTML += '<option value="'+esc(s)+'"'+(s===cur?' selected':'')+'>'+esc(s)+'</option>'; });
+}
+
+function applyPurchaseFilter() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) return;
+  var bom = proj.bom || [];
+  var purchaseItems = bom.filter(function(i){ return i.status === '采购'; });
+  var sup = document.getElementById('purchaseFilterSupplier').value;
+  var arr = document.getElementById('purchaseFilterArrival').value;
+  var kw = (document.getElementById('purchaseFilterSearch').value||'').trim().toLowerCase();
+
+  var filtered = purchaseItems.filter(function(item) {
+    if (sup && (item.supplier||'') !== sup) return false;
+    if (arr === 'PENDING' && (item.arrived||'') !== '') return false;
+    if (arr && arr !== 'PENDING' && (item.arrived||'') !== arr) return false;
+    if (kw && (item.name||'').toLowerCase().indexOf(kw)<0 && (item.model||'').toLowerCase().indexOf(kw)<0) return false;
+    return true;
+  });
+
+  var tbody = document.getElementById('purchaseTbody');
+  if (!tbody) return;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">无匹配结果</div><div class="empty-desc">当前筛选条件下没有匹配的项目<br><button class="btn btn-primary btn-sm" onclick="clearPurchaseFilter()" style="margin-top:8px;">✕ 清除筛选</button></div></div></td></tr>';
+    return;
+  }
+  var result = buildPurchaseHTML(filtered, proj.purchaseNewItemIds || []);
+  tbody.innerHTML = result.html;
+}
+
+function clearPurchaseFilter() {
+  var els = ['purchaseFilterSupplier','purchaseFilterArrival','purchaseFilterSearch'];
+  els.forEach(function(id){ var el = document.getElementById(id); if (el) el.value = ''; });
+  if (typeof renderSavedPurchaseList === 'function') renderSavedPurchaseList();
+}
+
+// ============================================================
+// 零件库自动查重
+// ============================================================
+var _libDupGroups = []; // 缓存当次查重结果
+
+function checkLibDuplicates() {
+  var isLocal = (typeof libTab !== 'undefined' && libTab === 'local');
+  var sourceList = isLocal ? getLocalLib() : store.library;
+  var groups = {};
+  sourceList.forEach(function(item) {
+    // 以 供应商+名称+型号 为 key
+    var key = (item.supplier||'').trim()+'|'+(item.name||'').trim()+'|'+(item.model||'').trim();
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  });
+  var dupGroups = Object.values(groups).filter(function(g){ return g.length > 1; });
+  _libDupGroups = dupGroups;
+
+  var content = document.getElementById('libDupContent');
+  var btn = document.getElementById('libDupMergeBtn');
+
+  if (!dupGroups.length) {
+    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--success);">✅ 未发现重复零件，零件库数据整洁！</div>';
+    if (btn) btn.style.display = 'none';
+    document.getElementById('modal-lib-dup').classList.add('show');
+    return;
+  }
+
+  var html = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">发现 '+dupGroups.length+' 组重复零件（合并将保留最早的记录，删除多余副本）：</div>';
+  dupGroups.forEach(function(group, gi) {
+    html += '<div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--table-stripe);">';
+    html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">第 '+(gi+1)+' 组（'+group.length+' 条重复）：</div>';
+    html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
+    html += '<thead><tr style="background:var(--th-bg);"><th style="padding:4px;text-align:left;">名称</th><th style="padding:4px;text-align:left;">供应商</th><th style="padding:4px;text-align:left;">型号</th><th style="padding:4px;text-align:center;">保留</th></tr></thead><tbody>';
+    group.forEach(function(item, idx) {
+      var rowStyle = idx === 0 ? 'background:#d1fae5;' : 'background:#fee2e2;';
+      html += '<tr style="'+rowStyle+'border-bottom:1px solid var(--border-light);">'+
+        '<td style="padding:4px;font-weight:'+(idx===0?'600':'400')+';">'+esc(item.name)+'</td>'+
+        '<td style="padding:4px;">'+esc(item.supplier||'-')+'</td>'+
+        '<td style="padding:4px;">'+esc(item.model||'-')+'</td>'+
+        '<td style="padding:4px;text-align:center;">'+(idx===0?'✅ 保留':'🗑 删除')+'</td>'+
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+  content.innerHTML = html;
+  if (btn) btn.style.display = '';
+  document.getElementById('modal-lib-dup').classList.add('show');
+}
+
+function mergeAllDuplicates() {
+  if (!_libDupGroups.length) return;
+  var isLocal = (typeof libTab !== 'undefined' && libTab === 'local');
+  var toDelete = new Set();
+  _libDupGroups.forEach(function(group) {
+    // 保留第一个，删除其余
+    for (var i = 1; i < group.length; i++) { toDelete.add(group[i].id); }
+  });
+  var deleted = 0;
+  if (isLocal) {
+    var proj = store.currentProject && store.projects[store.currentProject];
+    if (!proj) return;
+    var before = (proj.localLibrary||[]).length;
+    proj.localLibrary = (proj.localLibrary||[]).filter(function(item){ return !toDelete.has(item.id); });
+    deleted = before - proj.localLibrary.length;
+  } else {
+    var before = store.library.length;
+    store.library = store.library.filter(function(item){ return !toDelete.has(item.id); });
+    deleted = before - store.library.length;
+  }
+  saveStoreDebounced();
+  markDirty('library'); markDirty('quickLib');
+  closeModal('modal-lib-dup');
+  toast('已合并 '+_libDupGroups.length+' 组重复，删除 '+deleted+' 条冗余记录', 'success');
+  _libDupGroups = [];
+}
+
 function toast(msg, type) {
   type = type || 'info';
   const t = document.createElement('div');
@@ -2320,7 +2687,7 @@ function renderBomTable() {
   // 1. 确定当前项目 ID（优先用磁盘数据，回退到内存）
   var pid = (diskStore && diskStore.currentProject) || (store && store.currentProject) || null;
   if (!pid) {
-    tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-title">未选择项目</div><div class="empty-desc">请先选择或创建一个项目</div><div class="empty-action"><button class="btn btn-primary" onclick="showPage(\'page-projects\')">前往项目管理</button></div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📂</div><div class="empty-title">未选择项目</div><div class="empty-desc">请先选择或创建一个项目</div><div class="empty-action"><button class="btn btn-primary" onclick="showPage(\'page-projects\')">前往项目管理</button></div></div></td></tr>';
     return;
   }
 
@@ -2333,7 +2700,7 @@ function renderBomTable() {
   }
 
   if (!proj) {
-    tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">项目数据丢失</div><div class="empty-desc">当前项目「'+pid+'」的数据未能加载<br>请尝试刷新页面或选择其他项目</div><div class="empty-action"><button class="btn btn-primary" onclick="doRefresh()">🔄 刷新页面</button></div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">项目数据丢失</div><div class="empty-desc">当前项目「'+pid+'」的数据未能加载<br>请尝试刷新页面或选择其他项目</div><div class="empty-action"><button class="btn btn-primary" onclick="doRefresh()">🔄 刷新页面</button></div></div></td></tr>';
     return;
   }
 
@@ -2364,11 +2731,28 @@ function renderBomTable() {
     searchEl.value = '';
   }
 
-  // 6. 过滤
+  // 6. 过滤（含高级筛选）
+  var advCat = ''; var advSup = ''; var advStk = ''; var advArr = '';
+  var advBar = document.getElementById('bomAdvFilterBar');
+  if (advBar && advBar.style.display !== 'none') {
+    var el1 = document.getElementById('advFilterCategory'); if (el1) advCat = el1.value;
+    var el2 = document.getElementById('advFilterSupplier'); if (el2) advSup = el2.value;
+    var el3 = document.getElementById('advFilterStock'); if (el3) advStk = el3.value;
+    var el4 = document.getElementById('advFilterArrival'); if (el4) advArr = el4.value;
+  }
   var filtered = bom.filter(function(item) {
     var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
     var mst = !statusFilter || item.status === statusFilter;
-    return ms && mst;
+    var mcat = !advCat || (item.category||'未分类') === advCat;
+    var msup = !advSup || (item.supplier||'') === advSup;
+    var mstk = true;
+    if (advStk === 'ok') mstk = (item.stock||0) >= (item.qty||1);
+    else if (advStk === 'lack') mstk = (item.stock||0) < (item.qty||1);
+    else if (advStk === 'zero') mstk = (item.stock||0) === 0;
+    var marr = true;
+    if (advArr === 'PENDING') marr = (item.arrived||'') === '';
+    else if (advArr) marr = (item.arrived||'') === advArr;
+    return ms && mst && mcat && msup && mstk && marr;
   });
 
   // 6.5 标记仅存于本项目库的零件（通用库中不存在的）
@@ -2402,13 +2786,13 @@ function renderBomTable() {
       var debugInfo = '';
       if (searchVal) debugInfo += '搜索词：「' + searchVal + '」 ';
       if (statusFilter) debugInfo += '状态筛选：「' + statusFilter + '」';
-      tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">无匹配结果</div><div class="empty-desc">BOM 中共有 <b>'+bom.length+'</b> 条记录，但当前条件下无匹配项<br><span style="font-size:11px;color:var(--text-muted);">'+debugInfo+'</span></div><div class="empty-action"><button class="btn btn-primary" onclick="clearBomFilter()">✕ 重置过滤条件</button></div></div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">无匹配结果</div><div class="empty-desc">BOM 中共有 <b>'+bom.length+'</b> 条记录，但当前条件下无匹配项<br><span style="font-size:11px;color:var(--text-muted);">'+debugInfo+'</span></div><div class="empty-action"><button class="btn btn-primary" onclick="clearBomFilter()">✕ 重置过滤条件</button></div></div></td></tr>';
     } else if (hasData) {
       // 有数据但 filtered 为空（异常情况：可能数据字段缺失导致过滤失败）
-      tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">数据处理异常</div><div class="empty-desc">BOM 数据存在（'+bom.length+'条）但过滤后为空<br>可能是数据字段格式问题，请尝试刷新</div><div class="empty-action"><button class="btn btn-primary" onclick="doRefresh()">🔄 刷新页面</button></div></div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">数据处理异常</div><div class="empty-desc">BOM 数据存在（'+bom.length+'条）但过滤后为空<br>可能是数据字段格式问题，请尝试刷新</div><div class="empty-action"><button class="btn btn-primary" onclick="doRefresh()">🔄 刷新页面</button></div></div></td></tr>';
     } else {
       // 真的没数据
-      tbody.innerHTML = '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">暂无零部件数据</div><div class="empty-desc">请从上方零件库选件加入，或通过上方表单手动添加</div></div></td></tr>';
     }
     var gl = document.getElementById('bomGroupLabel');
     if (gl) gl.textContent = '';
@@ -2440,11 +2824,19 @@ function renderBomTable() {
       });
     }
     keys.forEach(function(key) {
-      html += '<tr class="category-row"><td colspan="14">▶ '+esc(key)+'（'+groups[key].length+' 项）</td></tr>';
+      html += '<tr class="category-row"><td colspan="15">▶ '+esc(key)+'（'+groups[key].length+' 项）</td></tr>';
       groups[key].forEach(function(item) { html += bomRowHtml(item, seq++); });
     });
   }
   tbody.innerHTML = html;
+  // 恢复勾选框状态
+  if (bomSelectedIds && bomSelectedIds.size > 0) {
+    bomSelectedIds.forEach(function(id) {
+      var chk = tbody.querySelector('input.bom-row-check[data-bom-id="'+id+'"]');
+      if (chk) chk.checked = true;
+    });
+    updateBomBatchBar();
+  }
   updateBadges();
   if (typeof checkPurchaseBomChanged === 'function') checkPurchaseBomChanged();
 }
@@ -2494,6 +2886,7 @@ function bomRowHtml(item, seq) {
   var rowClass = isLocalOnly ? ' class="bom-row-local"' : '';
   var localBadge = isLocalOnly ? ' <span title="本项目库独有零件" style="display:inline-block;font-size:9px;background:var(--accent);color:#fff;border-radius:3px;padding:0 3px;margin-left:3px;vertical-align:middle;">本</span>' : '';
   return '<tr'+rowClass+' data-id="'+item.id+'">'+
+    '<td class="no-print" style="text-align:center;"><input type="checkbox" class="bom-row-check" data-bom-id="'+item.id+'" onchange="onBomCheck(\''+item.id+'\',this)" onclick="event.stopPropagation()"></td>'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
     '<td><span style="display:inline-block;'+supplierStyle+'">'+esc(supplier)+'</span></td>'+
@@ -2653,6 +3046,7 @@ function updateBadges() {
 }
 
 function sortBomByCategory() {
+  if (!store.currentProject) return;
   var bom = currentBom();
   var catOrder = getCategories();
   bom.sort(function(a,b) {
@@ -2661,22 +3055,26 @@ function sortBomByCategory() {
     if (aIdx!==bIdx) return aIdx-bIdx;
     return (a.name||'').localeCompare(b.name||'');
   });
-  if (store.currentProject) store.projects[store.currentProject].bom = bom;
-  saveStoreDebounced(); markDirty('bomTable'); toast('已按分类排序', 'success');
+  store.projects[store.currentProject].bom = bom;
+  saveStoreDebounced(true); // 立即写磁盘，防止 renderBomTable 从旧快照读数据
+  renderBomTable(); toast('已按分类排序', 'success');
 }
 
 function sortBomBySupplier() {
+  if (!store.currentProject) return;
   var bom = currentBom();
   bom.sort(function(a,b) {
     var cmp = (a.supplier||'').localeCompare(b.supplier||'');
     if (cmp !== 0) return cmp;
     return (a.name||'').localeCompare(b.name||'');
   });
-  if (store.currentProject) store.projects[store.currentProject].bom = bom;
-  saveStoreDebounced(); markDirty('bomTable'); toast('已按供应商排序', 'success');
+  store.projects[store.currentProject].bom = bom;
+  saveStoreDebounced(true);
+  renderBomTable(); toast('已按供应商排序', 'success');
 }
 
 function sortBomByArrival() {
+  if (!store.currentProject) return;
   var bom = currentBom();
   // 到货优先级：未到 > 部分到 > 已到 > (空)
   var arrivalOrder = { '未到': 0, '部分到': 1, '已到': 2 };
@@ -2686,8 +3084,119 @@ function sortBomByArrival() {
     if (ai !== bi) return ai - bi;
     return (a.name||'').localeCompare(b.name||'');
   });
-  if (store.currentProject) store.projects[store.currentProject].bom = bom;
-  saveStoreDebounced(); markDirty('bomTable'); toast('已按到货情况排序（未到→部分到→已到）', 'success');
+  store.projects[store.currentProject].bom = bom;
+  saveStoreDebounced(true);
+  renderBomTable(); toast('已按到货情况排序（未到→部分到→已到）', 'success');
+}
+
+// ============================================================
+// BOM 批量勾选 & 批量到货 & 批量克隆
+// ============================================================
+var bomSelectedIds = new Set();
+
+function onBomCheck(id, chk) {
+  if (chk.checked) bomSelectedIds.add(id); else bomSelectedIds.delete(id);
+  updateBomBatchBar();
+}
+
+function updateBomBatchBar() {
+  var bar = document.getElementById('bomBatchBar');
+  var cnt = document.getElementById('bomBatchCount');
+  if (!bar) return;
+  if (bomSelectedIds.size > 0) {
+    bar.style.display = 'flex';
+    cnt.textContent = '已选 ' + bomSelectedIds.size + ' 项';
+  } else {
+    bar.style.display = 'none';
+  }
+  // 同步全选框状态
+  var allChk = document.getElementById('bomSelectAll');
+  if (allChk) {
+    var bom = currentBom();
+    var total = bom.length;
+    if (bomSelectedIds.size === 0) { allChk.checked = false; allChk.indeterminate = false; }
+    else if (bomSelectedIds.size === total) { allChk.checked = true; allChk.indeterminate = false; }
+    else { allChk.checked = false; allChk.indeterminate = true; }
+  }
+}
+
+function bomToggleSelectAll(checked) {
+  var checkboxes = document.querySelectorAll('#bomTbody .bom-row-check');
+  checkboxes.forEach(function(chk) {
+    var id = chk.getAttribute('data-bom-id');
+    chk.checked = checked;
+    if (checked) bomSelectedIds.add(id); else bomSelectedIds.delete(id);
+  });
+  updateBomBatchBar();
+}
+
+function bomDeselectAll() {
+  bomSelectedIds.clear();
+  document.querySelectorAll('#bomTbody .bom-row-check').forEach(function(chk){ chk.checked = false; });
+  var allChk = document.getElementById('bomSelectAll');
+  if (allChk) { allChk.checked = false; allChk.indeterminate = false; }
+  updateBomBatchBar();
+}
+
+function batchSetArrival(status) {
+  if (!bomSelectedIds.size) { toast('请先勾选零件', 'warn'); return; }
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) return;
+  if (proj.archived && currentUser && currentUser.role !== 'admin') { toast('项目已归档，仅管理员可修改', 'warn'); return; }
+  var ids = Array.from(bomSelectedIds);
+  ids.forEach(function(id) {
+    var item = proj.bom.find(function(i){ return i.id === id; });
+    if (item) item.arrived = status;
+  });
+  saveStoreDebounced();
+  // 逐行局部更新
+  ids.forEach(function(id) { updateBomRow(id); updatePurchaseRow(id); });
+  markDirty('bomStats');
+  toast('已将 '+ids.length+' 项设为「'+(status||'待到货')+'」', 'success');
+  bomDeselectAll();
+}
+
+// 克隆选中零件到其他项目
+function batchCloneToBomTarget() {
+  if (!bomSelectedIds.size) { toast('请先勾选零件', 'warn'); return; }
+  var projects = store.projects || {};
+  var cnt = document.getElementById('cloneBomCount');
+  if (cnt) cnt.textContent = bomSelectedIds.size;
+  var sel = document.getElementById('cloneTargetProject');
+  if (sel) {
+    sel.innerHTML = '<option value="">-- 选择目标项目 --</option>';
+    Object.keys(projects).forEach(function(pid) {
+      if (pid === store.currentProject) return; // 跳过当前项目
+      var p = projects[pid];
+      var opt = document.createElement('option');
+      opt.value = pid;
+      opt.textContent = p.name + (p.archived ? ' [已归档]' : '');
+      sel.appendChild(opt);
+    });
+  }
+  document.getElementById('modal-clone').classList.add('show');
+}
+
+function doCloneBomItems() {
+  var targetPid = document.getElementById('cloneTargetProject').value;
+  if (!targetPid) { toast('请选择目标项目', 'warn'); return; }
+  var targetProj = store.projects[targetPid];
+  if (!targetProj) return;
+  if (!Array.isArray(targetProj.bom)) targetProj.bom = [];
+  var bom = currentBom();
+  var ids = Array.from(bomSelectedIds);
+  var added = 0;
+  ids.forEach(function(id) {
+    var item = bom.find(function(i){ return i.id === id; });
+    if (!item) return;
+    // 生成新id，arrived/stock 置空，克隆其他信息
+    targetProj.bom.push(Object.assign({}, item, { id: e(), arrived: '未到', stock: 0 }));
+    added++;
+  });
+  saveStoreDebounced();
+  closeModal('modal-clone');
+  toast('已克隆 '+added+' 个零件到「'+targetProj.name+'」', 'success');
+  bomDeselectAll();
 }
 
 function syncBomToLibrary() {
@@ -2818,7 +3327,7 @@ function autoUpdateStatus() {
 function clearAddForm() {
   ['inp-name','inp-supplier','inp-model','inp-taobao','inp-remark'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('inp-qty').value = 1; document.getElementById('inp-stock').value = 0;
-  document.getElementById('inp-arrived').value = ''; document.getElementById('inp-status').value = 'auto';
+  document.getElementById('inp-arrived').value = '未到'; document.getElementById('inp-status').value = 'auto';
   document.getElementById('chk-save-lib-global').checked = true;
   document.getElementById('chk-save-lib-local').checked = false;
   // 清除自动判断提示
@@ -3588,8 +4097,8 @@ function buildArrivalSelect(item) {
   var currentVal = item.arrived || '';
   var options = [
     {v:'', label:'- 待到货'},
-    {v:'已到', label:'✓ 已到'},
     {v:'未到', label:'✗ 未到'},
+    {v:'已到', label:'✓ 已到'},
     {v:'部分到', label:'◐ 部分到'}
   ];
   var html = '<select class="arrival-select" onchange="updatePurchaseArrival(\''+item.id+'\',this.value)" data-prev="'+esc(currentVal)+'"';
@@ -3649,7 +4158,7 @@ function updatePurchaseRow(itemId) {
     newSel.className = 'arrival-select';
     newSel.setAttribute('onchange', "updatePurchaseArrival('"+itemId+"',this.value)");
     newSel.setAttribute('data-prev', item.arrived || '');
-    var options = [{v:'', label:'- 待到货'},{v:'已到', label:'✓ 已到'},{v:'未到', label:'✗ 未到'},{v:'部分到', label:'◐ 部分到'}];
+    var options = [{v:'', label:'- 待到货'},{v:'未到', label:'✗ 未到'},{v:'已到', label:'✓ 已到'},{v:'部分到', label:'◐ 部分到'}];
     options.forEach(function(opt){
       var o = document.createElement('option');
       o.value = opt.v;
