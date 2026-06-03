@@ -1165,7 +1165,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <div class="modal-overlay" id="modal-csv-import"><div class="modal wide">
   <div class="modal-title">📤 导入CSV/Excel到BOM</div>
   <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
-    支持导入 <b>CSV</b> 或 <b>Excel (.xlsx/.xls)</b> 文件。格式要求：<b>分类, 供应商, 名称, 型号, 数量, 单位, 库存, 状态, 实际采购数, 到货状态, 淘宝链接, 备注</b>（不含表头）<br>
+    支持导入 <b>CSV</b> 或 <b>Excel (.xlsx/.xls)</b> 文件。格式要求：<b>物料编码, 分类, 供应商, 名称, 型号, 数量, 单位, 库存, 状态, 实际采购数, 到货状态, 淘宝链接, 备注</b>（不含表头）<br>
     可先<a href="#" onclick="downloadImportTemplate();return false;" style="color:var(--primary);">下载导入模板</a>参考格式。
   </div>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
@@ -4976,8 +4976,8 @@ function processRows(rawRows, isHeader) {
   }
 
   // 新模板有 13 列（物料编码开头），旧模板有 12 列
-  var hasPartCode = rawRows.length > 0 && rawRows[0].length >= 13 &&
-    /^[A-Z]{2,4}-\d{3,4}$/.test((rawRows[0][0]||'').trim());
+  // 用列数判断，而非正则匹配内容（避免物料编码为空时正则失败导致列错位）
+  var hasPartCode = rawRows.length > 0 && rawRows[0].length >= 13;
 
   var fieldNames = hasPartCode
     ? ['partCode','category','supplier','name','model','qty','unit','stock','status','actualPurchase','arrived','taobaoLink','remark']
@@ -5004,6 +5004,8 @@ function processRows(rawRows, isHeader) {
     if (!entry.arrived || (entry.arrived !== '已到' && entry.arrived !== '未到' && entry.arrived !== '部分到')) {
       entry.arrived = '未到';
     }
+    // 旧格式兼容：确保 partCode 字段存在
+    if (entry.partCode === undefined) { entry.partCode = ''; }
     data.push(entry);
   }
   _importedData = data;
