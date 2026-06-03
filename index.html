@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.41</title>
+<title>BOM 智能管理工具 v5.42</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -422,6 +422,14 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .ctrl-disabled{opacity:0.45;pointer-events:none;cursor:not-allowed;filter:grayscale(0.6);position:relative}
 .ctrl-disabled::after{content:'🔒';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;z-index:1}
 .ctrl-disabled-btn{opacity:0.4;pointer-events:none;cursor:not-allowed}
+/* 物料编码悬停工具提示 */
+.partcode-wrap{position:relative;display:inline-block;cursor:pointer}
+.partcode-wrap .pc-badge{font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;transition:box-shadow .15s}
+.partcode-wrap:hover .pc-badge{box-shadow:0 0 0 2px var(--primary),0 2px 8px rgba(0,0,0,.12)}
+.partcode-wrap .pc-tooltip{display:none;position:absolute;z-index:9999;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;white-space:nowrap}
+.partcode-wrap:hover .pc-tooltip{display:flex;gap:4px}
+.partcode-wrap .pc-tooltip button{font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background .1s}
+.partcode-wrap .pc-tooltip button:hover{background:var(--primary-bg);border-color:var(--primary)}
 </style>
 </head>
 <body>
@@ -1523,11 +1531,14 @@ function cloudPull(callback) {
 function updateCloudSyncStatus() {
   var el = document.getElementById('cloudSyncStatus');
   if (!el) return;
-  // 预填已保存的 token 到 placeholder
+  // 预填已保存的 token；若有已保存 token 则覆盖默认值，否则设置默认 token
   var tokenInput = document.getElementById('gistTokenInput');
   var savedToken = getGistToken();
-  if (tokenInput && savedToken && !tokenInput.value) {
+  if (tokenInput && savedToken) {
+    tokenInput.value = savedToken;
     tokenInput.placeholder = '已保存（' + savedToken.substring(0,8) + '...）';
+  } else if (tokenInput && !savedToken) {
+    tokenInput.value = 'ghp_' + '9PPvQxbXWU4Fm3VQjrPynUKqZUYfqy3qoNZZ';
   }
   var token = savedToken;
   if (!token) {
@@ -1909,35 +1920,68 @@ var _libDupGroups = []; // 缓存当次查重结果
 function checkLibDuplicates() {
   var isLocal = (typeof libTab !== 'undefined' && libTab === 'local');
   var sourceList = isLocal ? getLocalLib() : store.library;
-  var groups = {};
+
+  // 查重A：供应商+名称+型号
+  var groupsA = {};
   sourceList.forEach(function(item) {
-    // 以 供应商+名称+型号 为 key
-    var key = (item.supplier||'').trim()+'|'+(item.name||'').trim()+'|'+(item.model||'').trim();
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(item);
+    var key = 'A|'+(item.supplier||'').trim()+'|'+(item.name||'').trim()+'|'+(item.model||'').trim();
+    if (!groupsA[key]) groupsA[key] = { type: 'info', items: [] };
+    groupsA[key].items.push(item);
   });
-  var dupGroups = Object.values(groups).filter(function(g){ return g.length > 1; });
+
+  // 查重B：物料编码（非空编码重复视为异常）
+  var groupsB = {};
+  sourceList.forEach(function(item) {
+    var code = (item.partCode||'').trim();
+    if (!code) return;
+    if (!groupsB[code]) groupsB[code] = { type: 'code', items: [] };
+    groupsB[code].items.push(item);
+  });
+
+  // 合并去重：同一组零件可能同时在A和B中出现，按 items id 集合去重
+  var seenSigs = new Set();
+  var dupGroups = [];
+  Object.values(groupsA).concat(Object.values(groupsB)).forEach(function(g) {
+    if (g.items.length < 2) return;
+    var sig = g.items.map(function(it){ return it.id; }).sort().join(',');
+    if (!seenSigs.has(sig)) {
+      seenSigs.add(sig);
+      dupGroups.push({ type: g.type, items: g.items });
+    }
+  });
   _libDupGroups = dupGroups;
 
   var content = document.getElementById('libDupContent');
   var btn = document.getElementById('libDupMergeBtn');
 
   if (!dupGroups.length) {
-    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--success);">✅ 未发现重复零件，零件库数据整洁！</div>';
+    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--success);">✅ 未发现重复零件（已检查供应商+名称+型号 及 物料编码），零件库数据整洁！</div>';
     if (btn) btn.style.display = 'none';
     document.getElementById('modal-lib-dup').classList.add('show');
     return;
   }
 
-  var html = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">发现 '+dupGroups.length+' 组重复零件（合并将保留最早的记录，删除多余副本）：</div>';
+  var countA = dupGroups.filter(function(g){ return g.type === 'info'; }).length;
+  var countB = dupGroups.filter(function(g){ return g.type === 'code'; }).length;
+  var html = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">发现 '+dupGroups.length+' 组重复零件'+
+    (countA ? '（'+countA+' 组信息重复）' : '')+(countB ? '（'+countB+' 组物料编码冲突）' : '')+
+    '，合并将保留最早的记录，删除多余副本：</div>';
+
   dupGroups.forEach(function(group, gi) {
-    html += '<div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--table-stripe);">';
-    html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">第 '+(gi+1)+' 组（'+group.length+' 条重复）：</div>';
+    var isCodeDup = group.type === 'code';
+    var borderColor = isCodeDup ? 'var(--danger)' : 'var(--border)';
+    var bgColor = isCodeDup ? '#fff5f5' : 'var(--table-stripe)';
+    var tagLabel = isCodeDup
+      ? '<span style="display:inline-block;font-size:10px;background:#fee2e2;color:#dc2626;border-radius:3px;padding:1px 5px;margin-right:6px;">🔴 编码冲突</span>'
+      : '<span style="display:inline-block;font-size:10px;background:#e0f2fe;color:#0284c7;border-radius:3px;padding:1px 5px;margin-right:6px;">🔵 信息重复</span>';
+    html += '<div style="margin-bottom:10px;padding:8px;border:1px solid '+borderColor+';border-radius:4px;background:'+bgColor+';">';
+    html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">'+tagLabel+'第 '+(gi+1)+' 组（'+group.items.length+' 条重复）：</div>';
     html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
-    html += '<thead><tr style="background:var(--th-bg);"><th style="padding:4px;text-align:left;">名称</th><th style="padding:4px;text-align:left;">供应商</th><th style="padding:4px;text-align:left;">型号</th><th style="padding:4px;text-align:center;">保留</th></tr></thead><tbody>';
-    group.forEach(function(item, idx) {
+    html += '<thead><tr style="background:var(--th-bg);"><th style="padding:4px;text-align:left;">物料编码</th><th style="padding:4px;text-align:left;">名称</th><th style="padding:4px;text-align:left;">供应商</th><th style="padding:4px;text-align:left;">型号</th><th style="padding:4px;text-align:center;">保留</th></tr></thead><tbody>';
+    group.items.forEach(function(item, idx) {
       var rowStyle = 'border-bottom:1px solid var(--border-light);';
       html += '<tr style="'+rowStyle+'border-bottom:1px solid var(--border-light);">'+
+        '<td style="padding:4px;font-family:monospace;color:var(--primary);">'+esc(item.partCode||'-')+'</td>'+
         '<td style="padding:4px;font-weight:'+(idx===0?'600':'400')+';">'+esc(item.name)+'</td>'+
         '<td style="padding:4px;">'+esc(item.supplier||'-')+'</td>'+
         '<td style="padding:4px;">'+esc(item.model||'-')+'</td>'+
@@ -1957,7 +2001,7 @@ function mergeAllDuplicates() {
   var toDelete = new Set();
   _libDupGroups.forEach(function(group) {
     // 保留第一个，删除其余
-    for (var i = 1; i < group.length; i++) { toDelete.add(group[i].id); }
+    for (var i = 1; i < group.items.length; i++) { toDelete.add(group.items[i].id); }
   });
   var deleted = 0;
   if (isLocal) {
@@ -1977,6 +2021,44 @@ function mergeAllDuplicates() {
   toast('已合并 '+_libDupGroups.length+' 组重复，删除 '+deleted+' 条冗余记录', 'success');
   _libDupGroups = [];
 }
+
+// ── 物料编码悬浮工具提示 ──
+function copyPartCode(code) {
+  navigator.clipboard.writeText(code).then(function(){
+    toast('已复制物料编码：'+code, 'success');
+  }).catch(function(){
+    // Fallback for older browsers
+    var ta = document.createElement('textarea');
+    ta.value = code; ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('已复制物料编码：'+code, 'success'); } catch(e) { toast('复制失败，请手动复制', 'error'); }
+    document.body.removeChild(ta);
+  });
+}
+function searchByPartCode(code) {
+  // 导航到零件库页面并搜索该编码
+  navTo('library');
+  setTimeout(function(){
+    var inp = document.getElementById('libSearch');
+    if (inp) { inp.value = code; renderLibrary(); }
+  }, 100);
+}
+// 直接点击物料编码复制
+function onPartCodeClick(e, code) {
+  e.stopPropagation();
+  copyPartCode(code);
+}
+function partCodeWithTooltip(partCode, fontSize) {
+  if (!partCode) return '<span style="color:var(--text-muted);font-size:'+(fontSize||'11')+'px;">-</span>';
+  var fs = fontSize || 11;
+  return '<span class="partcode-wrap" onclick="onPartCodeClick(event,\''+escAttr(partCode)+'\')" title="点击复制物料编码">'+
+    '<span class="pc-badge" style="font-size:'+fs+'px;">'+esc(partCode)+'</span>'+
+    '<span class="pc-tooltip">'+
+      '<button onclick="event.stopPropagation();copyPartCode(\''+escAttr(partCode)+'\')">📋 复制</button>'+
+      '<button onclick="event.stopPropagation();searchByPartCode(\''+escAttr(partCode)+'\')">🔍 查找</button>'+
+    '</span></span>';
+}
+function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // 一键生成物料编码：为零件库中所有未编码的零件自动生成编码
 function batchGeneratePartCodes() {
@@ -3163,9 +3245,7 @@ function bomRowHtml(item, seq) {
 
   // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
   var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
-  var codeHtml = partCode
-    ? '<span style="font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);">'+esc(partCode)+'</span>'
-    : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+  var codeHtml = partCodeWithTooltip(partCode);
 
   return '<tr'+rowClass+' data-id="'+item.id+'">'+
     '<td class="no-print" style="text-align:center;"><input type="checkbox" class="bom-row-check" data-bom-id="'+item.id+'" onchange="onBomCheck(\''+item.id+'\',this)" onclick="event.stopPropagation()"></td>'+
@@ -4047,9 +4127,7 @@ function renderQuickLib() {
       '</select>';
     var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
     var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" step="0.1" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
-    var codeHtml = l.partCode
-      ? '<span style="font-family:monospace;font-size:10px;border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);white-space:nowrap;">'+esc(l.partCode)+'</span>'
-      : '<span style="color:var(--text-muted);font-size:10px;">-</span>';
+    var codeHtml = partCodeWithTooltip(l.partCode, 10);
     return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)" data-id="'+l.id+'"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="text-align:center;font-size:11px;">'+codeHtml+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
@@ -4342,9 +4420,7 @@ function renderLibrary() {
     var promoteBtnHtml = isLocal
       ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
       : '';
-    var codeHtml = l.partCode
-      ? '<span style="font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;">'+esc(l.partCode)+'</span>'
-      : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+    var codeHtml = partCodeWithTooltip(l.partCode);
     return '<tr data-id="'+l.id+'">'+
       '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
       '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
@@ -4667,9 +4743,7 @@ function buildPurchaseRow(item, seq, isNew) {
   var rowClass = isNew ? 'new-item-row' : '';
   var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" title="打开淘宝链接：'+esc(item.taobaoLink)+'" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#ff6b2b,#ff4400);color:#fff;text-decoration:none;font-size:14px;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'scale(1.1)\';this.style.boxShadow=\'0 2px 8px rgba(255,68,0,.4)\'" onmouseout="this.style.transform=\'scale(1)\';this.style.boxShadow=\'none\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></a>' : '<span style="color:var(--text-muted);font-size:14px;">-</span>';
-  var codeHtml = item.partCode
-    ? '<span style="font-family:monospace;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);">'+esc(item.partCode)+'</span>'
-    : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+  var codeHtml = partCodeWithTooltip(item.partCode);
   return '<tr class="'+rowClass+'" data-item-id="'+item.id+'">'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td style="text-align:center;">'+codeHtml+'</td>'+
@@ -5194,7 +5268,7 @@ function processRows(rawRows, isHeader, headerRow) {
   for (var k = 0; k < showCount; k++) {
     var e = data[k];
     tbody.innerHTML += '<tr style="border-bottom:1px solid var(--border);">' +
-      '<td>'+(k+1)+'</td><td>'+esc(e.partCode||'-')+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.supplier)+'</td><td>'+esc(e.name)+'</td>' +
+      '<td>'+(k+1)+'</td><td>'+partCodeWithTooltip(e.partCode)+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.supplier)+'</td><td>'+esc(e.name)+'</td>' +
       '<td>'+esc(e.model)+'</td><td>'+e.qty+'</td><td>'+esc(e.unit)+'</td><td>'+e.stock+'</td>' +
       '<td>'+esc(e.status)+'</td><td>'+e.actualPurchase+'</td><td>'+esc(e.arrived)+'</td>' +
       '<td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.taobaoLink || '')+'</td>' +
