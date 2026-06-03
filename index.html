@@ -2415,9 +2415,9 @@ function refreshAll() {
 // PAGES
 // ============================================================
 function showPage(id) {
-  // Permission check: non-admin can only access bom, purchase pages; buyer also gets stats
+  // Permission check: non-admin can access bom, purchase, settings, library (+ stats for buyer)
   if (currentUser && currentUser.role !== 'admin') {
-    var allowedPages = ['page-bom', 'page-purchase'];
+    var allowedPages = ['page-bom', 'page-purchase', 'page-settings', 'page-library'];
     if (currentUser.role === 'buyer') allowedPages.push('page-stats');
     if (allowedPages.indexOf(id) === -1) {
       toast('权限不足，无法访问该页面', 'error'); return;
