@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.40.3</title>
+<title>BOM 智能管理工具 v5.40.4</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -5094,15 +5094,23 @@ function processRows(rawRows, isHeader, headerRow) {
       '备注':'remark','remark':'remark','note':'remark','notes':'remark'
     };
     // 匹配表头找到每列对应字段
+    // 按关键词长度降序排列：长关键词优先匹配，避免短关键词（如"型号"）被复合关键词（如"名称型号"）的反向匹配吞掉
+    var sortedKw = Object.keys(keywordToField).sort(function(a,b){ return b.length - a.length; });
     Object.keys(headerMap).forEach(function(headerName){
       var hnLower = headerName.toLowerCase();
-      for (var kw in keywordToField) {
-        if (hnLower.indexOf(kw.toLowerCase()) !== -1 || kw.toLowerCase().indexOf(hnLower) !== -1) {
+      for (var ki = 0; ki < sortedKw.length; ki++) {
+        var kw = sortedKw[ki];
+        var kwLower = kw.toLowerCase();
+        var forwardMatch = hnLower.indexOf(kwLower) !== -1;
+        var reverseMatch = kwLower.indexOf(hnLower) !== -1;
+        if (forwardMatch || reverseMatch) {
           var field = keywordToField[kw];
           if (colIndex[field] === undefined) {
             colIndex[field] = headerMap[headerName];
           }
-          break;
+          // 正向匹配总是可靠的，直接break
+          // 反向匹配：只有成功赋值才break；字段已被占用则不break，继续尝试其他关键词
+          if (forwardMatch || colIndex[field] === headerMap[headerName]) break;
         }
       }
     });
