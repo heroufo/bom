@@ -453,7 +453,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.26</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.43</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -467,7 +467,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
   <div class="header-right">
     <button class="btn btn-ghost-header btn-sm" onclick="exportData()">导出</button>
-    <button class="btn btn-ghost-header btn-sm" onclick="importData()">导入</button>
+    <button class="btn btn-ghost-header btn-sm admin-only" onclick="importData()">导入</button>
     <button class="btn btn-ghost-header btn-sm" onclick="doRefresh()" title="强制刷新（保持登录状态">🔄 刷新</button>
     <div class="user-chip" id="userChip" style="display:none;">
       <span class="role-dot" id="userRoleDot"></span>
@@ -2607,7 +2607,7 @@ function applyRoleUI() {
   if (!isAdmin && activePage) {
     var pageId = activePage.id; // e.g. 'page-bom', 'page-library'
     var pageKey = pageId.replace('page-', '');
-    var allowed = isAdmin || (pageAccess[pageKey] !== undefined ? pageAccess[pageKey] : (pageKey === 'bom' || pageKey === 'purchase'));
+    var allowed = isAdmin || (pageAccess[pageKey] !== undefined ? pageAccess[pageKey] : (pageKey === 'bom' || pageKey === 'purchase' || pageKey === 'settings'));
     if (!allowed) {
       showPage('page-bom');
     }
