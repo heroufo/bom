@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.38.2</title>
+<title>BOM 智能管理工具 v5.39</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -679,6 +679,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <th style="width:80px;">供应商</th>
                 <th>名称</th>
                 <th style="min-width:180px;">名称型号</th>
+                <th style="width:80px;">物料编码</th>
                 <th style="width:48px;">数量</th>
                 <th style="width:42px;">单位</th>
                 <th style="width:44px;">库存</th>
@@ -690,7 +691,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <th id="bomActionColHeader" style="width:70px;" class="no-print">操作</th>
               </tr>
             </thead>
-            <tbody id="bomTbody"><tr><td colspan="15"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从上方零件库选件<br>或通过上方表单手动添加零件</div></div></td></tr></tbody>
+            <tbody id="bomTbody"><tr><td colspan="16"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未添加零部件</div><div class="empty-desc">请先选择或创建项目，然后从上方零件库选件<br>或通过上方表单手动添加零件</div></div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -800,7 +801,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   </div>
   <div id="libListView" class="card">
     <div class="table-wrap"><table class="lib-table"><thead><tr>
-      <th style="width:32px;" class="no-print"><input type="checkbox" class="lib-check" id="libSelectAll" onchange="toggleLibSelectAll(this)" title="全选"></th><th style="width:32px;">#</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th>备注</th><th style="width:100px;" class="no-print">操作</th>
+      <th style="width:32px;" class="no-print"><input type="checkbox" class="lib-check" id="libSelectAll" onchange="toggleLibSelectAll(this)" title="全选"></th><th style="width:32px;">#</th><th style="width:90px;">物料编码</th><th>名称</th><th>供应商</th><th style="min-width:180px;">型号规格</th><th>分类</th><th>单位</th><th>备注</th><th style="width:100px;" class="no-print">操作</th>
     </tr></thead><tbody id="libListTbody"></tbody></table></div>
   </div>
 </div>
@@ -1016,6 +1017,13 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div class="form-group"><label>分类</label><select class="form-control" id="lib-category"></select></div>
     <div class="form-group"><label>常用单位</label><select class="form-control" id="lib-unit"></select></div>
   </div>
+  <div class="form-group" style="margin-bottom:10px;">
+    <label>物料编码 <span style="font-size:11px;color:var(--text-muted);">(如 INS-0001)</span></label>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input class="form-control" id="lib-partCode" placeholder="留空则系统自动生成" style="flex:1;">
+      <button class="btn btn-sm btn-outline" type="button" onclick="autoFillPartCode()" title="根据分类自动生成编码" style="white-space:nowrap;flex-shrink:0;">⚡ 自动生成</button>
+    </div>
+  </div>
   <div class="form-group" style="margin-bottom:10px;"><label>淘宝链接</label><input class="form-control" id="lib-taobao" placeholder="粘贴淘宝链接..."></div>
   <div class="form-group" style="margin-bottom:10px;"><label>备注</label><input class="form-control" id="lib-remark" placeholder="该零件的专有信息或备注..."></div>
   <div class="modal-actions">
@@ -1145,7 +1153,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
     <div style="font-weight:600;margin-bottom:4px;">预览（前10行）：</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;" id="importPreviewTable">
       <thead><tr style="background:var(--bg-secondary);">
-        <th>#</th><th>分类</th><th>供应商</th><th>名称</th><th>型号</th><th>数量</th><th>单位</th><th>库存</th><th>状态</th><th>实际采购数</th><th>到货</th><th>链接</th><th>备注</th>
+        <th>#</th><th>物料编码</th><th>分类</th><th>供应商</th><th>名称</th><th>型号</th><th>数量</th><th>单位</th><th>库存</th><th>状态</th><th>实际采购数</th><th>到货</th><th>链接</th><th>备注</th>
       </tr></thead>
       <tbody id="importPreviewTbody"></tbody>
     </table>
@@ -1164,6 +1172,39 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 // ============================================================
 const DEFAULT_CATEGORIES = ['标准件','传感器仪表','气动元件','管路附件','机械部件','电气元件','结构件','其他部件'];
 const DEFAULT_UNITS = ['台','个','套','根','米','批','组','件','只','对','副','卷'];
+
+// 物料编码前缀规则：分类 → 前缀（用户可在设置中自定义扩展）
+const DEFAULT_PART_CODE_PREFIXES = {
+  '标准件':    'STD',
+  '传感器仪表':'INS',
+  '气动元件':  'PNE',
+  '管路附件':  'PIP',
+  '机械部件':  'MEC',
+  '电气元件':  'ELC',
+  '结构件':    'STR',
+  '其他部件':  'OTH'
+};
+// 自动生成物料编码：取分类前缀+4位序号
+function generatePartCode(category) {
+  var prefixMap = Object.assign({}, DEFAULT_PART_CODE_PREFIXES, store.partCodePrefixes || {});
+  var prefix = prefixMap[category] || 'OTH';
+  // 在全局库+所有项目本地库中找同前缀最大序号
+  var maxSeq = 0;
+  var allItems = (store.library || []).concat();
+  for (var pid in store.projects) {
+    var localLib = store.projects[pid].localLibrary;
+    if (Array.isArray(localLib)) allItems = allItems.concat(localLib);
+  }
+  allItems.forEach(function(item) {
+    var code = item.partCode || '';
+    if (code.indexOf(prefix + '-') === 0) {
+      var seq = parseInt(code.slice(prefix.length + 1), 10);
+      if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+    }
+  });
+  var nextSeq = maxSeq + 1;
+  return prefix + '-' + ('000' + nextSeq).slice(-4);
+}
 
 // Default admin account (stored in store.users)
 const DEFAULT_USERS = [
@@ -2984,6 +3025,13 @@ function bomRowHtml(item, seq) {
   }
 
   var nameHtml = '<td><b>'+esc(item.name)+localBadge+staleBadge+'</b></td>';
+
+  // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
+  var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
+  var codeHtml = partCode
+    ? '<span style="font-family:monospace;font-size:11px;background:var(--bg-hover);border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);">'+esc(partCode)+'</span>'
+    : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+
   return '<tr'+rowClass+' data-id="'+item.id+'">'+
     '<td class="no-print" style="text-align:center;"><input type="checkbox" class="bom-row-check" data-bom-id="'+item.id+'" onchange="onBomCheck(\''+item.id+'\',this)" onclick="event.stopPropagation()"></td>'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
@@ -2991,6 +3039,7 @@ function bomRowHtml(item, seq) {
     '<td><span style="display:inline-block;'+supplierStyle+'">'+esc(supplier)+'</span></td>'+
     nameHtml+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
+    '<td style="text-align:center;">'+codeHtml+'</td>'+
     '<td style="text-align:center;font-weight:600;">'+fmtNum(item.qty)+'</td>'+
     '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
     '<td style="text-align:center;">'+fmtNum(item.stock)+'</td>'+
@@ -3055,6 +3104,7 @@ function syncBomItemFromLib(itemId) {
   item.unit = libItem.unit || item.unit;
   item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
   item.remark = libItem.remark || item.remark;
+  if (libItem.partCode) item.partCode = libItem.partCode; // 同步物料编码
   item.libSyncedAt = libItem.updatedAt || Date.now();
 
   saveStoreDebounced(true);
@@ -3081,6 +3131,7 @@ function batchSyncBomFromLib() {
     item.unit = libItem.unit || item.unit;
     item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
     item.remark = libItem.remark || item.remark;
+    if (libItem.partCode) item.partCode = libItem.partCode;
     item.libSyncedAt = libItem.updatedAt || Date.now();
     synced++;
   });
@@ -3844,6 +3895,7 @@ function batchAddFromLib() {
       id:e(), category:l.category||getCategories()[0], name:l.name, supplier:l.supplier||'',
       model:l.model||'', qty:qty, unit:l.unit||'个', stock:libStock, status:status,
       actualPurchase: actualPurchase, arrived:libArrived, taobaoLink:l.taobaoLink||'', remark:'',
+      partCode: l.partCode||'',
       libRefId: l.id, libSyncedAt: l.updatedAt || Date.now()
     });
     added++;
@@ -3994,14 +4046,18 @@ function renderLibrary() {
   }
 
   var tbody = document.getElementById('libListTbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">零件库为空</div><div class="empty-desc">'+(isLocal?'在BOM录入时勾选「保存到本项目零件库」即可添加':'点击上方「添加零件」或导入Excel开始构建零件库')+'</div></div></td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">零件库为空</div><div class="empty-desc">'+(isLocal?'在BOM录入时勾选「保存到本项目零件库」即可添加':'点击上方「添加零件」或导入Excel开始构建零件库')+'</div></div></td></tr>'; return; }
   tbody.innerHTML = filtered.map(function(l,i) {
     var promoteBtnHtml = isLocal
       ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
       : '';
+    var codeHtml = l.partCode
+      ? '<span style="font-family:monospace;font-size:11px;background:var(--bg-hover);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;">'+esc(l.partCode)+'</span>'
+      : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
     return '<tr data-id="'+l.id+'">'+
       '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
       '<td style="text-align:center;color:var(--text-muted);">'+(i+1)+'</td>'+
+      '<td>'+codeHtml+'</td>'+
       '<td><b>'+esc(l.name)+'</b></td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>'+
       '<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td>'+
       '<td style="font-size:12px;">'+esc(l.unit||'-')+'</td>'+
@@ -4030,6 +4086,20 @@ function prefillFromLib(id) {
   document.getElementById('inp-qty').focus();
 }
 
+// 弹窗中「⚡ 自动生成」按钮点击时，根据当前选中分类生成物料编码
+function autoFillPartCode() {
+  var category = document.getElementById('lib-category').value;
+  if (!category) { toast('请先选择分类','warn'); return; }
+  // 如果已有编码则提示确认
+  var existing = document.getElementById('lib-partCode').value.trim();
+  if (existing) {
+    if (!confirm('当前已有编码「' + existing + '」，确认覆盖生成新编码？')) return;
+  }
+  var code = generatePartCode(category);
+  document.getElementById('lib-partCode').value = code;
+  toast('已生成编码：' + code, 'success');
+}
+
 function openLibModal(id) {
   populateSelects();
   var isLocal = (libTab === 'local');
@@ -4042,6 +4112,7 @@ function openLibModal(id) {
   document.getElementById('lib-model').value = l ? (l.model||'') : '';
   document.getElementById('lib-category').value = l ? (l.category||getCategories()[0]) : getCategories()[0];
   document.getElementById('lib-unit').value = l ? (l.unit||'个') : '个';
+  document.getElementById('lib-partCode').value = l ? (l.partCode||'') : '';
   document.getElementById('lib-taobao').value = l ? (l.taobaoLink||'') : '';
   document.getElementById('lib-remark').value = l ? (l.remark||'') : '';
   // Set checkbox defaults based on source tab
@@ -4071,6 +4142,7 @@ function updateLibEntry() {
     model: model,
     category: document.getElementById('lib-category').value,
     unit: document.getElementById('lib-unit').value,
+    partCode: document.getElementById('lib-partCode').value.trim(),
     taobaoLink: document.getElementById('lib-taobao').value.trim(),
     remark: document.getElementById('lib-remark').value.trim()
   };
@@ -4108,14 +4180,17 @@ function addLibEntry() {
     model: model,
     category: document.getElementById('lib-category').value,
     unit: document.getElementById('lib-unit').value,
+    partCode: document.getElementById('lib-partCode').value.trim(),
     taobaoLink: document.getElementById('lib-taobao').value.trim(),
     remark: document.getElementById('lib-remark').value.trim()
   };
 
   // Always create as a NEW entry (do NOT match existing)
   var now = Date.now();
-  if (saveGlobal) { store.library.push(Object.assign({id: e(), updatedAt: now}, baseFields)); }
-  if (saveLocal) { getLocalLib().push(Object.assign({id: e(), updatedAt: now}, baseFields)); }
+  // 如果物料编码为空，新增时自动生成
+  var autoCode = baseFields.partCode || generatePartCode(baseFields.category);
+  if (saveGlobal) { store.library.push(Object.assign({id: e(), updatedAt: now}, baseFields, {partCode: autoCode})); }
+  if (saveLocal) { getLocalLib().push(Object.assign({id: e(), updatedAt: now}, baseFields, {partCode: autoCode})); }
 
   var saved = saveStoreDebounced();
   closeModal('modal-lib'); markDirty('library'); markDirty('badges'); markDirty('quickLib'); markDirty('bomTable');
@@ -4576,10 +4651,10 @@ function openImportModal() {
 }
 
 function downloadImportTemplate() {
-  var header = '分类,供应商,名称,型号,数量,单位,库存,状态,实际采购数,到货状态,淘宝链接,备注';
+  var header = '物料编码,分类,供应商,名称,型号,数量,单位,库存,状态,实际采购数,到货状态,淘宝链接,备注';
   var sampleRows = [
-    '标准件,XX五金,螺栓M8x30,GB/T5783,50,个,10,采购,40,未到,https://item.taobao.com/xxx,重要',
-    '传感器仪表,YY电子,压力变送器,PT-100,5,台,2,库存,3,已到,,备件'
+    'INS-0001,传感器仪表,YY电子,压力变送器,PT-100,5,台,2,库存,3,已到,,备件',
+    'STD-0001,标准件,XX五金,螺栓M8x30,GB/T5783,50,个,10,采购,40,未到,https://item.taobao.com/xxx,重要'
   ];
   // CSV template
   var csvContent = '\ufeff' + header + '\n' + sampleRows.join('\n');
@@ -4681,12 +4756,35 @@ function parseCsvLine(line) {
 }
 
 function processRows(rawRows, isHeader) {
-  var fieldNames = ['category','supplier','name','model','qty','unit','stock','status','actualPurchase','arrived','taobaoLink','remark'];
+  // 支持有表头（动态列检测）和无表头（按位置映射）两种模式
+  // 新模板列顺序：物料编码,分类,供应商,名称,型号,数量,单位,库存,状态,实际采购数,到货状态,淘宝链接,备注
+  // 旧模板列顺序：分类,供应商,名称,型号,数量,单位,库存,状态,实际采购数,到货状态,淘宝链接,备注
+  var colMap = null; // 如果有表头，按名称映射列索引
+  var startRows = rawRows;
+
+  if (isHeader && rawRows.length > 0) {
+    // 第一行是原始表头（传入的 rawRows 不含表头，表头已在 handleImportFile 中跳过，但我们需要重新从文件读——此处通过检测第一行内容识别）
+    // 注意：processRows 传入的已去掉表头行，isHeader 只是指示原来是否有表头
+    // 无法再取到 header 行，退回旧逻辑：按位置判断
+    // 检查是否含物料编码列（新模板第0列有物料编码格式）
+    // 改为靠外部传入 headerRow 来处理——此版本暂用列数判断
+  }
+
+  // 新模板有 13 列（物料编码开头），旧模板有 12 列
+  var hasPartCode = rawRows.length > 0 && rawRows[0].length >= 13 &&
+    /^[A-Z]{2,4}-\d{3,4}$/.test((rawRows[0][0]||'').trim());
+
+  var fieldNames = hasPartCode
+    ? ['partCode','category','supplier','name','model','qty','unit','stock','status','actualPurchase','arrived','taobaoLink','remark']
+    : ['category','supplier','name','model','qty','unit','stock','status','actualPurchase','arrived','taobaoLink','remark'];
+
+  var nameColIdx = hasPartCode ? 3 : 2;
+
   var data = [];
   var errors = [];
   for (var i = 0; i < rawRows.length; i++) {
     var cols = rawRows[i];
-    if (!cols[2] || !cols[2].trim()) { errors.push('第'+(i+1+ (isHeader?1:0))+'行：名称为空，已跳过'); continue; }
+    if (!cols[nameColIdx] || !cols[nameColIdx].trim()) { errors.push('第'+(i+1+ (isHeader?1:0))+'行：名称为空，已跳过'); continue; }
     var entry = {};
     for (var j = 0; j < fieldNames.length; j++) {
       var val = (cols[j] || '').trim();
@@ -4714,14 +4812,14 @@ function processRows(rawRows, isHeader) {
   for (var k = 0; k < showCount; k++) {
     var e = data[k];
     tbody.innerHTML += '<tr style="border-bottom:1px solid var(--border);">' +
-      '<td>'+(k+1)+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.supplier)+'</td><td>'+esc(e.name)+'</td>' +
+      '<td>'+(k+1)+'</td><td>'+esc(e.partCode||'-')+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.supplier)+'</td><td>'+esc(e.name)+'</td>' +
       '<td>'+esc(e.model)+'</td><td>'+e.qty+'</td><td>'+esc(e.unit)+'</td><td>'+e.stock+'</td>' +
       '<td>'+esc(e.status)+'</td><td>'+e.actualPurchase+'</td><td>'+esc(e.arrived)+'</td>' +
       '<td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.taobaoLink || '')+'</td>' +
       '<td>'+esc(e.remark || '')+'</td></tr>';
   }
   if (data.length > 10) {
-    tbody.innerHTML += '<tr><td colspan="13" style="text-align:center;color:var(--text-muted);padding:4px;">... 共 ' + data.length + ' 条，仅显示前10条</td></tr>';
+    tbody.innerHTML += '<tr><td colspan="14" style="text-align:center;color:var(--text-muted);padding:4px;">... 共 ' + data.length + ' 条，仅显示前10条</td></tr>';
   }
   summary.textContent = '共解析 ' + data.length + ' 条数据' + (errors.length > 0 ? '，' + errors.length + ' 条错误' : '') + (isHeader ? '（已跳过表头行）' : '');
   document.getElementById('importConfirmBtn').disabled = data.length === 0;
@@ -4768,7 +4866,7 @@ function exportBomToTencentDocs() {
   data.push(['清单']);
   
   // Row 3: Headers
-  data.push(['序号','供应商','名称','名称型号','数量','单位','库存','状态','实采','到货状态','备注']);
+  data.push(['序号','物料编码','供应商','名称','名称型号','数量','单位','库存','状态','实采','到货状态','备注']);
   
   // Group by category, ordered by user's category sequence
   var groups = {};
@@ -4793,6 +4891,7 @@ function exportBomToTencentDocs() {
     groups[cat].forEach(function(item){
       data.push([
         seq++, 
+        item.partCode||'',
         item.supplier||'', 
         item.name||'', 
         item.model||'',
@@ -4813,6 +4912,7 @@ function exportBomToTencentDocs() {
   // Column widths matching reference
   ws['!cols'] = [
     {wch:6},   // 序号
+    {wch:10},  // 物料编码
     {wch:14},  // 供应商
     {wch:20},  // 名称
     {wch:55},  // 名称型号
@@ -4825,8 +4925,8 @@ function exportBomToTencentDocs() {
     {wch:30}   // 备注
   ];
 
-  // Merged cells: title row (merge across all 11 columns, row 0)
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:10}}];
+  // Merged cells: title row (merge across all 12 columns, row 0)
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:11}}];
 
   // Style the title row (A1: bold, larger, centered)
   if (!ws['A1']) ws['A1'] = {};
@@ -4840,7 +4940,7 @@ function exportBomToTencentDocs() {
 
   // Style header row (row 3)
   var headerRow = 2; // 0-based
-  for (var c = 0; c < 11; c++) {
+  for (var c = 0; c < 12; c++) {
     var cellRef = XLSX.utils.encode_cell({r:headerRow,c:c});
     if (!ws[cellRef]) ws[cellRef] = {};
     if (!ws[cellRef].s) ws[cellRef].s = {};
@@ -4855,7 +4955,7 @@ function exportBomToTencentDocs() {
     if (!ws[cellRef].s) ws[cellRef].s = {};
     ws[cellRef].s = {font:{bold:true,sz:10,color:{rgb:'4472C4'}}, fill:{fgColor:{rgb:'D9E2F3'}}};
     // Merge category row across all columns
-    ws['!merges'].push({s:{r:rowNum,c:0},e:{r:rowNum,c:10}});
+    ws['!merges'].push({s:{r:rowNum,c:0},e:{r:rowNum,c:11}});
     rowNum += groups[cat].length + 1; // +1 for header row
   });
 
@@ -4906,11 +5006,12 @@ function exportSupplierExcel(supplierName) {
 }
 
 function exportLibTemplate() {
-  // v4.1: 去掉品牌和图片URL字段
-  var data = [['名称','供应商','型号规格','分类','单位','淘宝链接']];
-  data.push(['示例：电磁阀','亚德客','4V21008B DC24','气动元件','个','https://item.taobao.com/...']);
+  // v5.39: 加入物料编码列
+  var data = [['物料编码','名称','供应商','型号规格','分类','单位','淘宝链接','备注']];
+  data.push(['INS-0001','示例：压力变送器','XX传感','PT-100 0~10MPa 4-20mA','传感器仪表','台','https://item.taobao.com/...','']);
+  data.push(['PNE-0001','示例：电磁阀','亚德客','4V21008B DC24','气动元件','个','','']);
   var ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:18},{wch:16},{wch:30},{wch:12},{wch:6},{wch:35}];
+  ws['!cols'] = [{wch:10},{wch:18},{wch:16},{wch:30},{wch:12},{wch:6},{wch:35},{wch:20}];
   var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '零件库导入模板');
   XLSX.writeFile(wb, '零件库导入模板.xlsx');
   toast('导入模板已下载', 'success');
@@ -4920,12 +5021,12 @@ function exportLibExcel() {
   var isLocal = (libTab === 'local');
   var sourceList = isLocal ? getLocalLib() : store.library;
   if (!sourceList.length) { toast('零件库为空，无法导出', 'error'); return; }
-  var data = [['名称','供应商','型号规格','分类','单位','淘宝链接','备注']];
+  var data = [['物料编码','名称','供应商','型号规格','分类','单位','淘宝链接','备注']];
   sourceList.forEach(function(l){
-    data.push([l.name||'', l.supplier||'', l.model||'', l.category||'', l.unit||'', l.taobaoLink||'', l.remark||'']);
+    data.push([l.partCode||'', l.name||'', l.supplier||'', l.model||'', l.category||'', l.unit||'', l.taobaoLink||'', l.remark||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:18},{wch:16},{wch:30},{wch:12},{wch:6},{wch:35},{wch:30}];
+  ws['!cols'] = [{wch:10},{wch:18},{wch:16},{wch:30},{wch:12},{wch:6},{wch:35},{wch:20}];
   var wb = XLSX.utils.book_new();
   var sheetName = isLocal ? '本项目零件库' : '通用零件库';
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -4959,8 +5060,8 @@ function importLibExcel(input) {
       var catCol = headers.findIndex(function(h){return h.indexOf('分类')>=0;});
       var unitCol = headers.findIndex(function(h){return h==='单位';});
       var taobaoCol = headers.findIndex(function(h){return h.indexOf('淘宝')>=0||h.indexOf('链接')>=0;});
-
       var remarkCol = headers.findIndex(function(h){return h==='备注'||h.indexOf('备注')>=0;});
+      var partCodeCol = headers.findIndex(function(h){return h.indexOf('物料编码')>=0||h.indexOf('编码')>=0||h.toLowerCase().indexOf('partcode')>=0;});
 
       var isLocal = (capturedTab === 'local');
       if (isLocal && (!store.currentProject || !store.projects[store.currentProject])) {
@@ -4983,22 +5084,33 @@ function importLibExcel(input) {
         if (!rawName) { skipped++; continue; }
         var name = rawName;
         var model = modelCol>=0 ? String(row[modelCol]||'').trim() : '';
-        // Match by name + model to avoid overwriting same-name different-model parts
-        var existing = targetList.find(function(l){
-          return l.name.toLowerCase()===name.toLowerCase() && (l.model||'').toLowerCase()===model.toLowerCase();
-        });
+        // Match by partCode first (精确), then by name + model (兜底)
+        var importedCode = partCodeCol>=0 ? String(row[partCodeCol]||'').trim() : '';
+        var existing = null;
+        if (importedCode) {
+          existing = targetList.find(function(l){ return l.partCode === importedCode; });
+        }
+        if (!existing) {
+          existing = targetList.find(function(l){
+            return l.name.toLowerCase()===name.toLowerCase() && (l.model||'').toLowerCase()===model.toLowerCase();
+          });
+        }
         if (existing) {
           // Update existing entry fields
+          if (importedCode) existing.partCode = importedCode;
           existing.supplier = supplierCol>=0 ? String(row[supplierCol]||'').trim() : existing.supplier;
           existing.model = modelCol>=0 ? String(row[modelCol]||'').trim() : existing.model;
           existing.category = catCol>=0 ? String(row[catCol]||'').trim() : existing.category;
           existing.unit = unitCol>=0 ? String(row[unitCol]||'').trim() : existing.unit;
           existing.taobaoLink = taobaoCol>=0 ? String(row[taobaoCol]||'').trim() : existing.taobaoLink;
           if (remarkCol >= 0) existing.remark = String(row[remarkCol]||'').trim();
+          existing.updatedAt = Date.now();
           updated++;
         } else {
+          var newPartCode = importedCode || generatePartCode(catCol>=0 ? String(row[catCol]||'').trim() : getCategories()[0]);
           targetList.push({
-            id: e(), name: name,
+            id: e(), name: name, updatedAt: Date.now(),
+            partCode: newPartCode,
             supplier: supplierCol>=0 ? String(row[supplierCol]||'').trim() : '',
             model: modelCol>=0 ? String(row[modelCol]||'').trim() : '',
             category: catCol>=0 ? String(row[catCol]||'').trim() : getCategories()[0],
