@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.42</title>
+<title>BOM 智能管理工具 v5.43</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -427,7 +427,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .partcode-wrap .pc-badge{font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;transition:box-shadow .15s}
 .partcode-wrap:hover .pc-badge{box-shadow:0 0 0 2px var(--primary),0 2px 8px rgba(0,0,0,.12)}
 .partcode-wrap .pc-tooltip{display:none;position:absolute;z-index:9999;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;white-space:nowrap}
-.partcode-wrap:hover .pc-tooltip{display:flex;gap:4px}
+.partcode-wrap .pc-tooltip.pc-show{display:flex;gap:4px}
 .partcode-wrap .pc-tooltip button{font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background .1s}
 .partcode-wrap .pc-tooltip button:hover{background:var(--primary-bg);border-color:var(--primary)}
 </style>
@@ -2051,14 +2051,38 @@ function onPartCodeClick(e, code) {
 function partCodeWithTooltip(partCode, fontSize) {
   if (!partCode) return '<span style="color:var(--text-muted);font-size:'+(fontSize||'11')+'px;">-</span>';
   var fs = fontSize || 11;
-  return '<span class="partcode-wrap" onclick="onPartCodeClick(event,\''+escAttr(partCode)+'\')" title="点击复制物料编码">'+
+  return '<span class="partcode-wrap" data-pc="'+escAttr(partCode)+'" onmouseenter="pcTipShow(this)" onmouseleave="pcTipHide(this)">'+
     '<span class="pc-badge" style="font-size:'+fs+'px;">'+esc(partCode)+'</span>'+
     '<span class="pc-tooltip">'+
-      '<button onclick="event.stopPropagation();copyPartCode(\''+escAttr(partCode)+'\')">📋 复制</button>'+
-      '<button onclick="event.stopPropagation();searchByPartCode(\''+escAttr(partCode)+'\')">🔍 查找</button>'+
+      '<button onmouseenter="pcTipCancelHide(this.closest(\'.partcode-wrap\'))" onmouseleave="pcTipHide(this.closest(\'.partcode-wrap\'))" onclick="event.stopPropagation();copyPartCode(this.getAttribute(\'data-pc\'))">📋 复制</button>'+
     '</span></span>';
 }
 function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// 物料编码 tooltip 显示/延迟隐藏
+var _pcTipTimers = {};
+function pcTipShow(wrapEl) {
+  var tip = wrapEl.querySelector('.pc-tooltip');
+  if (!tip) return;
+  // 清除该 wrap 上可能存在的隐藏定时器
+  var wid = wrapEl.getAttribute('data-pc') || '';
+  if (_pcTipTimers[wid]) { clearTimeout(_pcTipTimers[wid]); delete _pcTipTimers[wid]; }
+  tip.classList.add('pc-show');
+}
+function pcTipHide(wrapEl) {
+  var tip = wrapEl.querySelector('.pc-tooltip');
+  if (!tip) return;
+  var wid = wrapEl.getAttribute('data-pc') || '';
+  // 延迟 3 秒后隐藏
+  _pcTipTimers[wid] = setTimeout(function() {
+    tip.classList.remove('pc-show');
+    delete _pcTipTimers[wid];
+  }, 3000);
+}
+// 供 tooltip 内按钮调用：鼠标进入按钮区域时取消隐藏
+function pcTipCancelHide(wrapEl) {
+  var wid = wrapEl.getAttribute('data-pc') || '';
+  if (_pcTipTimers[wid]) { clearTimeout(_pcTipTimers[wid]); delete _pcTipTimers[wid]; }
+}
 
 // 一键生成物料编码：为零件库中所有未编码的零件自动生成编码
 function batchGeneratePartCodes() {
@@ -2572,8 +2596,8 @@ function applyRoleUI() {
     for (var key in pageTabMap) {
       var tabEl = document.getElementById(pageTabMap[key]);
       if (!tabEl) continue;
-      // 默认非管理员只能看 BOM 和 实采（向后兼容旧数据无 pageAccess）
-      var visible = pageAccess[key] !== undefined ? pageAccess[key] : (key === 'bom' || key === 'purchase');
+      // 默认非管理员可看 BOM、实采、设置（云同步全员可用）；向后兼容旧数据无 pageAccess
+      var visible = pageAccess[key] !== undefined ? pageAccess[key] : (key === 'bom' || key === 'purchase' || key === 'settings');
       tabEl.style.display = visible ? '' : 'none';
     }
   }
