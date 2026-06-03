@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.40</title>
+<title>BOM 智能管理工具 v5.40.2</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -3634,8 +3634,34 @@ function syncBomToLibrary() {
       return (l.name===item.name) && (l.model===item.model);
     });
     // 已在任意一个库中存在则跳过
-    if (inGlobal || inLocal) { skipped++; return; }
-    // 两个库都不存在，加入通用库
+    if (inGlobal || inLocal) {
+      // 如果BOM条目缺少 partCode，补上库中的编码
+      if (inGlobal && inGlobal.partCode && (!item.partCode || item.partCode.trim()==='')) {
+        item.partCode = inGlobal.partCode;
+        item.libRefId = inGlobal.id;
+        item.libSyncedAt = inGlobal.updatedAt || Date.now();
+      } else if (inLocal && inLocal.partCode && (!item.partCode || item.partCode.trim()==='')) {
+        item.partCode = inLocal.partCode;
+        item.libRefId = inLocal.id;
+        item.libSyncedAt = inLocal.updatedAt || Date.now();
+      }
+      skipped++; return;
+    }
+    // 两个库都不存在，加入通用库（带物料编码和时间戳）
+    var newPartCode = item.partCode && item.partCode.trim() !== '' ? item.partCode.trim() : generatePartCode(item.category || '其他部件');
+    // 二次验证：再确认一遍库中没有同名同型号零件（防止并发/trim差异）
+    var recheck = store.library.find(function(l){
+      return ((l.name||'').trim().toLowerCase() === (item.name||'').trim().toLowerCase()) &&
+             ((l.model||'').trim().toLowerCase() === (item.model||'').trim().toLowerCase());
+    });
+    if (recheck) {
+      if (recheck.partCode && (!item.partCode || item.partCode.trim()==='')) {
+        item.partCode = recheck.partCode;
+      }
+      item.libRefId = recheck.id;
+      item.libSyncedAt = recheck.updatedAt || Date.now();
+      skipped++; return;
+    }
     store.library.push({
       id: e(),
       name: item.name,
@@ -3644,8 +3670,12 @@ function syncBomToLibrary() {
       category: item.category || '未分类',
       unit: item.unit || '个',
       taobaoLink: item.taobaoLink || '',
-      remark: item.remark || ''
+      remark: item.remark || '',
+      partCode: newPartCode,
+      updatedAt: Date.now()
     });
+    // 同步编码回 BOM 条目
+    if (!item.partCode || item.partCode.trim()==='') item.partCode = newPartCode;
     added++;
   });
 
@@ -5008,6 +5038,58 @@ function processRows(rawRows, isHeader) {
     if (entry.partCode === undefined) { entry.partCode = ''; }
     data.push(entry);
   }
+
+  // === 导入时智能匹配物料编码：防止零件库重复 ===
+  // 构建全库索引（通用库 + 所有项目的本项目库）
+  var fullLib = (store.library||[]).concat();
+  var projKeys = Object.keys(store.projects||{});
+  projKeys.forEach(function(pk){
+    var p = store.projects[pk];
+    if (p && Array.isArray(p.localLibrary)) {
+      fullLib = fullLib.concat(p.localLibrary);
+    }
+  });
+  // 去重：同一 partCode 只保留第一次出现的
+  var seenIds = {};
+  fullLib = fullLib.filter(function(l){ if (!l.id || seenIds[l.id]) return false; seenIds[l.id] = true; return true; });
+
+  var importedPartCodeCount = 0;
+  data.forEach(function(entry) {
+    if (entry.partCode && entry.partCode.trim() !== '') return; // 已有编码跳过
+    var eName = (entry.name||'').trim().toLowerCase();
+    var eModel = (entry.model||'').trim().toLowerCase();
+    if (!eName) return;
+    // 先查库中同名同型号的零件
+    var matched = null;
+    // 第一级：名称+型号完全匹配
+    matched = fullLib.find(function(l){
+      return ((l.name||'').trim().toLowerCase() === eName) &&
+             ((l.model||'').trim().toLowerCase() === eModel) &&
+             l.partCode && l.partCode.trim() !== '';
+    });
+    // 第二级：仅名称匹配（型号可能不同）
+    if (!matched) {
+      matched = fullLib.find(function(l){
+        return ((l.name||'').trim().toLowerCase() === eName) &&
+               l.partCode && l.partCode.trim() !== '';
+      });
+    }
+    if (matched) {
+      entry.partCode = matched.partCode;
+      entry.libRefId = matched.id;
+      entry.libSyncedAt = matched.updatedAt || Date.now();
+    } else {
+      // 库中无匹配，自动生成新编码
+      entry.partCode = generatePartCode(entry.category || '其他部件');
+    }
+    importedPartCodeCount++;
+  });
+  if (importedPartCodeCount > 0) {
+    var matchedCount = data.filter(function(e){ return e.libRefId; }).length;
+    var genCount = importedPartCodeCount - matchedCount;
+    console.log('[导入] 物料编码匹配：复用 '+matchedCount+' 个，新生成 '+genCount+' 个');
+  }
+
   _importedData = data;
   // Show preview
   var preview = document.getElementById('importPreview');
