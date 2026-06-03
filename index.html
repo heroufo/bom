@@ -2054,7 +2054,7 @@ function partCodeWithTooltip(partCode, fontSize) {
   return '<span class="partcode-wrap" data-pc="'+escAttr(partCode)+'" onmouseenter="pcTipShow(this)" onmouseleave="pcTipHide(this)">'+
     '<span class="pc-badge" style="font-size:'+fs+'px;">'+esc(partCode)+'</span>'+
     '<span class="pc-tooltip">'+
-      '<button onmouseenter="pcTipCancelHide(this.closest(\'.partcode-wrap\'))" onmouseleave="pcTipHide(this.closest(\'.partcode-wrap\'))" onclick="event.stopPropagation();copyPartCode(this.getAttribute(\'data-pc\'))">📋 复制</button>'+
+      '<button onmouseenter="pcTipCancelHide(this.closest(\'.partcode-wrap\'))" onmouseleave="pcTipHide(this.closest(\'.partcode-wrap\'))" onclick="event.stopPropagation();copyPartCode(\''+escAttr(partCode)+'\')">📋 复制</button>'+
     '</span></span>';
 }
 function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
