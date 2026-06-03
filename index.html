@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.40.4</title>
+<title>BOM 智能管理工具 v5.41</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -1211,12 +1211,14 @@ const DEFAULT_PART_CODE_PREFIXES = {
 function generatePartCode(category) {
   var prefixMap = Object.assign({}, DEFAULT_PART_CODE_PREFIXES, store.partCodePrefixes || {});
   var prefix = prefixMap[category] || 'OTH';
-  // 在全局库+所有项目本地库中找同前缀最大序号
+  // 在全局库+所有项目本地库+所有项目BOM条目中找同前缀最大序号
   var maxSeq = 0;
   var allItems = (store.library || []).concat();
   for (var pid in store.projects) {
-    var localLib = store.projects[pid].localLibrary;
-    if (Array.isArray(localLib)) allItems = allItems.concat(localLib);
+    var proj = store.projects[pid];
+    if (Array.isArray(proj.localLibrary)) allItems = allItems.concat(proj.localLibrary);
+    // 同时扫描所有项目的BOM条目（防止批量生成时编码冲撞）
+    if (Array.isArray(proj.bom)) allItems = allItems.concat(proj.bom);
   }
   allItems.forEach(function(item) {
     var code = item.partCode || '';
@@ -1726,9 +1728,10 @@ function performGlobalSearch() {
       var nameMatch = (item.name||'').toLowerCase().indexOf(kw) >= 0;
       var modelMatch = (item.model||'').toLowerCase().indexOf(kw) >= 0;
       var supplierMatch = (item.supplier||'').toLowerCase().indexOf(kw) >= 0;
-      if (nameMatch || modelMatch || supplierMatch) {
+      var codeMatch = (item.partCode||'').toLowerCase().indexOf(kw) >= 0;
+      if (nameMatch || modelMatch || supplierMatch || codeMatch) {
         results.push({ proj: proj.name, projId: pid, item: item,
-          highlight: nameMatch ? 'name' : (modelMatch ? 'model' : 'supplier') });
+          highlight: nameMatch ? 'name' : (modelMatch ? 'model' : (supplierMatch ? 'supplier' : 'code')) });
       }
     });
   });
@@ -1878,7 +1881,7 @@ function applyPurchaseFilter() {
     if (sup && (item.supplier||'') !== sup) return false;
     if (arr === 'PENDING' && (item.arrived||'') !== '') return false;
     if (arr && arr !== 'PENDING' && (item.arrived||'') !== arr) return false;
-    if (kw && (item.name||'').toLowerCase().indexOf(kw)<0 && (item.model||'').toLowerCase().indexOf(kw)<0) return false;
+    if (kw && (item.name||'').toLowerCase().indexOf(kw)<0 && (item.model||'').toLowerCase().indexOf(kw)<0 && (item.partCode||'').toLowerCase().indexOf(kw)<0) return false;
     return true;
   });
 
@@ -2974,7 +2977,7 @@ function renderBomTable() {
     var el4 = document.getElementById('advFilterArrival'); if (el4) advArr = el4.value;
   }
   var filtered = bom.filter(function(item) {
-    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0;
+    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0 || (item.partCode||'').toLowerCase().indexOf(searchVal)>=0;
     var mst = !statusFilter || item.status === statusFilter;
     var mcat = !advCat || (item.category||'未分类') === advCat;
     var msup = !advSup || (item.supplier||'') === advSup;
@@ -3360,21 +3363,12 @@ function batchGenerateBomPartCodes() {
     var eModel = (item.model||'').trim().toLowerCase();
     if (!eName) { skipped++; return; }
 
-    // 先查库中同名同型号的零件
-    var libItem = null;
-    // 第一级：名称+型号完全匹配
-    libItem = fullLib.find(function(l){
+    // 查库中同名同型号的零件（必须名称+型号完全匹配，防止不同型号零件共享同一编码）
+    var libItem = fullLib.find(function(l){
       return ((l.name||'').trim().toLowerCase() === eName) &&
              ((l.model||'').trim().toLowerCase() === eModel) &&
              l.partCode && l.partCode.trim() !== '';
     });
-    // 第二级：仅名称匹配
-    if (!libItem) {
-      libItem = fullLib.find(function(l){
-        return ((l.name||'').trim().toLowerCase() === eName) &&
-               l.partCode && l.partCode.trim() !== '';
-      });
-    }
 
     if (libItem) {
       // 库中有匹配：复用编码
@@ -4018,7 +4012,7 @@ function renderQuickLib() {
   });
 
   var filtered = merged.filter(function(l) {
-    var mk = !kw || (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0;
+    var mk = !kw || (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0||(l.partCode||'').toLowerCase().indexOf(kw)>=0;
     var mc = !catF || l.category === catF;
     return mk && mc;
   });
@@ -4325,7 +4319,7 @@ function renderLibrary() {
   sel.innerHTML = '<option value="">全部分类</option>'+cats.map(function(c){return '<option value="'+esc(c)+'" '+(c===curVal?'selected':'')+'>'+esc(c)+'</option>';}).join('');
 
   var filtered = sourceList.filter(function(l) {
-    var mk = !kw || (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0;
+    var mk = !kw || (l.name||'').toLowerCase().indexOf(kw)>=0||(l.supplier||'').toLowerCase().indexOf(kw)>=0||(l.model||'').toLowerCase().indexOf(kw)>=0||(l.partCode||'').toLowerCase().indexOf(kw)>=0;
     var mc = !catFilter || l.category === catFilter;
     return mk && mc;
   });
@@ -5711,7 +5705,7 @@ function renderSinglePartChart() {
   // Build autocomplete suggestions
   var freqMap = buildFreqMap(allBom);
   var ranked = Object.values(freqMap).filter(function(r){
-    return !val || (r.name||'').toLowerCase().indexOf(val)>=0 || (r.supplier||'').toLowerCase().indexOf(val)>=0 || (r.model||'').toLowerCase().indexOf(val)>=0;
+    return !val || (r.name||'').toLowerCase().indexOf(val)>=0 || (r.supplier||'').toLowerCase().indexOf(val)>=0 || (r.model||'').toLowerCase().indexOf(val)>=0 || (r.partCode||'').toLowerCase().indexOf(val)>=0;
   }).slice(0, 10);
   
   var acList = document.getElementById('singlePartAC');
