@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.39</title>
+<title>BOM 智能管理工具 v5.40</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -539,7 +539,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <button class="btn btn-sm btn-ghost" onclick="toggleQuickSortModel()" id="quickSortModelBtn" title="按型号排序">📐 型号</button>
           </div>
           <div class="quick-lib-wrap"><table class="quick-lib-table"><thead><tr>
-            <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:60px;">分类</th><th style="width:72px;">到货</th><th style="width:60px;">库存</th><th style="width:52px;">数量</th>
+            <th style="width:28px;">选</th><th>名称</th><th>供应商</th><th>型号</th><th style="width:90px;">物料编码</th><th style="width:60px;">分类</th><th style="width:72px;">到货</th><th style="width:60px;">库存</th><th style="width:52px;">数量</th>
           </tr></thead><tbody id="quickLibTbody"></tbody></table></div>
           <div class="quick-selected-bar">
             <span class="quick-selected-count" id="quickSelCount">已选 0 件</span>
@@ -614,6 +614,15 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 </div>
               </div>
             </div>
+            <!-- Row 3: 物料编码自动生成 -->
+            <div class="add-form-row" style="margin-top:2px;">
+              <div class="add-form-field form-field-name">
+                <label style="font-size:10px;color:var(--accent);">物料编码</label>
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:var(--text);">
+                  <input type="checkbox" id="chk-auto-partcode" checked> 自动生成物料编码
+                </label>
+              </div>
+            </div>
             <div class="form-actions" style="margin-top:6px;">
               <button class="btn btn-primary" onclick="addBomEntry()" style="flex:1;">确认添加</button>
               <button class="btn btn-ghost" onclick="clearAddForm()">清空</button>
@@ -633,6 +642,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <button class="btn btn-sm btn-ghost" onclick="sortBomBySupplier()">按供应商</button>
             <button class="btn btn-sm btn-ghost" onclick="sortBomByArrival()">按到货</button>
             <button class="btn btn-sm btn-success admin-only" onclick="syncBomToLibrary()" title="将BOM中零件库没有的零件同步到通用库">🔄 同步到库</button>
+            <button class="btn btn-sm btn-warning admin-only" onclick="syncAllStaleBomFromLib()" id="syncAllStaleBtn" title="一键更新所有有新版本的零件到最新版本">⚡ 一键更新</button>
             <button class="btn btn-sm btn-outline" onclick="toggleBomAdvFilter()" id="bomAdvFilterBtn" title="高级筛选">🔻筛选</button>
           </div>
         </div>
@@ -745,6 +755,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
         <thead>
           <tr>
             <th style="width:42px;">序号</th>
+            <th style="width:100px;">物料编码</th>
             <th style="width:130px;">供应商</th>
             <th style="width:150px;">名称</th>
             <th style="min-width:200px;">规格型号</th>
@@ -756,7 +767,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
             <th style="min-width:120px;">备注</th>
           </tr>
         </thead>
-        <tbody id="purchaseTbody"><tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未生成实采清单</div><div class="empty-desc">请在 BOM 清单页点击「一键生成实采清单」</div></div></td></tr></tbody>
+        <tbody id="purchaseTbody"><tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未生成实采清单</div><div class="empty-desc">请在 BOM 清单页点击「一键生成实采清单」</div></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -784,6 +795,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           <span id="batchDeleteCount" style="display:none;margin-left:2px;">0</span>
         </button>
         <button class="btn btn-outline btn-sm" onclick="checkLibDuplicates()" title="检测并合并同供应商同名称同型号的重复零件">🔍 查重</button>
+        <button class="btn btn-outline btn-sm admin-only" onclick="batchGeneratePartCodes()" title="为零件库中所有未生成物料编码的零件自动生成编码">🏷 生成编码</button>
         <input type="file" id="libFileInput" accept=".xlsx,.xls" style="display:none" onchange="importLibExcel(this)">
       </div>
     </div>
@@ -889,11 +901,20 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- ========== SETTINGS PAGE ========== -->
 <div class="page" id="page-settings">
   <div class="card">
-    <div class="card-header"><div class="card-header-left">分类管理（拖拽排序）</div></div>
+    <div class="card-header"><div class="card-header-left">分类管理（拖拽排序 + 物料编码前缀）</div></div>
     <div class="card-body">
-      <div class="notice notice-info">拖拽列表项调整顺序，影响BOM清单分组显示。删除分类不影响已有零件。</div>
-      <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前分类（拖拽排序）：</div>
-      <ul class="drag-list" id="catDragList"></ul>
+      <div class="notice notice-info">拖拽列表项调整顺序，影响BOM清单分组显示。删除分类不影响已有零件。右侧可自定义每个分类对应的物料编码前缀。</div>
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px;">当前分类：</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:1px solid var(--border);">
+          <th style="text-align:left;padding:4px 8px;width:40px;">#</th>
+          <th style="text-align:left;padding:4px 8px;">分类名称</th>
+          <th style="text-align:left;padding:4px 8px;width:140px;">物料编码前缀</th>
+          <th style="text-align:center;padding:4px 8px;width:100px;">排序</th>
+          <th style="text-align:center;padding:4px 8px;width:60px;">操作</th>
+        </tr></thead>
+        <tbody id="catDragList"></tbody>
+      </table>
       <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:8px;">
         <div style="font-weight:600;margin-bottom:8px;font-size:13px;">添加新分类：</div>
         <div style="display:flex;gap:8px;"><input class="form-control" id="newCatInput" placeholder="分类名称..." style="max-width:240px;"><button class="btn btn-primary" onclick="addCategory()">+ 添加</button></div>
@@ -968,13 +989,14 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
       <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ 添加用户</button>
     </div>
     <div class="card-body" style="padding-bottom:0;">
-      <div class="notice notice-info">管理员可看到所有页面；采购员和访客只能访问 BOM清单 和 实采清单，且不显示手动添加、快速选件和重新生成功能。</div>
+      <div class="notice notice-info">管理员可看到所有页面（默认）；采购员和访客只能访问已勾选的页面。管理员可以在此为每个用户单独设置可访问的页面。</div>
     </div>
     <div class="table-wrap">
       <table class="user-table">
         <thead><tr>
           <th>用户名</th>
           <th>角色</th>
+          <th>可访问页面</th>
           <th>备注</th>
           <th style="width:140px;">操作</th>
         </tr></thead>
@@ -1952,6 +1974,27 @@ function mergeAllDuplicates() {
   _libDupGroups = [];
 }
 
+// 一键生成物料编码：为零件库中所有未编码的零件自动生成编码
+function batchGeneratePartCodes() {
+  var isLocal = (typeof libTab !== 'undefined' && libTab === 'local');
+  var sourceList = isLocal ? getLocalLib() : store.library;
+  var scopeName = isLocal ? '本项目零件库' : '通用零件库';
+  var generated = 0;
+  sourceList.forEach(function(item) {
+    if (!item.partCode || item.partCode.trim() === '') {
+      item.partCode = generatePartCode(item.category || '其他部件');
+      generated++;
+    }
+  });
+  if (generated === 0) {
+    toast(scopeName + '中所有零件已有物料编码，无需生成', 'info');
+    return;
+  }
+  saveStoreDebounced();
+  markDirty('library'); markDirty('quickLib'); markDirty('badges');
+  toast(scopeName + '中已为新零件生成 ' + generated + ' 个物料编码', 'success');
+}
+
 function toast(msg, type) {
   type = type || 'info';
   const t = document.createElement('div');
@@ -2056,18 +2099,28 @@ function populateSelects() {
 function renderCategoryManager() {
   var cats = getCategories();
   var container = document.getElementById('catDragList');
-  if (!cats.length) { container.innerHTML = '<li class="drag-list-item" style="justify-content:center;color:var(--text-muted);">暂无分类，请添加</li>'; return; }
+  // 确保 store.partCodePrefixes 初始化
+  if (!store.partCodePrefixes) { store.partCodePrefixes = {}; }
+  var prefixes = store.partCodePrefixes;
+  if (!cats.length) {
+    container.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">暂无分类，请添加</td></tr>';
+    return;
+  }
   container.innerHTML = cats.map(function(c, i) {
     var upDisabled = i===0 ? ' disabled' : '';
     var downDisabled = i===cats.length-1 ? ' disabled' : '';
-    return '<li class="drag-list-item">'+
-      '<span class="item-no">'+(i+1)+'</span>'+
-      '<span class="sort-btns">'+
+    var prefixVal = prefixes[c] || DEFAULT_PART_CODE_PREFIXES[c] || '';
+    return '<tr style="border-bottom:1px solid var(--border-light);">'+
+      '<td style="padding:6px 8px;color:var(--text-muted);">'+(i+1)+'</td>'+
+      '<td style="padding:6px 8px;font-weight:500;">'+esc(c)+'</td>'+
+      '<td style="padding:6px 8px;"><input class="form-control" value="'+esc(prefixVal)+'" style="width:120px;font-size:12px;font-family:monospace;" onchange="updatePartCodePrefix(\''+esc(c).replace(/'/g, "\\'")+'\',this.value)" placeholder="前缀"></td>'+
+      '<td style="padding:6px 8px;text-align:center;white-space:nowrap;">'+
         '<button class="sort-btn" title="上移" onclick="moveCategory(-1,'+i+')"'+upDisabled+'>▲</button>'+
         '<button class="sort-btn" title="下移" onclick="moveCategory(1,'+i+')"'+downDisabled+'>▼</button>'+
-      '</span>'+
-      '<span class="item-name">'+esc(c)+'</span>'+
-      '<span class="del-btn" title="删除" onclick="deleteCategory('+i+')">×</span></li>';
+      '</td>'+
+      '<td style="padding:6px 8px;text-align:center;">'+
+        '<span class="del-btn" title="删除" onclick="deleteCategory('+i+')" style="cursor:pointer;color:var(--danger);font-size:16px;">×</span>'+
+      '</td></tr>';
   }).join('');
 }
 
@@ -2124,6 +2177,18 @@ function deleteCategory(idx) {
   store.categories.splice(idx, 1); saveStoreDebounced();
   renderCategoryManager(); populateSelects(); refreshQuickCatFilter();
   toast('分类「'+cat+'」已删除');
+}
+
+function updatePartCodePrefix(category, newPrefix) {
+  if (!store.partCodePrefixes) { store.partCodePrefixes = {}; }
+  var trimmed = (newPrefix||'').trim();
+  if (trimmed) {
+    store.partCodePrefixes[category] = trimmed;
+  } else {
+    delete store.partCodePrefixes[category];
+  }
+  saveStoreDebounced();
+  toast('分类「'+category+'」编码前缀已更新' + (trimmed ? '为「'+trimmed+'」' : '为默认值'), 'success');
 }
 
 // ============================================================
@@ -2398,15 +2463,44 @@ function applyRoleUI() {
   // Toggle BOM action column header
   var actionHeader = document.getElementById('bomActionColHeader');
   if (actionHeader) actionHeader.style.display = isAdmin ? '' : 'none';
-  // Stats tab visible for admin and buyer
-  var statsTab = document.getElementById('tab-stats');
-  if (statsTab) statsTab.style.display = (currentUser.role === 'admin' || currentUser.role === 'buyer') ? '' : 'none';
+
+  // 页面访问权限：管理员全开，非管理员按 pageAccess 设置
+  var pageAccess = currentUser.pageAccess || {};
+  var pageTabMap = {
+    'bom': 'tab-bom',
+    'purchase': 'tab-purchase',
+    'library': 'tab-library',
+    'stats': 'tab-stats',
+    'projects': 'tab-projects',
+    'settings': 'tab-settings',
+    'users': 'tab-users'
+  };
+  if (isAdmin) {
+    // 管理员显示所有标签页
+    for (var key in pageTabMap) {
+      var tab = document.getElementById(pageTabMap[key]);
+      if (tab) tab.style.display = '';
+    }
+  } else {
+    // 非管理员：按 pageAccess 显示/隐藏各标签页
+    for (var key in pageTabMap) {
+      var tabEl = document.getElementById(pageTabMap[key]);
+      if (!tabEl) continue;
+      // 默认非管理员只能看 BOM 和 实采（向后兼容旧数据无 pageAccess）
+      var visible = pageAccess[key] !== undefined ? pageAccess[key] : (key === 'bom' || key === 'purchase');
+      tabEl.style.display = visible ? '' : 'none';
+    }
+  }
+
   // If non-admin is on an admin-only page, redirect to bom
   var activePage = document.querySelector('.page.active');
-  var nonAdminAllowed = ['page-bom', 'page-purchase'];
-  if (currentUser.role === 'buyer') nonAdminAllowed.push('page-stats');
-  if (!isAdmin && activePage && nonAdminAllowed.indexOf(activePage.id) === -1) {
-    showPage('page-bom');
+  if (!isAdmin && activePage) {
+    var pageId = activePage.id; // e.g. 'page-bom', 'page-library'
+    var pageKey = pageId.replace('page-', '');
+    var allowed = isAdmin || (pageAccess[pageKey] !== undefined ? pageAccess[pageKey] : (pageKey === 'bom' || pageKey === 'purchase'));
+    if (!allowed) {
+      showPage('page-bom');
+    }
   }
 
   // Re-render BOM table to reflect role-based visibility
@@ -2433,9 +2527,32 @@ function applyRoleUI() {
 function renderUsersTable() {
   var tbody = document.getElementById('usersTbody');
   var roleLabels = {admin:'管理员', buyer:'采购员', guest:'访客'};
+  var pageKeys = [
+    {key:'bom', label:'BOM清单'},
+    {key:'purchase', label:'实采清单'},
+    {key:'library', label:'零件库'},
+    {key:'stats', label:'统计分析'},
+    {key:'projects', label:'项目管理'},
+    {key:'settings', label:'设置'},
+    {key:'users', label:'用户管理'}
+  ];
   tbody.innerHTML = store.users.map(function(u) {
     var isMe = currentUser && u.id === currentUser.id;
+    var isAdmin = currentUser && currentUser.role === 'admin';
     var roleClass = u.role === 'admin' ? 'admin' : (u.role === 'buyer' ? 'buyer' : 'guest');
+    var pa = u.pageAccess || {};
+
+    // 管理员默认全开
+    var isUserAdmin = u.role === 'admin';
+    var pageHtml = pageKeys.map(function(pk) {
+      var checked = isUserAdmin ? true : (pa[pk.key] !== undefined ? pa[pk.key] : (pk.key === 'bom' || pk.key === 'purchase'));
+      var disabled = !isAdmin || isUserAdmin ? ' disabled' : '';
+      return '<label style="display:inline-flex;align-items:center;gap:2px;font-size:11px;margin-right:6px;cursor:'+(isAdmin&&!isUserAdmin?'pointer':'default')+';white-space:nowrap;">'+
+        '<input type="checkbox"'+disabled+(checked?' checked':'')+' onchange="updateUserPageAccess(\''+u.id+'\',\''+pk.key+'\',this.checked)">'+
+        pk.label+
+        '</label>';
+    }).join('');
+
     var actions = '<div style="display:flex;gap:4px;">'
       + '<button class="btn btn-sm btn-outline" onclick="openEditUserModal(\''+u.id+'\')">编辑</button>';
     if (!isMe) {
@@ -2447,10 +2564,24 @@ function renderUsersTable() {
     return '<tr>'
       + '<td><b>'+esc(u.username)+'</b></td>'
       + '<td><span class="role-badge '+roleClass+'">'+esc(roleLabels[u.role]||u.role)+'</span></td>'
+      + '<td style="font-size:11px;line-height:2;">'+pageHtml+'</td>'
       + '<td>'+esc(u.remark||'-')+'</td>'
       + '<td>'+actions+'</td>'
       + '</tr>';
   }).join('');
+}
+
+function updateUserPageAccess(uid, pageKey, checked) {
+  var u = store.users.find(function(x){ return x.id === uid; });
+  if (!u) return;
+  if (!u.pageAccess) { u.pageAccess = {}; }
+  u.pageAccess[pageKey] = checked;
+  saveStoreDebounced();
+  // Apply immediately if editing current user
+  if (currentUser && currentUser.id === uid) {
+    currentUser.pageAccess = u.pageAccess;
+    applyRoleUI();
+  }
 }
 
 function openAddUserModal() {
@@ -3029,7 +3160,7 @@ function bomRowHtml(item, seq) {
   // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
   var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
   var codeHtml = partCode
-    ? '<span style="font-family:monospace;font-size:11px;background:var(--bg-hover);border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);">'+esc(partCode)+'</span>'
+    ? '<span style="font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);">'+esc(partCode)+'</span>'
     : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
 
   return '<tr'+rowClass+' data-id="'+item.id+'">'+
@@ -3138,6 +3269,65 @@ function batchSyncBomFromLib() {
   bomSelectedIds.clear(); saveStoreDebounced(true);
   markDirty('bomTable'); markDirty('bomStats'); markDirty('badges');
   toast('已同步 '+synced+' 个零件'+(skipped>0?'，跳过 '+skipped+' 个':''), 'success');
+}
+
+// 一键更新：扫描所有BOM条目，找到库有新版自动全部同步
+function syncAllStaleBomFromLib() {
+  var bom = currentBom();
+  if (!bom.length) { toast('BOM清单为空','warn'); return; }
+  var proj = store.projects[store.currentProject];
+  if (proj && proj.archived) { toast('项目已归档，无法同步','error'); return; }
+
+  // 先构建完整库索引（全局+本地）
+  var allLib = (store.library||[]).concat();
+  if (proj && Array.isArray(proj.localLibrary)) { allLib = allLib.concat(proj.localLibrary); }
+
+  var synced = 0; var skipped = 0;
+
+  bom.forEach(function(item) {
+    var libItem = null;
+    // 精确匹配 libRefId
+    if (item.libRefId) { libItem = findLibById(item.libRefId); }
+    // 兜底匹配
+    if (!libItem) {
+      var itemName = ((item.name||'').trim()).toLowerCase();
+      var itemModel = ((item.model||'').trim()).toLowerCase();
+      if (itemName) {
+        // 名称+型号全匹配
+        libItem = allLib.find(function(x){
+          return ((x.name||'').trim()).toLowerCase() === itemName &&
+                 ((x.model||'').trim()).toLowerCase() === itemModel;
+        });
+        // 退而求其次仅按名称
+        if (!libItem) {
+          libItem = allLib.find(function(x){
+            return ((x.name||'').trim()).toLowerCase() === itemName;
+          });
+        }
+        if (libItem && libItem.id) { item.libRefId = libItem.id; }
+      }
+    }
+    if (!libItem) { skipped++; return; }
+    // 检查是否真有过期
+    if (!libItem.updatedAt) { skipped++; return; }
+    if (item.libSyncedAt && libItem.updatedAt <= item.libSyncedAt) { skipped++; return; }
+
+    // 同步
+    item.name = libItem.name || item.name;
+    item.model = libItem.model || item.model;
+    item.supplier = libItem.supplier || item.supplier;
+    item.category = libItem.category || item.category;
+    item.unit = libItem.unit || item.unit;
+    item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
+    item.remark = libItem.remark || item.remark;
+    if (libItem.partCode) item.partCode = libItem.partCode;
+    item.libSyncedAt = libItem.updatedAt || Date.now();
+    synced++;
+  });
+
+  saveStoreDebounced(true);
+  markDirty('bomTable'); markDirty('bomStats'); markDirty('badges');
+  toast('一键更新完成：已同步 '+synced+' 个零件'+(skipped>0?'，'+skipped+' 个无需更新':''), 'success');
 }
 
 // BOM 表格：更新单行
@@ -3496,11 +3686,19 @@ function addBomEntry() {
     taobaoLink: document.getElementById('inp-taobao').value.trim(),
     remark: document.getElementById('inp-remark').value.trim()
   };
+  // 自动生成物料编码（默认勾选）
+  if (document.getElementById('chk-auto-partcode').checked) {
+    entry.partCode = generatePartCode(entry.category);
+  }
   // 如果是从零件库预填的，记录来源库ID和同步时间戳用于后续同步检测
   if (_prefilledLibId) {
     entry.libRefId = _prefilledLibId;
     var srcLibItem = findLibById(_prefilledLibId);
     entry.libSyncedAt = srcLibItem ? (srcLibItem.updatedAt || Date.now()) : Date.now();
+    // 如果有物料编码则沿用库中的编码
+    if (srcLibItem && srcLibItem.partCode && !entry.partCode) {
+      entry.partCode = srcLibItem.partCode;
+    }
     _prefilledLibId = null;
   }
 
@@ -3511,7 +3709,7 @@ function addBomEntry() {
   var saveLocal = document.getElementById('chk-save-lib-local').checked;
   // 两个都没勾选时，默认添加到通用库
   if (!saveGlobal && !saveLocal) saveGlobal = true;
-  var libEntry = {id:e(),name:name,supplier:entry.supplier,model:entry.model,unit:entry.unit,category:entry.category,taobaoLink:entry.taobaoLink};
+  var libEntry = {id:e(),name:name,supplier:entry.supplier,model:entry.model,unit:entry.unit,category:entry.category,taobaoLink:entry.taobaoLink,partCode:entry.partCode||'',updatedAt:Date.now()};
 
   if (saveLocal) {
     if (!Array.isArray(proj.localLibrary)) proj.localLibrary = [];
@@ -3743,15 +3941,15 @@ function renderQuickLib() {
   }
 
   var tbody = document.getElementById('quickLibTbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">暂无匹配零件</div><div class="empty-desc">零件库为空或没有匹配的搜索结果</div></td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">暂无匹配零件</div><div class="empty-desc">零件库为空或没有匹配的搜索结果</div></td></tr>'; return; }
 
   tbody.innerHTML = filtered.map(function(l) {
     var srcBadge = l._src==='local' ? '<span style="font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-left:3px;">本项目</span>' : '';
     var curArrived = l.arrived || '';
     // 归档项目 + 非管理员 → 禁用到货下拉框
     var archivedDisabled = '';
-    var proj = store.projects[store.currentProject];
-    if (proj && proj.archived && currentUser && currentUser.role !== 'admin') {
+    var projQuick = store.projects[store.currentProject];
+    if (projQuick && projQuick.archived && currentUser && currentUser.role !== 'admin') {
       archivedDisabled = ' disabled';
     }
     var arrivedSel = '<select id="qarr_'+l.id+'" onclick="event.stopPropagation()" onchange="updateLibArrived(\''+l.id+'\',this.value)" style="width:68px;font-size:11px;padding:1px 2px;border:1px solid var(--border);border-radius:3px;background:var(--card-bg);color:var(--text);"'+archivedDisabled+'>'+
@@ -3759,7 +3957,10 @@ function renderQuickLib() {
       '</select>';
     var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
     var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" step="0.1" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)" data-id="'+l.id+'"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
+    var codeHtml = l.partCode
+      ? '<span style="font-family:monospace;font-size:10px;border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);white-space:nowrap;">'+esc(l.partCode)+'</span>'
+      : '<span style="color:var(--text-muted);font-size:10px;">-</span>';
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)" data-id="'+l.id+'"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="text-align:center;font-size:11px;">'+codeHtml+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -4052,7 +4253,7 @@ function renderLibrary() {
       ? '<button class="btn btn-sm btn-outline" style="color:var(--success);border-color:var(--success);" onclick="promoteLocalLib(\''+l.id+'\')">↑升级</button>'
       : '';
     var codeHtml = l.partCode
-      ? '<span style="font-family:monospace;font-size:11px;background:var(--bg-hover);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;">'+esc(l.partCode)+'</span>'
+      ? '<span style="font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;">'+esc(l.partCode)+'</span>'
       : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
     return '<tr data-id="'+l.id+'">'+
       '<td class="lib-check-cell no-print"><input type="checkbox" class="lib-check" data-lib-id="'+l.id+'" onchange="updateBatchDeleteBtn()"></td>'+
@@ -4314,7 +4515,7 @@ function calcBomHash(bom) {
 // newItemIds: array of item IDs that were added after the last generation
 function buildPurchaseHTML(bom, newItemIds) {
   var purchaseItems = bom.filter(function(i){return i.status==='采购';});
-  if (!purchaseItems.length) return {html:'<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">无需采购</div><div class="empty-desc">当前项目所有零件均为库存状态</div></div></td></tr>', count:0, supplierCount:0, newCount:0};
+  if (!purchaseItems.length) return {html:'<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">无需采购</div><div class="empty-desc">当前项目所有零件均为库存状态</div></div></td></tr>', count:0, supplierCount:0, newCount:0};
 
   newItemIds = newItemIds || [];
   var newIdSet = {};
@@ -4331,7 +4532,7 @@ function buildPurchaseHTML(bom, newItemIds) {
 
   // --- Render new items section at the top ---
   if (newItems.length > 0) {
-    html += '<tr class="new-items-header"><td colspan="10">🆕 本次新增采购项（管理员上次生成后追加，共 '+newItems.length+' 项）</td></tr>';
+    html += '<tr class="new-items-header"><td colspan="11">🆕 本次新增采购项（管理员上次生成后追加，共 '+newItems.length+' 项）</td></tr>';
     newItems.forEach(function(item) {
       html += buildPurchaseRow(item, seq++, true);
     });
@@ -4340,7 +4541,7 @@ function buildPurchaseHTML(bom, newItemIds) {
   // --- Render existing items grouped by supplier ---
   if (existingItems.length > 0) {
     if (newItems.length > 0) {
-      html += '<tr class="category-row"><td colspan="10" style="background:var(--bg)!important;color:var(--text-secondary)!important;">━━━ 已有采购项 ━━━</td></tr>';
+      html += '<tr class="category-row"><td colspan="11" style="background:var(--bg)!important;color:var(--text-secondary)!important;">━━━ 已有采购项 ━━━</td></tr>';
     }
     var groups = {};
     existingItems.forEach(function(item) {
@@ -4349,7 +4550,7 @@ function buildPurchaseHTML(bom, newItemIds) {
     });
     Object.keys(groups).sort().forEach(function(key) {
       var items = groups[key];
-      html += '<tr class="category-row"><td colspan="10">🏭 供应商：'+esc(key)+'（'+items.length+' 项）<button class="btn btn-sm btn-outline admin-only" style="margin-left:12px;font-size:11px;padding:2px 8px;" onclick="exportSupplierExcel(\''+esc(key).replace(/'/g, "\\'")+'\')" title="导出该供应商采购清单">📥 导出</button></td></tr>';
+      html += '<tr class="category-row"><td colspan="11">🏭 供应商：'+esc(key)+'（'+items.length+' 项）<button class="btn btn-sm btn-outline admin-only" style="margin-left:12px;font-size:11px;padding:2px 8px;" onclick="exportSupplierExcel(\''+esc(key).replace(/'/g, "\\'")+'\')" title="导出该供应商采购清单">📥 导出</button></td></tr>';
       items.forEach(function(item) {
         html += buildPurchaseRow(item, seq++, false);
       });
@@ -4376,8 +4577,12 @@ function buildPurchaseRow(item, seq, isNew) {
   var rowClass = isNew ? 'new-item-row' : '';
   var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" title="打开淘宝链接：'+esc(item.taobaoLink)+'" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#ff6b2b,#ff4400);color:#fff;text-decoration:none;font-size:14px;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform=\'scale(1.1)\';this.style.boxShadow=\'0 2px 8px rgba(255,68,0,.4)\'" onmouseout="this.style.transform=\'scale(1)\';this.style.boxShadow=\'none\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></a>' : '<span style="color:var(--text-muted);font-size:14px;">-</span>';
+  var codeHtml = item.partCode
+    ? '<span style="font-family:monospace;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:1px 4px;color:var(--primary);">'+esc(item.partCode)+'</span>'
+    : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
   return '<tr class="'+rowClass+'" data-item-id="'+item.id+'">'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
+    '<td style="text-align:center;">'+codeHtml+'</td>'+
     '<td>'+esc(item.supplier||'')+'</td>'+
     '<td><b>'+esc(item.name)+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
@@ -4508,7 +4713,7 @@ function renderSavedPurchaseList() {
 
   if (!saved) {
     // No saved list yet
-    document.getElementById('purchaseTbody').innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未生成实采清单</div><div class="empty-desc">请在 BOM 清单页点击「一键生成实采清单」</div></div></td></tr>';
+    document.getElementById('purchaseTbody').innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">尚未生成实采清单</div><div class="empty-desc">请在 BOM 清单页点击「一键生成实采清单」</div></div></td></tr>';
     document.getElementById('purchaseNotice').innerHTML = '管理员点击 BOM清单页的「一键生成实采清单」即可生成，采购员/访客可直接查看已生成的清单。';
     document.getElementById('purchaseNotice').className = 'notice notice-info';
     document.getElementById('badge-purchase').textContent = '0';
@@ -4969,17 +5174,17 @@ function exportPurchaseExcel() {
   var bom = currentBom();
   var purItems = bom.filter(function(i){return i.status==='采购';});
   if (!purItems.length) { toast('无采购项','warn'); return; }
-  var data = [['序号','供应商','名称','规格型号','数量','单位','项目编号','备注']];
+  var data = [['序号','物料编码','供应商','名称','规格型号','数量','单位','项目编号','备注']];
   var projName = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : '';
   // v4.1: 项目编号只取项目名称前4位数字字符
   var projNum = (projName.match(/\d/g)||[]).slice(0,4).join('');
   purItems.forEach(function(item,i) {
-    data.push([i+1, item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
+    data.push([i+1, item.partCode||'', item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:6},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}}];
-  XLSX.utils.sheet_add_aoa(ws, [['实采清单','','','','','','下单日期',new Date().toLocaleDateString('zh-CN')]], {origin:'A1'});
+  ws['!cols'] = [{wch:6},{wch:10},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:6}}];
+  XLSX.utils.sheet_add_aoa(ws, [['实采清单','','','','','','','下单日期',new Date().toLocaleDateString('zh-CN')]], {origin:'A1'});
   var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '实采清单');
   XLSX.writeFile(wb, '实采清单_按模板.xlsx');
   toast('实采清单已按模板格式导出Excel', 'success');
@@ -4991,12 +5196,12 @@ function exportSupplierExcel(supplierName) {
   if (!supplierItems.length) { toast('该供应商无采购项','warn'); return; }
   var projName = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : '';
   var projNum = (projName.match(/\d/g)||[]).slice(0,4).join('');
-  var data = [['序号','供应商','名称','规格型号','数量','单位','项目编号','备注']];
+  var data = [['序号','物料编码','供应商','名称','规格型号','数量','单位','项目编号','备注']];
   supplierItems.forEach(function(item,i) {
-    data.push([i+1, item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
+    data.push([i+1, item.partCode||'', item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:6},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
+  ws['!cols'] = [{wch:6},{wch:10},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
   var wb = XLSX.utils.book_new();
   var safeSupplier = supplierName.replace(/[\\\/\?\*\[\]]/g,'_');
   var projPrefix = projName.substring(0, 4).replace(/[\\\/\?\*\[\]]/g,'_') || 'BOM';
