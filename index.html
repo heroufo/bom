@@ -426,7 +426,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .partcode-wrap{position:relative;display:inline-block;cursor:pointer}
 .partcode-wrap .pc-badge{font-family:monospace;font-size:11px;background:var(--primary-bg);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--primary);white-space:nowrap;transition:box-shadow .15s}
 .partcode-wrap:hover .pc-badge{box-shadow:0 0 0 2px var(--primary),0 2px 8px rgba(0,0,0,.12)}
-.partcode-wrap .pc-tooltip{display:none;position:absolute;z-index:9999;top:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;white-space:nowrap}
+.partcode-wrap .pc-tooltip{display:none;position:absolute;z-index:9999;top:calc(100% + 4px);left:0;transform:none;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;white-space:nowrap}
 .partcode-wrap .pc-tooltip.pc-show{display:flex;gap:4px}
 .partcode-wrap .pc-tooltip button{font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card-bg);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:background .1s}
 .partcode-wrap .pc-tooltip button:hover{background:var(--primary-bg);border-color:var(--primary)}
@@ -2094,11 +2094,11 @@ function pcTipHide(wrapEl) {
   var tip = wrapEl.querySelector('.pc-tooltip');
   if (!tip) return;
   var wid = wrapEl.getAttribute('data-pc') || '';
-  // 延迟 3 秒后隐藏
+  // 延迟 1 秒后隐藏
   _pcTipTimers[wid] = setTimeout(function() {
     tip.classList.remove('pc-show');
     delete _pcTipTimers[wid];
-  }, 3000);
+  }, 1000);
 }
 // 供 tooltip 内按钮调用：鼠标进入按钮区域时取消隐藏
 function pcTipCancelHide(wrapEl) {
