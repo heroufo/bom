@@ -580,7 +580,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
                 <div class="autocomplete-wrap"><input class="form-control" id="inp-name" placeholder="输入零件名称..." oninput="acSearch(this.value)" onfocus="acSearch(this.value)" autocomplete="off"><div class="autocomplete-list autocomplete-hidden" id="acList"></div></div>
               </div>
               <div class="form-field-pair">
-                <div class="pair-item pair-30"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌/供应商"></div>
+                <div class="pair-item pair-30"><label>供应商</label><input class="form-control" id="inp-supplier" placeholder="品牌或供应商（多个用逗号分隔）"><select class="form-control" id="inp-supplier-select" style="display:none;"></select></div>
                 <div class="pair-item pair-70"><label>规格型号</label><input class="form-control" id="inp-model" placeholder="详细型号规格"></div>
               </div>
               <div class="add-form-field form-field-category">
@@ -4004,7 +4004,10 @@ function addBomEntry() {
   if (status === 'auto') status = stock >= qty ? '库存' : '采购';
   var actualPurchase = status === '采购' ? Math.max(0, qty - stock) : 0;
 
-  var supplier = document.getElementById('inp-supplier').value.trim();
+  var supplierSelect = document.getElementById('inp-supplier-select');
+  var supplier = (supplierSelect && supplierSelect.style.display !== 'none')
+    ? supplierSelect.value.trim()
+    : document.getElementById('inp-supplier').value.trim();
   var entry = {
     id: e(), category: document.getElementById('inp-category').value, name: name,
     supplier: supplier,
@@ -4050,7 +4053,7 @@ function addBomEntry() {
     if (!existingGlobal) { store.library.push(Object.assign({}, libEntry, {id: e()})); }
   }
 
-  var saved = saveStoreDebounced();
+  var saved = saveStoreDebounced(true); // 立即保存，确保渲染时 localStorage 已包含新数据
   clearAddForm(); markDirty('bomTable'); markDirty('bomStats'); markDirty('badges');
   if (!saved) {
     toast('⚠️ 数据保存失败', 'error');
@@ -4084,8 +4087,32 @@ function autoUpdateStatus() {
   }
 }
 
+// 切换 BOM 添加表单的供应商字段：多供应商显示下拉，单供应商显示输入框
+function setBomAddSupplierMode(suppliers) {
+  var inputEl = document.getElementById('inp-supplier');
+  var selectEl = document.getElementById('inp-supplier-select');
+  if (!inputEl || !selectEl) return;
+  var hintEl = document.getElementById('supplierMultiHint');
+  if (suppliers && suppliers.length > 1) {
+    inputEl.style.display = 'none';
+    selectEl.style.display = '';
+    selectEl.innerHTML = suppliers.map(function(s){ return '<option value="'+escAttr(s)+'">'+esc(s)+'</option>'; }).join('');
+    selectEl.value = suppliers[0];
+    if (hintEl) hintEl.textContent = '';
+  } else {
+    inputEl.style.display = '';
+    selectEl.style.display = 'none';
+    if (suppliers && suppliers.length === 1) { inputEl.value = suppliers[0]; }
+    if (hintEl) hintEl.textContent = '';
+  }
+}
+
 function clearAddForm() {
   ['inp-name','inp-supplier','inp-model','inp-taobao','inp-remark'].forEach(function(id){document.getElementById(id).value='';});
+  // 恢复供应商输入框为默认文本输入模式
+  var inpSup = document.getElementById('inp-supplier');
+  var selSup = document.getElementById('inp-supplier-select');
+  if (inpSup && selSup) { inpSup.style.display = ''; selSup.style.display = 'none'; }
   document.getElementById('inp-qty').value = 1; document.getElementById('inp-stock').value = 0;
   document.getElementById('inp-arrived').value = '未到'; document.getElementById('inp-status').value = 'auto';
   document.getElementById('chk-save-lib-global').checked = true;
@@ -4238,6 +4265,8 @@ function saveEditEntry() {
 // QUICK SELECT
 // ============================================================
 var quickSelectedIds = new Set();
+// 快速添加面板中每条零件的供应商选择（仅多供应商条目有记录）
+var quickLibSupplierSel = {};
 var quickSortField = ''; // '' | 'name' | 'model'
 var quickSortDir = '';   // '' | 'asc' | 'desc'
 
@@ -4308,7 +4337,17 @@ function renderQuickLib() {
     var curStock = (l.stock !== undefined && l.stock !== null && l.stock !== '') ? l.stock : '';
     var stockInp = '<input type="number" id="qstk_'+l.id+'" value="'+esc(String(curStock))+'" min="0" step="0.1" placeholder="0" onclick="event.stopPropagation()" onchange="updateLibStock(\''+l.id+'\',this.value)" style="width:54px;font-size:11px;border:1px solid var(--border);border-radius:3px;padding:2px 4px;background:var(--card-bg);color:var(--text);">';
     var codeHtml = partCodeWithTooltip(l.partCode, 10);
-    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)" data-id="'+l.id+'"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td><td style="font-size:12px;">'+esc(l.supplier||'-')+'</td><td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="text-align:center;font-size:11px;">'+codeHtml+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
+    // 供应商列：多供应商显示下拉，单供应商显示文本
+    var libSuppliers = (l.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    var supplierCell = '';
+    if (libSuppliers.length > 1) {
+      var selVal = quickLibSupplierSel[l.id] || libSuppliers[0];
+      var suppOpts = libSuppliers.map(function(s){ return '<option value="'+escAttr(s)+'"'+(s===selVal?' selected':'')+'>'+esc(s)+'</option>'; }).join('');
+      supplierCell = '<td><select class="form-control" style="font-size:11px;padding:1px 2px;height:22px;width:100%;min-width:60px;" onchange="quickLibSupplierSel[\''+l.id+'\']=this.value" onclick="event.stopPropagation()">'+suppOpts+'</select></td>';
+    } else {
+      supplierCell = '<td style="font-size:12px;">'+esc(l.supplier||'-')+'</td>';
+    }
+    return '<tr onclick="toggleQuickSelect(\''+l.id+'\',this)" data-id="'+l.id+'"><td><input type="checkbox" id="qchk_'+l.id+'" '+(quickSelectedIds.has(l.id)?'checked':'')+' onchange="onQuickCheck(\''+l.id+'\',this)" onclick="event.stopPropagation()"></td><td><b>'+esc(l.name)+'</b>'+srcBadge+'</td>'+supplierCell+'<td style="font-size:12px;">'+esc(l.model||'-')+'</td><td style="text-align:center;font-size:11px;">'+codeHtml+'</td><td style="font-size:12px;">'+esc(l.category||'-')+'</td><td>'+arrivedSel+'</td><td>'+stockInp+'</td><td><input type="number" id="qqty_'+l.id+'" value="1" min="0.1" step="0.1" onclick="event.stopPropagation()" style="width:48px;"></td></tr>';
   }).join('');
   updateQuickCount();
 }
@@ -4440,9 +4479,11 @@ function batchAddFromLib() {
     var status = statusMode;
     if (status === 'auto') status = libStock >= qty ? '库存' : '采购';
     var actualPurchase = status === '采购' ? Math.max(0, qty - libStock) : 0;
+    // 如果零件库中该条目有多个供应商，使用用户在下拉框中选择的值
+    var chosenSupplier = quickLibSupplierSel[l.id] || (l.supplier||'').split(',')[0].trim();
     store.projects[store.currentProject].bom.push({
       id:e(), category:l.category||getCategories()[0], name:l.name, supplier:l.supplier||'',
-      selectedSupplier: (l.supplier||'').split(',')[0].trim(),
+      selectedSupplier: chosenSupplier,
       model:l.model||'', qty:qty, unit:l.unit||'个', stock:libStock, status:status,
       actualPurchase: actualPurchase, arrived:libArrived, taobaoLink:l.taobaoLink||'', remark:'',
       partCode: l.partCode||'',
@@ -4450,7 +4491,7 @@ function batchAddFromLib() {
     });
     added++;
   });
-  quickSelectedIds.clear(); saveStoreDebounced(); markDirty('bomTable'); markDirty('bomStats'); markDirty('badges'); markDirty('quickLib');
+  quickSelectedIds.clear(); saveStoreDebounced(true); markDirty('bomTable'); markDirty('bomStats'); markDirty('badges'); markDirty('quickLib');
   toast('已批量添加 '+added+' 个零件到BOM', 'success');
 }
 
@@ -4624,22 +4665,13 @@ function prefillFromLib(id) {
   var l = store.library.find(function(x){return x.id===id;}); if (!l) return;
   _prefilledLibId = id; // 记录来源库ID，添加到BOM时会带上
   document.getElementById('inp-name').value = l.name||'';
-  // 多供应商：取第一个为默认，显示提示
+  // 多供应商 → 显示下拉；单供应商 → 显示输入框
   var libSuppliers = (l.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
-  document.getElementById('inp-supplier').value = libSuppliers[0]||l.supplier||'';
-  if (libSuppliers.length > 1) {
-    var suppHint = document.getElementById('supplierMultiHint');
-    if (!suppHint) {
-      suppHint = document.createElement('span');
-      suppHint.id = 'supplierMultiHint';
-      suppHint.style.cssText = 'font-size:10px;color:var(--accent);margin-left:4px;';
-      var suppInput = document.getElementById('inp-supplier');
-      suppInput.parentNode.appendChild(suppHint);
-    }
-    suppHint.textContent = '（可用：'+libSuppliers.join(' / ')+'）';
-  } else {
-    var h = document.getElementById('supplierMultiHint'); if (h) h.textContent = '';
+  setBomAddSupplierMode(libSuppliers.length > 1 ? libSuppliers : null);
+  if (libSuppliers.length <= 1) {
+    document.getElementById('inp-supplier').value = libSuppliers[0]||l.supplier||'';
   }
+  // 多供应商时，下拉框已经设置好，无需额外提示
   document.getElementById('inp-model').value = l.model||'';
   document.getElementById('inp-category').value = l.category||getCategories()[0];
   document.getElementById('inp-unit').value = l.unit||'个';
@@ -4755,7 +4787,7 @@ function addLibEntry() {
   if (saveGlobal) { store.library.push(Object.assign({id: e(), updatedAt: now}, baseFields, {partCode: autoCode})); }
   if (saveLocal) { getLocalLib().push(Object.assign({id: e(), updatedAt: now}, baseFields, {partCode: autoCode})); }
 
-  var saved = saveStoreDebounced();
+  var saved = saveStoreDebounced(true);
   closeModal('modal-lib'); markDirty('library'); markDirty('badges'); markDirty('quickLib'); markDirty('bomTable');
   if (!saved) {
     toast('⚠️ 保存失败，请检查浏览器存储空间', 'error');
@@ -6206,7 +6238,13 @@ function hideAC() { document.getElementById('acList').classList.add('autocomplet
 function selectAC(idx) {
   var list = document.getElementById('acList'); var m = list._data && list._data[idx]; if (!m) return;
   document.getElementById('inp-name').value = m.name||'';
-  document.getElementById('inp-supplier').value = m.supplier||'';
+  // 多供应商 → 显示下拉选择
+  var suppliers = (m.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if (suppliers.length > 1) {
+    setBomAddSupplierMode(suppliers);
+  } else {
+    document.getElementById('inp-supplier').value = m.supplier||'';
+  }
   document.getElementById('inp-model').value = m.model||'';
   document.getElementById('inp-category').value = m.category||getCategories()[0];
   document.getElementById('inp-unit').value = m.unit||'个';
