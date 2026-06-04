@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.44</title>
+<title>BOM 智能管理工具 v5.45</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -453,7 +453,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.44</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.45</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -1042,7 +1042,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="modal-title" id="libModalTitle">添加零件到库</div>
   <div class="form-row">
     <div class="form-group"><label>名称 *</label><input class="form-control" id="lib-name" placeholder="零件名称"></div>
-    <div class="form-group"><label>供应商</label><input class="form-control" id="lib-supplier" placeholder="品牌或供应商"></div>
+    <div class="form-group"><label>供应商</label><input class="form-control" id="lib-supplier" placeholder="品牌或供应商（多个用逗号分隔）"></div>
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="lib-model" placeholder="详细型号规格"></div>
   <div class="form-row">
@@ -1077,7 +1077,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
   <div class="form-row">
     <div class="form-group"><label>分类组</label><select class="form-control" id="edit-category"></select></div>
     <div class="form-group"><label>名称</label><input class="form-control" id="edit-name"></div>
-    <div class="form-group"><label>供应商</label><input class="form-control" id="edit-supplier"></div>
+    <div class="form-group"><label>供应商</label><select class="form-control" id="edit-supplier-select" style="display:none;"></select><input class="form-control" id="edit-supplier"></div>
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="edit-model"></div>
   <div class="form-row">
@@ -1246,7 +1246,7 @@ const DEFAULT_USERS = [
 ];
 
 let store = {
-  version: 5.4,
+  version: 5.45,
   currentProject: null,
   projects: {},
   library: [],
@@ -1304,6 +1304,16 @@ function loadStore() {
       });
       // v5.4 migration: ensure fontSize is set
       if (!store.fontSize) store.fontSize = 1;
+      // v5.45 migration: set selectedSupplier for all BOM entries
+      Object.values(store.projects).forEach(function(p) {
+        if (Array.isArray(p.bom)) {
+          p.bom.forEach(function(item) {
+            if (!item.selectedSupplier && item.supplier) {
+              item.selectedSupplier = item.supplier.split(',')[0].trim();
+            }
+          });
+        }
+      });
     } else {
       // migrate from v4
       const raw4 = localStorage.getItem('bom_tool_v4');
@@ -1372,11 +1382,21 @@ function loadStore() {
         }
       }
     }
+    // v5.45 migration: set selectedSupplier for all BOM entries
+    Object.values(store.projects).forEach(function(p) {
+      if (Array.isArray(p.bom)) {
+        p.bom.forEach(function(item) {
+          if (!item.selectedSupplier && item.supplier) {
+            item.selectedSupplier = item.supplier.split(',')[0].trim();
+          }
+        });
+      }
+    });
   } catch(e) {
     console.warn('Load store failed, resetting to defaults:', e);
     // Fully reset store on any load failure, then persist clean state
     store = {
-      version: 5.4,
+      version: 5.45,
       currentProject: null,
       projects: {},
       library: [],
@@ -1740,10 +1760,11 @@ function performGlobalSearch() {
       var nameMatch = (item.name||'').toLowerCase().indexOf(kw) >= 0;
       var modelMatch = (item.model||'').toLowerCase().indexOf(kw) >= 0;
       var supplierMatch = (item.supplier||'').toLowerCase().indexOf(kw) >= 0;
+      var selSupplierMatch = (item.selectedSupplier||'').toLowerCase().indexOf(kw) >= 0;
       var codeMatch = (item.partCode||'').toLowerCase().indexOf(kw) >= 0;
-      if (nameMatch || modelMatch || supplierMatch || codeMatch) {
+      if (nameMatch || modelMatch || supplierMatch || selSupplierMatch || codeMatch) {
         results.push({ proj: proj.name, projId: pid, item: item,
-          highlight: nameMatch ? 'name' : (modelMatch ? 'model' : (supplierMatch ? 'supplier' : 'code')) });
+          highlight: nameMatch ? 'name' : (modelMatch ? 'model' : (supplierMatch ? 'supplier' : (selSupplierMatch ? 'supplier' : 'code'))) });
       }
     });
   });
@@ -1770,7 +1791,7 @@ function performGlobalSearch() {
     html += '<tr style="'+bg+'border-bottom:1px solid var(--border-light);" '+(isCurrent?'title="当前项目"':'')+'>'+
       '<td style="padding:5px;font-size:11px;color:var(--primary);">'+(isCurrent?'★ ':'')+esc(r.proj)+'</td>'+
       '<td style="padding:5px;font-weight:600;">'+hl(r.item.name, kw)+'</td>'+
-      '<td style="padding:5px;color:var(--text-secondary);">'+hl(r.item.supplier, kw)+'</td>'+
+      '<td style="padding:5px;color:var(--text-secondary);">'+hl(getCurrentSupplier(r.item)||r.item.supplier, kw)+'</td>'+
       '<td style="padding:5px;font-size:11px;">'+hl(r.item.model, kw)+'</td>'+
       '<td style="padding:5px;text-align:center;">'+fmtNum(r.item.qty)+'</td>'+
       '<td style="padding:5px;text-align:center;">'+arrivalBadge+'</td>'+
@@ -1806,7 +1827,7 @@ function populateAdvFilterOptions() {
   catSel.innerHTML = '<option value="">全部分类</option>';
   Array.from(cats).sort().forEach(function(c){ catSel.innerHTML += '<option value="'+esc(c)+'"'+(c===curCat?' selected':'')+'>'+esc(c)+'</option>'; });
   // 收集供应商
-  var sups = new Set(); bom.forEach(function(i){ if (i.supplier) sups.add(i.supplier); });
+  var sups = new Set(); bom.forEach(function(i){ var s = getCurrentSupplier(i); if (s) sups.add(s); });
   var supSel = document.getElementById('advFilterSupplier');
   var curSup = supSel.value;
   supSel.innerHTML = '<option value="">全部供应商</option>';
@@ -1821,7 +1842,7 @@ function applyBomAdvFilter() {
   var bom = currentBom();
   var filtered = bom.filter(function(item) {
     if (cat && (item.category||'未分类') !== cat) return false;
-    if (sup && (item.supplier||'') !== sup) return false;
+    if (sup && (getCurrentSupplier(item)||'') !== sup) return false;
     if (stk === '购' && item.status !== '采购') return false;
     if (stk === '存' && item.status !== '库存') return false;
     if (arr && (item.arrived||'') !== arr) return false;
@@ -1873,7 +1894,7 @@ function populatePurchaseFilterOptions() {
   if (!proj) return;
   var bom = proj.bom || [];
   var purchaseItems = bom.filter(function(i){ return i.status === '采购'; });
-  var sups = new Set(); purchaseItems.forEach(function(i){ if (i.supplier) sups.add(i.supplier); });
+  var sups = new Set(); purchaseItems.forEach(function(i){ var s = getCurrentSupplier(i); if (s) sups.add(s); });
   var sel = document.getElementById('purchaseFilterSupplier');
   var cur = sel.value;
   sel.innerHTML = '<option value="">全部供应商</option>';
@@ -1890,7 +1911,7 @@ function applyPurchaseFilter() {
   var kw = (document.getElementById('purchaseFilterSearch').value||'').trim().toLowerCase();
 
   var filtered = purchaseItems.filter(function(item) {
-    if (sup && (item.supplier||'') !== sup) return false;
+    if (sup && (getCurrentSupplier(item)||'') !== sup) return false;
     if (arr === 'PENDING' && (item.arrived||'') !== '') return false;
     if (arr && arr !== 'PENDING' && (item.arrived||'') !== arr) return false;
     if (kw && (item.name||'').toLowerCase().indexOf(kw)<0 && (item.model||'').toLowerCase().indexOf(kw)<0 && (item.partCode||'').toLowerCase().indexOf(kw)<0) return false;
@@ -3084,10 +3105,10 @@ function renderBomTable() {
     var el4 = document.getElementById('advFilterArrival'); if (el4) advArr = el4.value;
   }
   var filtered = bom.filter(function(item) {
-    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0 || (item.partCode||'').toLowerCase().indexOf(searchVal)>=0;
+    var ms = !searchVal || (item.name||'').toLowerCase().indexOf(searchVal)>=0 || (item.model||'').toLowerCase().indexOf(searchVal)>=0 || (item.supplier||'').toLowerCase().indexOf(searchVal)>=0 || (item.selectedSupplier||'').toLowerCase().indexOf(searchVal)>=0 || (item.partCode||'').toLowerCase().indexOf(searchVal)>=0;
     var mst = !statusFilter || item.status === statusFilter;
     var mcat = !advCat || (item.category||'未分类') === advCat;
-    var msup = !advSup || (item.supplier||'') === advSup;
+    var msup = !advSup || (getCurrentSupplier(item)||'') === advSup;
     var mstk = true;
     if (advStk === '购') mstk = item.status === '采购';
     else if (advStk === '存') mstk = item.status === '库存';
@@ -3106,17 +3127,11 @@ function renderBomTable() {
   localLib.forEach(function(l){
     var k = (l.name||'')+'|'+(l.supplier||'');
     localKeys[k] = true;
-    // 在通用库中不存在的 → 标记为本项目独有
-    if (!globalKeys[k]) {
-      l._localOnly = true;
-    }
+    if (!globalKeys[k]) { l._localOnly = true; }
   });
-  // 将标记传递到 filtered 中的 BOM item
   filtered.forEach(function(item){
-    var k = (item.name||'')+'|'+(item.supplier||'');
-    if (localKeys[k]) {
-      item._localOnly = true;
-    }
+    var k = (item.name||'')+'|'+(getCurrentSupplier(item)||'');
+    if (localKeys[k]) { item._localOnly = true; }
   });
 
   // 7. 空状态处理
@@ -3153,7 +3168,7 @@ function renderBomTable() {
   } else {
     var groups = {};
     filtered.forEach(function(item) {
-      var key = groupBy === 'category' ? (item.category||'未分类') : (groupBy === 'supplier' ? (item.supplier||'未知供应商') : (item.status||'未知'));
+      var key = groupBy === 'category' ? (item.category||'未分类') : (groupBy === 'supplier' ? (getCurrentSupplier(item)||'未知供应商') : (item.status||'未知'));
       if (!groups[key]) groups[key] = []; groups[key].push(item);
     });
     var keys = Object.keys(groups).sort();
@@ -3209,15 +3224,95 @@ function getSupplierColor(supplier) {
 }
 function resetSupplierColorMap() { _supplierColorMap = {}; _supplierColorIdx = 0; }
 
+// ============================================================
+// 多供应商支持 v5.45
+// 零件库 supplier 字段支持逗号分隔多个供应商（如 "厂商A,厂商B,厂商C"）
+// BOM 条目用 selectedSupplier 字段记录本项目选用的供应商
+// ============================================================
+
+// 从零件库查找零件对应的所有可用供应商列表
+function getLibSuppliers(item) {
+  if (!item) return [];
+  var proj = store.projects[store.currentProject];
+  var allLib = (store.library||[]).concat();
+  if (proj && Array.isArray(proj.localLibrary)) { allLib = allLib.concat(proj.localLibrary); }
+
+  // 精确匹配 libRefId
+  var libItem = null;
+  if (item.libRefId) { libItem = findLibById(item.libRefId); }
+  // 兜底按名称+型号匹配
+  if (!libItem) {
+    var itemName = ((item.name||'').trim()).toLowerCase();
+    var itemModel = ((item.model||'').trim()).toLowerCase();
+    if (itemName) {
+      libItem = allLib.find(function(x){
+        return ((x.name||'').trim()).toLowerCase() === itemName &&
+               ((x.model||'').trim()).toLowerCase() === itemModel;
+      });
+      if (!libItem) {
+        libItem = allLib.find(function(x){
+          return ((x.name||'').trim()).toLowerCase() === itemName;
+        });
+      }
+    }
+  }
+  if (!libItem || !libItem.supplier) {
+    // 无库匹配或无供应商 → 返回 BOM 条目自身的 supplier（兼容老数据）
+    var s = (item.supplier||'').trim();
+    return s ? [s] : [];
+  }
+  // 逗号分隔解析
+  var suppliers = libItem.supplier.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  return suppliers.length ? suppliers : [];
+}
+
+// 获取 BOM 条目当前使用的供应商
+function getCurrentSupplier(item) {
+  return (item.selectedSupplier && item.selectedSupplier.trim()) || (item.supplier||'').trim();
+}
+
+// 渲染 BOM 表格供应商列（多供应商时显示下拉选择）
+function renderBomSupplierCell(item) {
+  var suppliers = getLibSuppliers(item);
+  var current = getCurrentSupplier(item);
+  if (suppliers.length <= 1) {
+    // 只有一个供应商或没有 → 普通文本
+    var supplier = current || (suppliers[0] || '-');
+    var supplierColor = getSupplierColor(supplier);
+    var style = supplierColor
+      ? 'display:inline-block;background:'+supplierColor.bg+';color:'+supplierColor.text+';font-weight:600;font-size:12px;text-align:center;border-radius:3px;padding:1px 4px;'
+      : 'font-size:12px;font-weight:500;';
+    return '<td><span style="'+style+'">'+esc(supplier)+'</span></td>';
+  }
+  // 多个供应商 → 下拉选择
+  var disabled = '';
+  if (currentUser && currentUser.role === 'guest') disabled = ' disabled';
+  var proj = store.projects[store.currentProject];
+  if (proj && proj.archived && currentUser && currentUser.role !== 'admin') disabled = ' disabled';
+  var options = suppliers.map(function(s){
+    return '<option value="'+escAttr(s)+'"'+(s===current?' selected':'')+'>'+esc(s)+'</option>';
+  }).join('');
+  return '<td><select class="form-control" style="font-size:11px;padding:1px 4px;height:22px;width:100%;min-width:80px;" onchange="updateBomSupplier(\''+item.id+'\',this.value)"'+disabled+'>'+options+'</select></td>';
+}
+
+// 响应 BOM 供应商下拉变更
+function updateBomSupplier(itemId, newSupplier) {
+  var item = getBomItem(itemId);
+  if (!item) return;
+  var proj = store.projects[store.currentProject];
+  if (proj && proj.archived && currentUser && currentUser.role !== 'admin') {
+    toast('项目已归档，仅管理员可修改','warn'); return;
+  }
+  item.selectedSupplier = newSupplier;
+  saveStoreDebounced(true);
+  markDirty('purchaseList');
+  toast('供应商已切换为：'+newSupplier, 'success');
+}
+
 function bomRowHtml(item, seq) {
   var sb = item.status==='采购' ? '<span class="badge badge-purchase">采购</span>' : '<span class="badge badge-stock">库存</span>';
   var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" style="color:var(--primary);font-size:11px;" title="'+esc(item.taobaoLink)+'">打开</a>' : '<span style="color:var(--text-muted)">-</span>';
-  var supplier = item.supplier || '-';
-  var supplierColor = getSupplierColor(supplier);
-  var supplierStyle = supplierColor
-    ? 'background:'+supplierColor.bg+';color:'+supplierColor.text+';font-weight:600;font-size:12px;text-align:center;border-radius:3px;padding:1px 4px;'
-    : 'font-size:12px;font-weight:500;';
   var actionCol = '';
   if (currentUser && currentUser.role === 'admin') {
     actionCol = '<td class="no-print"><div class="row-actions" style="display:flex;gap:3px;"><button class="btn btn-sm btn-outline" onclick="openEditModal(\''+item.id+'\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteBomEntry(\''+item.id+'\')">删除</button></div></td>';
@@ -3276,7 +3371,7 @@ function bomRowHtml(item, seq) {
     '<td class="no-print" style="text-align:center;"><input type="checkbox" class="bom-row-check" data-bom-id="'+item.id+'" onchange="onBomCheck(\''+item.id+'\',this)" onclick="event.stopPropagation()"></td>'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
-    '<td><span style="display:inline-block;'+supplierStyle+'">'+esc(supplier)+'</span></td>'+
+    renderBomSupplierCell(item)+
     nameHtml+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
     '<td style="text-align:center;">'+codeHtml+'</td>'+
@@ -3345,6 +3440,14 @@ function syncBomItemFromLib(itemId) {
   item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
   item.remark = libItem.remark || item.remark;
   if (libItem.partCode) item.partCode = libItem.partCode; // 同步物料编码
+  // v5.45: 同步后检查 selectedSupplier 是否仍在库供应商列表中
+  var newSuppliers = (libItem.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if (newSuppliers.length > 0) {
+    var curSel = (item.selectedSupplier||'').trim();
+    if (!curSel || newSuppliers.indexOf(curSel) < 0) {
+      item.selectedSupplier = newSuppliers[0];
+    }
+  }
   item.libSyncedAt = libItem.updatedAt || Date.now();
 
   saveStoreDebounced(true);
@@ -3372,6 +3475,12 @@ function batchSyncBomFromLib() {
     item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
     item.remark = libItem.remark || item.remark;
     if (libItem.partCode) item.partCode = libItem.partCode;
+    // v5.45: 检查 selectedSupplier
+    var nss = (libItem.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    if (nss.length > 0) {
+      var cs = (item.selectedSupplier||'').trim();
+      if (!cs || nss.indexOf(cs) < 0) item.selectedSupplier = nss[0];
+    }
     item.libSyncedAt = libItem.updatedAt || Date.now();
     synced++;
   });
@@ -3430,6 +3539,12 @@ function syncAllStaleBomFromLib() {
     item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
     item.remark = libItem.remark || item.remark;
     if (libItem.partCode) item.partCode = libItem.partCode;
+    // v5.45: 检查 selectedSupplier
+    var nss = (libItem.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    if (nss.length > 0) {
+      var cs = (item.selectedSupplier||'').trim();
+      if (!cs || nss.indexOf(cs) < 0) item.selectedSupplier = nss[0];
+    }
     item.libSyncedAt = libItem.updatedAt || Date.now();
     synced++;
   });
@@ -3889,9 +4004,11 @@ function addBomEntry() {
   if (status === 'auto') status = stock >= qty ? '库存' : '采购';
   var actualPurchase = status === '采购' ? Math.max(0, qty - stock) : 0;
 
+  var supplier = document.getElementById('inp-supplier').value.trim();
   var entry = {
     id: e(), category: document.getElementById('inp-category').value, name: name,
-    supplier: document.getElementById('inp-supplier').value.trim(),
+    supplier: supplier,
+    selectedSupplier: supplier,
     model: document.getElementById('inp-model').value.trim(),
     qty: qty, unit: document.getElementById('inp-unit').value, stock: stock, status: status, actualPurchase: actualPurchase,
     arrived: document.getElementById('inp-arrived').value,
@@ -3976,6 +4093,7 @@ function clearAddForm() {
   // 清除自动判断提示
   var hint = document.getElementById('statusAutoHint');
   if (hint) hint.textContent = '';
+  var sh = document.getElementById('supplierMultiHint'); if (sh) sh.textContent = '';
 }
 
 function deleteBomEntry(id) {
@@ -4007,7 +4125,22 @@ function openEditModal(id) {
   document.getElementById('edit-idx').value = id;
   document.getElementById('edit-category').value = item.category||getCategories()[0];
   document.getElementById('edit-name').value = item.name||'';
-  document.getElementById('edit-supplier').value = item.supplier||'';
+  // 供应商：多供应商显示下拉，否则显示文本输入
+  var editSuppliers = getLibSuppliers(item);
+  var curEditSup = getCurrentSupplier(item);
+  var editSelect = document.getElementById('edit-supplier-select');
+  var editInput = document.getElementById('edit-supplier');
+  if (editSuppliers.length > 1) {
+    editInput.style.display = 'none';
+    editSelect.style.display = '';
+    editSelect.innerHTML = editSuppliers.map(function(s){
+      return '<option value="'+escAttr(s)+'"'+(s===curEditSup?' selected':'')+'>'+esc(s)+'</option>';
+    }).join('');
+  } else {
+    editSelect.style.display = 'none';
+    editInput.style.display = '';
+    editInput.value = curEditSup || item.supplier||'';
+  }
   document.getElementById('edit-model').value = item.model||'';
   document.getElementById('edit-qty').value = item.qty||1;
   document.getElementById('edit-unit').value = item.unit||'个';
@@ -4041,10 +4174,15 @@ function saveEditEntry() {
   // 数量-库存=0 → 自动切换为库存，反之则为采购
   var status = (qty - stock <= 0) ? '库存' : '采购';
   var actualPurchase = status==='采购' ? Math.max(0,qty-stock) : 0;
+  // 供应商：下拉选择或文本输入
+  var editSelect = document.getElementById('edit-supplier-select');
+  var editInput = document.getElementById('edit-supplier');
+  var editSupplier = (editSelect.style.display !== 'none') ? editSelect.value : editInput.value.trim();
   bom[idx] = Object.assign({}, bom[idx], {
     category: document.getElementById('edit-category').value,
     name: document.getElementById('edit-name').value.trim(),
-    supplier: document.getElementById('edit-supplier').value.trim(),
+    supplier: editSupplier,
+    selectedSupplier: editSupplier,
     model: document.getElementById('edit-model').value.trim(),
     qty: qty, unit: document.getElementById('edit-unit').value, stock: stock, status: status, actualPurchase: actualPurchase,
     arrived: document.getElementById('edit-arrived').value,
@@ -4059,7 +4197,7 @@ function saveEditEntry() {
   var editedModel = document.getElementById('edit-model').value.trim();
   var libFields = {
     name: editedName,
-    supplier: document.getElementById('edit-supplier').value.trim(),
+    supplier: editSupplier,
     model: editedModel,
     category: document.getElementById('edit-category').value,
     unit: document.getElementById('edit-unit').value,
@@ -4304,6 +4442,7 @@ function batchAddFromLib() {
     var actualPurchase = status === '采购' ? Math.max(0, qty - libStock) : 0;
     store.projects[store.currentProject].bom.push({
       id:e(), category:l.category||getCategories()[0], name:l.name, supplier:l.supplier||'',
+      selectedSupplier: (l.supplier||'').split(',')[0].trim(),
       model:l.model||'', qty:qty, unit:l.unit||'个', stock:libStock, status:status,
       actualPurchase: actualPurchase, arrived:libArrived, taobaoLink:l.taobaoLink||'', remark:'',
       partCode: l.partCode||'',
@@ -4485,7 +4624,22 @@ function prefillFromLib(id) {
   var l = store.library.find(function(x){return x.id===id;}); if (!l) return;
   _prefilledLibId = id; // 记录来源库ID，添加到BOM时会带上
   document.getElementById('inp-name').value = l.name||'';
-  document.getElementById('inp-supplier').value = l.supplier||'';
+  // 多供应商：取第一个为默认，显示提示
+  var libSuppliers = (l.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  document.getElementById('inp-supplier').value = libSuppliers[0]||l.supplier||'';
+  if (libSuppliers.length > 1) {
+    var suppHint = document.getElementById('supplierMultiHint');
+    if (!suppHint) {
+      suppHint = document.createElement('span');
+      suppHint.id = 'supplierMultiHint';
+      suppHint.style.cssText = 'font-size:10px;color:var(--accent);margin-left:4px;';
+      var suppInput = document.getElementById('inp-supplier');
+      suppInput.parentNode.appendChild(suppHint);
+    }
+    suppHint.textContent = '（可用：'+libSuppliers.join(' / ')+'）';
+  } else {
+    var h = document.getElementById('supplierMultiHint'); if (h) h.textContent = '';
+  }
   document.getElementById('inp-model').value = l.model||'';
   document.getElementById('inp-category').value = l.category||getCategories()[0];
   document.getElementById('inp-unit').value = l.unit||'个';
@@ -4715,7 +4869,7 @@ function batchDeleteLib() {
 function calcBomHash(bom) {
   var purchaseItems = bom.filter(function(i){return i.status==='采购';});
   return purchaseItems.map(function(i){
-    return i.id+'|'+(i.name||'')+'|'+(i.model||'')+'|'+(i.qty||0)+'|'+(i.supplier||'');
+    return i.id+'|'+(i.name||'')+'|'+(i.model||'')+'|'+(i.qty||0)+'|'+(getCurrentSupplier(i)||'');
   }).join(';');
 }
 
@@ -4753,7 +4907,7 @@ function buildPurchaseHTML(bom, newItemIds) {
     }
     var groups = {};
     existingItems.forEach(function(item) {
-      var key = item.supplier || '未知供应商';
+      var key = getCurrentSupplier(item) || '未知供应商';
       if (!groups[key]) groups[key] = []; groups[key].push(item);
     });
     Object.keys(groups).sort().forEach(function(key) {
@@ -4768,12 +4922,12 @@ function buildPurchaseHTML(bom, newItemIds) {
   var allSupplierCount = 0;
   if (existingItems.length > 0) {
     var g2 = {};
-    existingItems.forEach(function(i){ g2[i.supplier||'未知供应商'] = 1; });
+    existingItems.forEach(function(i){ g2[getCurrentSupplier(i)||'未知供应商'] = 1; });
     allSupplierCount = Object.keys(g2).length;
   }
   if (newItems.length > 0) {
     var gn = {};
-    newItems.forEach(function(i){ gn[i.supplier||'未知供应商'] = 1; });
+    newItems.forEach(function(i){ gn[getCurrentSupplier(i)||'未知供应商'] = 1; });
     allSupplierCount += Object.keys(gn).length;
   }
 
@@ -4789,7 +4943,7 @@ function buildPurchaseRow(item, seq, isNew) {
   return '<tr class="'+rowClass+'" data-item-id="'+item.id+'">'+
     '<td style="text-align:center;color:var(--text-muted);">'+seq+'</td>'+
     '<td style="text-align:center;">'+codeHtml+'</td>'+
-    '<td>'+esc(item.supplier||'')+'</td>'+
+    '<td>'+esc(getCurrentSupplier(item)||'')+'</td>'+
     '<td><b>'+esc(item.name)+'</b></td>'+
     '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
     '<td style="text-align:center;font-weight:600;color:var(--accent);">'+fmtNum(item.actualPurchase||item.qty)+'</td>'+
@@ -5293,6 +5447,10 @@ function processRows(rawRows, isHeader, headerRow) {
     }
     // 兼容：确保 partCode 字段存在（但不自动生成）
     if (entry.partCode === undefined) { entry.partCode = ''; }
+    // v5.45: 导入时初始化 selectedSupplier（取库中第一个供应商）
+    if (entry.supplier && !entry.selectedSupplier) {
+      entry.selectedSupplier = entry.supplier.split(',')[0].trim();
+    }
     data.push(entry);
   }
 
@@ -5358,12 +5516,15 @@ function confirmImport() {
       if (entry.partCode && !existing.partCode) existing.partCode = entry.partCode;
       if (entry.category && !existing.category) existing.category = entry.category;
       if (entry.supplier && !existing.supplier) existing.supplier = entry.supplier;
+      if (!existing.selectedSupplier) existing.selectedSupplier = entry.selectedSupplier || (entry.supplier||'').split(',')[0].trim();
       if (entry.unit) existing.unit = entry.unit;
       if (entry.taobaoLink && !existing.taobaoLink) existing.taobaoLink = entry.taobaoLink;
       if (entry.remark && !existing.remark) existing.remark = entry.remark;
       if (entry.arrived && entry.arrived !== '未到') existing.arrived = entry.arrived;
       merged++;
     } else {
+      // 为新条目设置 selectedSupplier
+      if (!entry.selectedSupplier) entry.selectedSupplier = (entry.supplier||'').split(',')[0].trim();
       entry.id = e();
       proj.bom.push(entry);
       added++;
@@ -5505,7 +5666,7 @@ function exportPurchaseExcel() {
   // v4.1: 项目编号只取项目名称前4位数字字符
   var projNum = (projName.match(/\d/g)||[]).slice(0,4).join('');
   purItems.forEach(function(item,i) {
-    data.push([i+1, item.partCode||'', item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
+    data.push([i+1, item.partCode||'', getCurrentSupplier(item)||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(data);
   ws['!cols'] = [{wch:6},{wch:10},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
@@ -5518,13 +5679,13 @@ function exportPurchaseExcel() {
 
 function exportSupplierExcel(supplierName) {
   var bom = currentBom();
-  var supplierItems = bom.filter(function(i){ return i.status==='采购' && (i.supplier||'未知供应商') === supplierName; });
+  var supplierItems = bom.filter(function(i){ return i.status==='采购' && (getCurrentSupplier(i)||'未知供应商') === supplierName; });
   if (!supplierItems.length) { toast('该供应商无采购项','warn'); return; }
   var projName = store.currentProject && store.projects[store.currentProject] ? store.projects[store.currentProject].name : '';
   var projNum = (projName.match(/\d/g)||[]).slice(0,4).join('');
   var data = [['序号','物料编码','供应商','名称','规格型号','数量','单位','项目编号','备注']];
   supplierItems.forEach(function(item,i) {
-    data.push([i+1, item.partCode||'', item.supplier||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
+    data.push([i+1, item.partCode||'', getCurrentSupplier(item)||'', item.name||'', item.model||'', item.actualPurchase||item.qty, item.unit||'', projNum, item.remark||'']);
   });
   var ws = XLSX.utils.aoa_to_sheet(data);
   ws['!cols'] = [{wch:6},{wch:10},{wch:14},{wch:20},{wch:50},{wch:8},{wch:6},{wch:10},{wch:30}];
