@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOM 智能管理工具 v5.43</title>
+<title>BOM 智能管理工具 v5.44</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -453,7 +453,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 <!-- HEADER -->
 <div class="header">
   <div class="header-left">
-    <div class="header-title">BOM <span>智能管理工具 v5.43</span></div>
+    <div class="header-title">BOM <span>智能管理工具 v5.44</span></div>
     <div class="header-divider"></div>
     <div class="header-project">
       项目：<span class="header-project-name" id="headerProjectName">-</span>
@@ -685,6 +685,7 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
           <span style="width:1px;height:20px;background:var(--border);display:inline-block;"></span>
           <button class="btn btn-sm btn-outline admin-only" onclick="batchCloneToBomTarget()" id="bomBatchCloneBtn" title="克隆选中零件到其他项目">📋 克隆到项目</button>
           <button class="btn btn-sm btn-primary admin-only" onclick="batchSyncBomFromLib()" id="bomBatchSyncBtn" title="将选中零件的资料同步到零件库最新版本">🔄 同步最新</button>
+          <button class="btn btn-sm btn-danger admin-only" onclick="batchDeleteBom()" id="bomBatchDeleteBtn" title="删除已勾选的所有零件">🗑 批量删除</button>
           <div style="flex:1;"></div>
           <button class="btn btn-sm btn-ghost" onclick="bomDeselectAll()">✕ 取消选择</button>
         </div>
@@ -3716,6 +3717,23 @@ function bomDeselectAll() {
   var allChk = document.getElementById('bomSelectAll');
   if (allChk) { allChk.checked = false; allChk.indeterminate = false; }
   updateBomBatchBar();
+}
+
+function batchDeleteBom() {
+  if (!bomSelectedIds.size) { toast('请先勾选要删除的零件', 'warn'); return; }
+  var cnt = bomSelectedIds.size;
+  if (!confirm('确定要删除已勾选的 ' + cnt + ' 个零件吗？此操作不可撤销。')) return;
+  var pid = store.currentProject;
+  if (!pid || !store.projects[pid]) return;
+  var bom = store.projects[pid].bom || [];
+  var ids = Array.from(bomSelectedIds);
+  store.projects[pid].bom = bom.filter(function(item) { return ids.indexOf(item.id) === -1; });
+  bomSelectedIds.clear();
+  var allChk = document.getElementById('bomSelectAll');
+  if (allChk) { allChk.checked = false; allChk.indeterminate = false; }
+  saveStoreDebounced(true);
+  markDirty('bomTable'); markDirty('bomStats'); markDirty('badges');
+  toast('已删除 ' + cnt + ' 个零件', 'success');
 }
 
 function batchSetArrival(status) {
