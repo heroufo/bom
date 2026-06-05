@@ -154,6 +154,9 @@ tbody tr:hover{background:var(--primary-bg)}
 tbody tr:nth-child(even){background:var(--table-stripe)}
 tbody tr:nth-child(even):hover{background:var(--primary-bg)}
 tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(--text);vertical-align:middle;white-space:nowrap}
+/* BOM表：名称列和型号列允许换行，限制宽度，保证表格适合屏幕 */
+#bomTable td.bom-name-cell{white-space:normal;word-break:break-all;max-width:180px;min-width:80px}
+#bomTable td.bom-model-cell{white-space:normal;word-break:break-all;max-width:200px;min-width:80px}
 .category-row td{background:var(--primary-bg)!important;font-weight:600;color:var(--primary);font-size:12px;padding:6px 10px}
 #purchaseTable tbody td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .no-data{text-align:center;padding:36px;color:var(--text-muted);font-size:14px}
@@ -3361,7 +3364,7 @@ function bomRowHtml(item, seq) {
     }
   }
 
-  var nameHtml = '<td><b>'+esc(item.name)+localBadge+staleBadge+'</b></td>';
+  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+'</b></td>';
 
   // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
   var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
@@ -3373,7 +3376,7 @@ function bomRowHtml(item, seq) {
     '<td><span style="font-size:11px;color:var(--text-secondary);">'+esc(item.category||'-')+'</span></td>'+
     renderBomSupplierCell(item)+
     nameHtml+
-    '<td style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
+    '<td class="bom-model-cell" style="font-size:12px;">'+esc(item.model||'-')+'</td>'+
     '<td style="text-align:center;">'+codeHtml+'</td>'+
     '<td style="text-align:center;font-weight:600;">'+fmtNum(item.qty)+'</td>'+
     '<td style="text-align:center;">'+esc(item.unit||'')+'</td>'+
@@ -5391,23 +5394,26 @@ function processRows(rawRows, isHeader, headerRow) {
       '备注':'remark','remark':'remark','note':'remark','notes':'remark'
     };
     // 匹配表头找到每列对应字段
-    // 按关键词长度降序排列：长关键词优先匹配，避免短关键词（如"型号"）被复合关键词（如"名称型号"）的反向匹配吞掉
+    // 表头→字段映射规则：
+    // 1. 正向匹配（表头包含关键词），可信度最高，直接赋值并break
+    // 2. 精确反向匹配（关键词==表头），完全相同，直接赋值
+    // 3. 不允许"关键词包含表头"的反向模糊匹配，防止"数量"被"实际采购数"劫持
     var sortedKw = Object.keys(keywordToField).sort(function(a,b){ return b.length - a.length; });
     Object.keys(headerMap).forEach(function(headerName){
       var hnLower = headerName.toLowerCase();
       for (var ki = 0; ki < sortedKw.length; ki++) {
         var kw = sortedKw[ki];
         var kwLower = kw.toLowerCase();
+        // 正向匹配：表头包含关键词（如"名称型号"包含"名称"、"型号"）
         var forwardMatch = hnLower.indexOf(kwLower) !== -1;
-        var reverseMatch = kwLower.indexOf(hnLower) !== -1;
-        if (forwardMatch || reverseMatch) {
+        // 精确反向匹配：关键词与表头完全相同（等价于正向匹配，此处冗余但保留语义）
+        // 注意：不允许模糊反向匹配（kwLower.indexOf(hnLower)），防止"数量"被"实际采购数"劫持
+        if (forwardMatch) {
           var field = keywordToField[kw];
           if (colIndex[field] === undefined) {
             colIndex[field] = headerMap[headerName];
           }
-          // 正向匹配总是可靠的，直接break
-          // 反向匹配：只有成功赋值才break；字段已被占用则不break，继续尝试其他关键词
-          if (forwardMatch || colIndex[field] === headerMap[headerName]) break;
+          break;
         }
       }
     });
@@ -5444,7 +5450,7 @@ function processRows(rawRows, isHeader, headerRow) {
         var cidx = colIndex[f];
         var val = (cidx < cols.length ? (cols[cidx] || '') : '').trim();
         if (f === 'qty' || f === 'stock' || f === 'actualPurchase') {
-          val = parseInt(val) || 0;
+          val = parseFloat(val) || 0;
         }
         entry[f] = val;
       }
@@ -5466,7 +5472,7 @@ function processRows(rawRows, isHeader, headerRow) {
       for (var j = 0; j < fieldNames.length; j++) {
         var val = (cols[j] || '').trim();
         if (fieldNames[j] === 'qty' || fieldNames[j] === 'stock' || fieldNames[j] === 'actualPurchase') {
-          val = parseInt(val) || 0;
+          val = parseFloat(val) || 0;
         }
         entry[fieldNames[j]] = val;
       }
