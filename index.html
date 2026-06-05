@@ -5369,7 +5369,8 @@ function processRows(rawRows, isHeader, headerRow) {
     // === 有表头：按列名精确映射 ===
     var headerMap = {};
     headerRow.forEach(function(h, idx){
-      var hn = (h||'').trim();
+      // 去掉换行符后再 trim，避免单元格内有换行的表头（如"实际\n采购\n数"）无法匹配
+      var hn = (h||'').replace(/[\r\n]+/g, '').trim();
       if (!hn) return;
       headerMap[hn] = idx;
     });
@@ -5384,7 +5385,7 @@ function processRows(rawRows, isHeader, headerRow) {
       '单位':'unit','unit':'unit',
       '库存':'stock','stock':'stock',
       '状态':'status','status':'status',
-      '实际采购数':'actualPurchase','实采':'actualPurchase','实采数量':'actualPurchase',
+      '实际采购数':'actualPurchase','实采':'actualPurchase','实采数量':'actualPurchase','实际采购':'actualPurchase',
       '到货状态':'arrived','到货':'arrived','arrived':'arrived',
       '淘宝链接':'taobaoLink','链接':'taobaoLink','taobao':'taobaoLink','link':'taobaoLink',
       '备注':'remark','remark':'remark','note':'remark','notes':'remark'
@@ -6385,7 +6386,8 @@ function importFromTencentDocsFile(input) {
       var headerRow = rows[headerIdx];
       var colMap = {};
       headerRow.forEach(function(h, i) {
-        var hdr = String(h||'').trim();
+        // 去掉换行符后再 trim，处理单元格内含换行的表头
+        var hdr = String(h||'').replace(/[\r\n]+/g, '').trim();
         if (hdr.indexOf('序号')===0 || hdr==='序号') colMap.seq = i;
         else if (hdr==='供应商') colMap.supplier = i;
         else if (hdr==='名称' && hdr!=='名称型号') colMap.name = i;
@@ -6394,7 +6396,7 @@ function importFromTencentDocsFile(input) {
         else if (hdr==='单位') colMap.unit = i;
         else if (hdr==='库存') colMap.stock = i;
         else if (hdr==='状态') colMap.status = i;
-        else if (hdr==='实采' || hdr==='实采数量') colMap.actualPurchase = i;
+        else if (hdr==='实采' || hdr==='实采数量' || hdr==='实际采购数' || hdr==='实际采购') colMap.actualPurchase = i;
         else if (hdr==='到货' || hdr==='到货状态') colMap.arrived = i;
         else if (hdr==='备注') colMap.remark = i;
         else if (hdr.indexOf('淘宝')>=0 || hdr.indexOf('链接')>=0) colMap.taobao = i;
