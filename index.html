@@ -5484,6 +5484,8 @@ function processRows(rawRows, isHeader, headerRow) {
     if (entry.supplier && !entry.selectedSupplier) {
       entry.selectedSupplier = entry.supplier.split(',')[0].trim();
     }
+    // 实采数量由系统计算，不从导入表中读取：状态=采购时 qty-stock，否则为0
+    entry.actualPurchase = entry.status === '采购' ? Math.max(0, (entry.qty||0) - (entry.stock||0)) : 0;
     data.push(entry);
   }
 
@@ -6457,12 +6459,13 @@ function importFromTencentDocsFile(input) {
           remark: colMap.remark!==undefined ? String(row[colMap.remark]||'').trim() : ''
         };
 
-        // Auto-set status & actualPurchase
-        if (!entry.status || entry.status==='') {
-          entry.status = entry.stock >= entry.qty ? '库存' : '采购';
-        }
-        if (!entry.actualPurchase && entry.status==='采购') {
-          entry.actualPurchase = Math.max(0, entry.qty - entry.stock);
+        // 实采数量由系统计算，不从导入表中读取
+        // 状态为空时默认"采购"
+        if (!entry.status) entry.status = '采购';
+        entry.actualPurchase = entry.status === '采购' ? Math.max(0, entry.qty - entry.stock) : 0;
+        // 初始化 selectedSupplier
+        if (entry.supplier && !entry.selectedSupplier) {
+          entry.selectedSupplier = entry.supplier.split(',')[0].trim();
         }
 
         bom.push(entry);
