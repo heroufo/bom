@@ -3381,8 +3381,9 @@ function bomRowHtml(item, seq, dupIds) {
           return ((x.name||'').trim()).toLowerCase() === itemName &&
                  ((x.model||'').trim()).toLowerCase() === itemModel;
         });
-        // 全匹配失败（型号可能已变更），退而求其次仅按名称匹配
-        if (!libItem) {
+        // 全匹配失败，退而求其次仅按名称 — 仅当 BOM 条目无编码时使用
+        // 已有编码的条目不应被名称匹配错配到库中其他同名零件
+        if (!libItem && !(item.partCode||'').trim()) {
           libItem = allLib.find(function(x){
             return ((x.name||'').trim()).toLowerCase() === itemName;
           });
@@ -3441,7 +3442,8 @@ function syncBomItemFromLib(itemId) {
   var libItem = null;
   // 优先用 libRefId 精确查找
   if (item.libRefId) { libItem = findLibById(item.libRefId); }
-  // 兜底：无 libRefId 的老数据按名称+型号匹配（型号变更时退而求其次仅按名称）
+  // 兜底：无 libRefId 的老数据按名称+型号匹配
+  // 注意：型号变更时退而求其次仅按名称匹配 — 但仅当 BOM 条目无编码时使用
   if (!libItem) {
     var itemName = ((item.name||'').trim()).toLowerCase();
     var itemModel = ((item.model||'').trim()).toLowerCase();
@@ -3453,7 +3455,7 @@ function syncBomItemFromLib(itemId) {
         return ((x.name||'').trim()).toLowerCase() === itemName &&
                ((x.model||'').trim()).toLowerCase() === itemModel;
       });
-      if (!libItem) {
+      if (!libItem && !(item.partCode||'').trim()) {
         libItem = allLib.find(function(x){
           return ((x.name||'').trim()).toLowerCase() === itemName;
         });
@@ -3511,7 +3513,8 @@ function batchSyncBomFromLib() {
     item.unit = libItem.unit || item.unit;
     item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
     item.remark = libItem.remark || item.remark;
-    if (libItem.partCode) item.partCode = libItem.partCode;
+    // 仅当BOM条目无编码时才从库补充；已有编码的保留不覆盖（避免导入/手动指定编码被库覆盖）
+    if (libItem.partCode && !item.partCode) item.partCode = libItem.partCode;
     // v5.45: 检查 selectedSupplier
     var nss = (libItem.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
     if (nss.length > 0) {
@@ -3548,14 +3551,21 @@ function syncAllStaleBomFromLib(silent) {
     if (!libItem) {
       var itemName = ((item.name||'').trim()).toLowerCase();
       var itemModel = ((item.model||'').trim()).toLowerCase();
+      var itemPc = (item.partCode||'').trim();
       if (itemName) {
         // 名称+型号全匹配
         libItem = allLib.find(function(x){
           return ((x.name||'').trim()).toLowerCase() === itemName &&
                  ((x.model||'').trim()).toLowerCase() === itemModel;
         });
-        // 退而求其次仅按名称
-        if (!libItem) {
+        // 名称+型号匹配时额外校验：双方都有编码则必须一致
+        if (libItem && itemPc) {
+          var libPc = (libItem.partCode||'').trim();
+          if (libPc && libPc !== itemPc) { libItem = null; }
+        }
+        // 退而求其次仅按名称 — 仅当 BOM 条目无编码时使用
+        // 已有编码的条目不应被名称匹配错配到库中其他同名零件
+        if (!libItem && !itemPc) {
           libItem = allLib.find(function(x){
             return ((x.name||'').trim()).toLowerCase() === itemName;
           });
@@ -3576,7 +3586,8 @@ function syncAllStaleBomFromLib(silent) {
     item.unit = libItem.unit || item.unit;
     item.taobaoLink = libItem.taobaoLink || item.taobaoLink;
     item.remark = libItem.remark || item.remark;
-    if (libItem.partCode) item.partCode = libItem.partCode;
+    // 仅当BOM条目无编码时才从库补充；已有编码的保留不覆盖（避免导入/手动指定编码被库覆盖）
+    if (libItem.partCode && !item.partCode) item.partCode = libItem.partCode;
     // v5.45: 检查 selectedSupplier
     var nss = (libItem.supplier||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
     if (nss.length > 0) {
