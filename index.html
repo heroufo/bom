@@ -3933,17 +3933,17 @@ function syncBomToLibrary() {
     var inLocal = localLib.find(function(l){
       return (l.name===item.name) && (l.model===item.model);
     });
-    // 已在任意一个库中存在则跳过
+    // 已在任意一个库中存在则跳过，但需要确保 BOM 条目与库建立关联
     if (inGlobal || inLocal) {
-      // 如果BOM条目缺少 partCode，补上库中的编码
-      if (inGlobal && inGlobal.partCode && (!item.partCode || item.partCode.trim()==='')) {
-        item.partCode = inGlobal.partCode;
-        item.libRefId = inGlobal.id;
-        item.libSyncedAt = inGlobal.updatedAt || Date.now();
-      } else if (inLocal && inLocal.partCode && (!item.partCode || item.partCode.trim()==='')) {
-        item.partCode = inLocal.partCode;
-        item.libRefId = inLocal.id;
-        item.libSyncedAt = inLocal.updatedAt || Date.now();
+      var libRef = inGlobal || inLocal;
+      // 补充 partCode（如果BOM条目没有编码，从库中取）
+      if (libRef.partCode && (!item.partCode || item.partCode.trim()==='')) {
+        item.partCode = libRef.partCode;
+      }
+      // 始终补充 libRefId 和 libSyncedAt，确保 BOM 与库建立关联
+      if (!item.libRefId) {
+        item.libRefId = libRef.id;
+        item.libSyncedAt = libRef.updatedAt || Date.now();
       }
       skipped++; return;
     }
@@ -3955,15 +3955,16 @@ function syncBomToLibrary() {
              ((l.model||'').trim().toLowerCase() === (item.model||'').trim().toLowerCase());
     });
     if (recheck) {
-      if (recheck.partCode && (!item.partCode || item.partCode.trim()==='')) {
-        item.partCode = recheck.partCode;
-      }
+      // 库中已存在（并发/trim差异）→ 回写 partCode 和关联
+      if (recheck.partCode) item.partCode = recheck.partCode;
       item.libRefId = recheck.id;
       item.libSyncedAt = recheck.updatedAt || Date.now();
       skipped++; return;
     }
+    var newId = e();
+    var now = Date.now();
     store.library.push({
-      id: e(),
+      id: newId,
       name: item.name,
       supplier: item.supplier || '',
       model: item.model || '',
@@ -3972,10 +3973,12 @@ function syncBomToLibrary() {
       taobaoLink: item.taobaoLink || '',
       remark: item.remark || '',
       partCode: newPartCode,
-      updatedAt: Date.now()
+      updatedAt: now
     });
-    // 同步编码回 BOM 条目
-    if (!item.partCode || item.partCode.trim()==='') item.partCode = newPartCode;
+    // 将新库条目的 id/编码/时间 回写到 BOM 条目，建立关联
+    item.partCode = newPartCode;
+    item.libRefId = newId;
+    item.libSyncedAt = now;
     added++;
   });
 
@@ -3983,7 +3986,7 @@ function syncBomToLibrary() {
     toast('零件库已完整，无需同步（BOM共 '+bom.length+' 条）', 'info');
     renderBomTable(); return;
   }
-  saveStoreDebounced(); markDirty('badges'); markDirty('library'); markDirty('quickLib'); markDirty('bomTable');
+  saveStoreDebounced(true); markDirty('badges'); markDirty('library'); markDirty('quickLib'); markDirty('bomTable');
   toast('已同步 '+added+' 个新零件到通用库！'+(skipped>0?'（跳过 '+skipped+' 个已存在的）':''), 'success');
 }
 
@@ -6397,9 +6400,11 @@ function importFromTencentDocsFile(input) {
         // 去掉换行符后再 trim，处理单元格内含换行的表头
         var hdr = String(h||'').replace(/[\r\n]+/g, '').trim();
         if (hdr.indexOf('序号')===0 || hdr==='序号') colMap.seq = i;
+        else if (hdr==='物料编码' || hdr==='编码' || hdr.toLowerCase()==='partcode') colMap.partCode = i;
+        else if (hdr==='分类' || hdr==='类别') colMap.category = i;
         else if (hdr==='供应商') colMap.supplier = i;
         else if (hdr==='名称' && hdr!=='名称型号') colMap.name = i;
-        else if (hdr==='名称型号' || hdr.indexOf('规格型号')>=0) colMap.model = i;
+        else if (hdr==='型号' || hdr==='名称型号' || hdr.indexOf('规格型号')>=0) colMap.model = i;
         else if (hdr==='数量') colMap.qty = i;
         else if (hdr==='单位') colMap.unit = i;
         else if (hdr==='库存') colMap.stock = i;
@@ -6451,7 +6456,7 @@ function importFromTencentDocsFile(input) {
 
         var entry = {
           id: e(),
-          category: currentCategory || getCategories()[0],
+          category: colMap.category!==undefined ? (String(row[colMap.category]||'').trim() || currentCategory || getCategories()[0]) : (currentCategory || getCategories()[0]),
           name: entryName,
           supplier: colMap.supplier!==undefined ? String(row[colMap.supplier]||'').trim() : '',
           model: colMap.model!==undefined ? String(row[colMap.model]||'').trim() : '',
@@ -6462,7 +6467,9 @@ function importFromTencentDocsFile(input) {
           actualPurchase: parseFloat(row[colMap.actualPurchase]) || 0,
           arrived: colMap.arrived!==undefined ? String(row[colMap.arrived]||'').trim() : '',
           taobaoLink: colMap.taobao!==undefined ? String(row[colMap.taobao]||'').trim() : '',
-          remark: colMap.remark!==undefined ? String(row[colMap.remark]||'').trim() : ''
+          remark: colMap.remark!==undefined ? String(row[colMap.remark]||'').trim() : '',
+          // 物料编码：从导入表中读取（SolidWorks属性中已填写则优先保留）
+          partCode: colMap.partCode!==undefined ? String(row[colMap.partCode]||'').trim() : ''
         };
 
         // 实采数量由系统计算，不从导入表中读取
