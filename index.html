@@ -208,6 +208,12 @@ tbody td{padding:7px 10px;border-bottom:1px solid var(--border-light);color:var(
 .bom-row-local{background:linear-gradient(90deg,var(--accent-bg) 0,var(--accent-bg) 4px,transparent 4px)}
 .bom-row-local td:first-child{padding-left:12px;font-weight:700}
 
+/* BOM重复行高亮 */
+.bom-row-dup{background:linear-gradient(90deg,rgba(239,68,68,0.15) 0,rgba(239,68,68,0.08) 100%)!important;outline:1px solid rgba(239,68,68,0.35);}
+.bom-row-dup td{background:transparent!important;}
+body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0,rgba(248,113,113,0.08) 100%)!important;outline:1px solid rgba(248,113,113,0.4);}
+.bom-dup-badge{display:inline-block;font-size:9px;background:#ef4444;color:#fff;border-radius:3px;padding:0 4px;margin-left:4px;vertical-align:middle;cursor:default;}
+
 /* PROJECT BAR (new two-row) */
 .proj-bar{background:var(--card-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;border:1px solid var(--border);overflow:hidden;position:sticky;top:104px;z-index:98}
 .proj-bar-main{display:flex;gap:8px;align-items:center;padding:10px 14px;flex-wrap:wrap}
@@ -3166,8 +3172,28 @@ function renderBomTable() {
   // 9. 生成 HTML
   var html = ''; var seq = 1;
 
+  // ── 重复检测：扫描整个 bom（不仅是 filtered），构建重复 ID 集合 ──
+  var _dupIds = (function() {
+    var codeMap = {}; var nameModelMap = {}; var dups = {};
+    bom.forEach(function(item) {
+      // 物料编码重复
+      var pc = (item.partCode||'').trim();
+      if (pc) {
+        if (codeMap[pc]) { dups[item.id] = 'code'; dups[codeMap[pc]] = 'code'; }
+        else { codeMap[pc] = item.id; }
+      }
+      // 名称+型号重复
+      var nk = ((item.name||'').trim().toLowerCase()) + '###' + ((item.model||'').trim().toLowerCase());
+      if (nk.length > 3) {
+        if (nameModelMap[nk]) { dups[item.id] = dups[item.id]||'namemodel'; dups[nameModelMap[nk]] = dups[nameModelMap[nk]]||'namemodel'; }
+        else { nameModelMap[nk] = item.id; }
+      }
+    });
+    return dups;
+  })();
+
   if (groupBy === 'none') {
-    filtered.forEach(function(item) { html += bomRowHtml(item, seq++); });
+    filtered.forEach(function(item) { html += bomRowHtml(item, seq++, _dupIds); });
   } else {
     var groups = {};
     filtered.forEach(function(item) {
@@ -3184,7 +3210,7 @@ function renderBomTable() {
     }
     keys.forEach(function(key) {
       html += '<tr class="category-row"><td colspan="15">▶ '+esc(key)+'（'+groups[key].length+' 项）</td></tr>';
-      groups[key].forEach(function(item) { html += bomRowHtml(item, seq++); });
+      groups[key].forEach(function(item) { html += bomRowHtml(item, seq++, _dupIds); });
     });
   }
   tbody.innerHTML = html;
@@ -3312,7 +3338,7 @@ function updateBomSupplier(itemId, newSupplier) {
   toast('供应商已切换为：'+newSupplier, 'success');
 }
 
-function bomRowHtml(item, seq) {
+function bomRowHtml(item, seq, dupIds) {
   var sb = item.status==='采购' ? '<span class="badge badge-purchase">采购</span>' : '<span class="badge badge-stock">库存</span>';
   var ab = buildArrivalSelect(item);
   var tl = item.taobaoLink ? '<a href="'+esc(item.taobaoLink)+'" target="_blank" style="color:var(--primary);font-size:11px;" title="'+esc(item.taobaoLink)+'">打开</a>' : '<span style="color:var(--text-muted)">-</span>';
@@ -3322,8 +3348,16 @@ function bomRowHtml(item, seq) {
   }
   // 判断是否仅存在于项目库中（非通用库）
   var isLocalOnly = item._localOnly === true;
-  var rowClass = isLocalOnly ? ' class="bom-row-local"' : '';
+  // 重复检测
+  var isDup = dupIds && !!dupIds[item.id];
+  var dupType = dupIds && dupIds[item.id];
+  var dupTip = isDup ? (dupType==='code' ? '物料编码重复' : '名称+型号规格重复') : '';
+  var rowClasses = [];
+  if (isLocalOnly) rowClasses.push('bom-row-local');
+  if (isDup) rowClasses.push('bom-row-dup');
+  var rowClass = rowClasses.length ? ' class="'+rowClasses.join(' ')+'"' : '';
   var localBadge = isLocalOnly ? ' <span title="本项目库独有零件" style="display:inline-block;font-size:9px;background:var(--accent);color:#fff;border-radius:3px;padding:0 3px;margin-left:3px;vertical-align:middle;">本</span>' : '';
+  var dupBadge = isDup ? ' <span class="bom-dup-badge" title="'+dupTip+'">⚠ 重复</span>' : '';
 
   // 方案A：检查零件库是否有新版本（仅非归档项目显示）
   var staleBadge = '';
@@ -3364,7 +3398,7 @@ function bomRowHtml(item, seq) {
     }
   }
 
-  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+'</b></td>';
+  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+dupBadge+'</b></td>';
 
   // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
   var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
@@ -3493,11 +3527,12 @@ function batchSyncBomFromLib() {
 }
 
 // 一键更新：扫描所有BOM条目，找到库有新版自动全部同步
-function syncAllStaleBomFromLib() {
+// silent=true 时不弹独立 toast（导入后自动调用时已经有导入完成的提示）
+function syncAllStaleBomFromLib(silent) {
   var bom = currentBom();
-  if (!bom.length) { toast('BOM清单为空','warn'); return; }
+  if (!bom.length) { if (!silent) toast('BOM清单为空','warn'); return; }
   var proj = store.projects[store.currentProject];
-  if (proj && proj.archived) { toast('项目已归档，无法同步','error'); return; }
+  if (proj && proj.archived) { if (!silent) toast('项目已归档，无法同步','error'); return; }
 
   // 先构建完整库索引（全局+本地）
   var allLib = (store.library||[]).concat();
@@ -3554,7 +3589,12 @@ function syncAllStaleBomFromLib() {
 
   saveStoreDebounced(true);
   markDirty('bomTable'); markDirty('bomStats'); markDirty('badges');
-  toast('一键更新完成：已同步 '+synced+' 个零件'+(skipped>0?'，'+skipped+' 个无需更新':''), 'success');
+  if (silent) {
+    if (synced > 0) toast('导入完成，已自动同步 '+synced+' 个零件信息', 'success');
+    refreshAll();
+  } else {
+    toast('一键更新完成：已同步 '+synced+' 个零件'+(skipped>0?'，'+skipped+' 个无需更新':''), 'success');
+  }
 }
 
 // BOM页一键生成物料编码：为BOM中所有空编码的零件智能匹配
@@ -5581,6 +5621,8 @@ function confirmImport() {
   var msg = '成功导入 ' + added + ' 条零件';
   if (merged > 0) msg += '，合并 ' + merged + ' 条到已有零件';
   toast(msg, 'success');
+  // 导入后自动执行一键更新信息（与零件库同步）
+  setTimeout(function() { syncAllStaleBomFromLib(true); }, 200);
 }
 
 // ============================================================
