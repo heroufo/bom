@@ -1055,7 +1055,7 @@ body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="lib-model" placeholder="详细型号规格"></div>
   <div class="form-row">
-    <div class="form-group"><label>分类</label><select class="form-control" id="lib-category"></select></div>
+    <div class="form-group"><label>分类</label><select class="form-control" id="lib-category" onchange="refreshLibSupplierDatalist(this.value)"></select></div>
     <div class="form-group"><label>常用单位</label><select class="form-control" id="lib-unit"></select></div>
   </div>
   <div class="form-group" style="margin-bottom:10px;">
@@ -1104,8 +1104,19 @@ body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0
   <div id="edit-outsource-section" style="display:none;border:1px solid var(--primary,#3b82f6);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(59,130,246,0.04);">
     <div style="font-size:12px;font-weight:600;color:var(--primary,#3b82f6);margin-bottom:8px;">🔧 外协加工信息</div>
     <div class="form-row">
-      <div class="form-group"><label>加工图纸链接</label><input class="form-control" id="edit-drawing-url" placeholder="粘贴图纸链接（如腾讯文档/云盘地址）"></div>
+      <div class="form-group">
+        <label>加工图纸链接</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input class="form-control" id="edit-drawing-url" placeholder="粘贴图纸链接（如腾讯文档/云盘地址）" style="flex:1;">
+          <button class="btn btn-sm btn-outline" type="button" onclick="openDrawingAttachmentSelector()" style="white-space:nowrap;flex-shrink:0;">📎 选择项目附件</button>
+        </div>
+      </div>
       <div class="form-group" style="max-width:160px;"><label>加工版本号</label><input class="form-control" id="edit-drawing-version" placeholder="如 v1.0、Rev.A"></div>
+    </div>
+    <div id="edit-drawing-attachment-display" style="display:none;margin-top:6px;font-size:12px;color:var(--text-secondary);">
+      📄 已选附件：<span id="edit-drawing-attachment-name" style="font-weight:600;color:var(--primary);"></span>
+      <button class="btn btn-sm btn-danger" type="button" onclick="clearDrawingAttachment()" style="margin-left:8px;padding:2px 8px;font-size:11px;line-height:1.4;">清除</button>
+      <input type="hidden" id="edit-drawing-attachment-id">
     </div>
   </div>
   <div class="modal-actions">
@@ -1116,6 +1127,13 @@ body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0
     </div>
     <button class="btn btn-gray" onclick="closeModal('modal-edit')">取消</button><button class="btn btn-primary" onclick="saveEditEntry()">保存修改</button>
   </div>
+</div></div>
+
+<!-- 选择加工图纸附件 -->
+<div class="modal-overlay" id="modal-drawing-attachment"><div class="modal" style="max-width:540px;">
+  <div class="modal-title">📎 选择项目附件作为加工图纸</div>
+  <div id="drawing-attachment-list" style="max-height:340px;overflow-y:auto;margin-bottom:12px;"></div>
+  <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('modal-drawing-attachment')">取消</button></div>
 </div></div>
 
 <!-- Import JSON -->
@@ -3407,7 +3425,23 @@ function bomRowHtml(item, seq, dupIds) {
     }
   }
 
-  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+dupBadge+'</b>'+(item.category==='外协加工' && (item.drawingUrl||item.drawingVersion) ? '<div style="margin-top:3px;font-size:11px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+(item.drawingVersion ? '<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 5px;font-weight:600;">'+esc(item.drawingVersion)+'</span>' : '')+(item.drawingUrl ? '<a href="'+esc(item.drawingUrl)+'" target="_blank" style="color:var(--primary);text-decoration:underline;" title="'+esc(item.drawingUrl)+'">📄 图纸</a>' : '')+'</div>' : '')+'</td>';
+  // 外协加工图纸附件 — 查找附件名用于展示
+  var drawingAttHtml = '';
+  if (item.category === '外协加工') {
+    var drawingInfoParts = [];
+    if (item.drawingVersion) drawingInfoParts.push('<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 5px;font-weight:600;">'+esc(item.drawingVersion)+'</span>');
+    if (item.drawingAttachmentId) {
+      var proj0 = store.projects[store.currentProject];
+      var drawAtt = proj0 && (proj0.attachments||[]).find(function(a){ return a.id===item.drawingAttachmentId; });
+      if (drawAtt) {
+        drawingInfoParts.push('<span style="cursor:pointer;color:var(--primary);text-decoration:underline;" onclick="downloadAttachment(\''+item.drawingAttachmentId+'\')" title="点击下载附件">📄 '+esc(drawAtt.name)+'</span>');
+      }
+    } else if (item.drawingUrl) {
+      drawingInfoParts.push('<a href="'+esc(item.drawingUrl)+'" target="_blank" style="color:var(--primary);text-decoration:underline;" title="'+esc(item.drawingUrl)+'">📄 图纸</a>');
+    }
+    if (drawingInfoParts.length) drawingAttHtml = '<div style="margin-top:3px;font-size:11px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+drawingInfoParts.join('')+'</div>';
+  }
+  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+dupBadge+'</b>'+drawingAttHtml+'</td>';
 
   // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
   var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
@@ -4196,6 +4230,48 @@ function deleteBomEntry(id) {
   saveStoreDebounced(); removeBomRow(id); markDirty('bomStats'); markDirty('badges'); toast('已删除');
 }
 
+function openDrawingAttachmentSelector() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  if (!proj) { toast('请先选择项目', 'error'); return; }
+  renderDrawingAttachmentList();
+  document.getElementById('modal-drawing-attachment').classList.add('show');
+}
+
+function renderDrawingAttachmentList() {
+  var proj = store.currentProject && store.projects[store.currentProject];
+  var attachments = proj && proj.attachments ? proj.attachments : [];
+  var el = document.getElementById('drawing-attachment-list');
+  if (!attachments.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">本项目暂无附件，请先在项目附件中上传文件</div>';
+    return;
+  }
+  el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">共 ' + attachments.length + ' 个附件，点击「选择」确认为加工图纸：</div>' +
+    '<div style="display:flex;flex-direction:column;gap:5px;">' +
+    attachments.map(function(att) {
+      var sizeStr = att.size > 1048576 ? (att.size/1048576).toFixed(1)+' MB' : att.size > 1024 ? (att.size/1024).toFixed(0)+' KB' : att.size+' B';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;background:var(--bg-alt);font-size:12px;">' +
+        '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+escAttr(att.name)+'">'+esc(att.name)+'</span>' +
+        '<span style="color:var(--text-muted);font-size:11px;white-space:nowrap;">'+sizeStr+'</span>' +
+        '<button class="btn btn-sm btn-primary" onclick="selectDrawingAttachment(\''+att.id+'\', \''+escAttr(att.name)+'\')" style="padding:3px 12px;font-size:11px;line-height:1.4;white-space:nowrap;">选择</button>' +
+        '</div>';
+    }).join('') +
+    '</div>';
+}
+
+function selectDrawingAttachment(attId, attName) {
+  document.getElementById('edit-drawing-attachment-id').value = attId;
+  document.getElementById('edit-drawing-attachment-name').textContent = attName;
+  document.getElementById('edit-drawing-attachment-display').style.display = '';
+  closeModal('modal-drawing-attachment');
+  toast('已选择附件：' + attName, 'success');
+}
+
+function clearDrawingAttachment() {
+  document.getElementById('edit-drawing-attachment-id').value = '';
+  document.getElementById('edit-drawing-attachment-name').textContent = '';
+  document.getElementById('edit-drawing-attachment-display').style.display = 'none';
+}
+
 // ============================================================
 // EDIT MODAL
 // ============================================================
@@ -4256,6 +4332,24 @@ function openEditModal(id) {
   // 外协加工字段
   document.getElementById('edit-drawing-url').value = item.drawingUrl||'';
   document.getElementById('edit-drawing-version').value = item.drawingVersion||'';
+  // 已关联附件
+  var attId = item.drawingAttachmentId||'';
+  var attDisplay = document.getElementById('edit-drawing-attachment-display');
+  var attIdInput = document.getElementById('edit-drawing-attachment-id');
+  var attNameEl = document.getElementById('edit-drawing-attachment-name');
+  if (attId) {
+    var projData = store.currentProject && store.projects[store.currentProject];
+    var att = projData && (projData.attachments||[]).find(function(a){ return a.id===attId; });
+    if (att) {
+      attIdInput.value = attId;
+      attNameEl.textContent = att.name;
+      attDisplay.style.display = '';
+    } else {
+      attIdInput.value = ''; attNameEl.textContent = ''; attDisplay.style.display = 'none';
+    }
+  } else {
+    attIdInput.value = ''; attNameEl.textContent = ''; attDisplay.style.display = 'none';
+  }
   var outsourceSection = document.getElementById('edit-outsource-section');
   outsourceSection.style.display = (item.category === '外协加工') ? '' : 'none';
   // 分类切换时动态显示/隐藏外协区域
@@ -4290,7 +4384,8 @@ function saveEditEntry() {
     taobaoLink: document.getElementById('edit-taobao').value.trim(),
     remark: document.getElementById('edit-remark').value.trim(),
     drawingUrl: document.getElementById('edit-category').value === '外协加工' ? document.getElementById('edit-drawing-url').value.trim() : (bom[idx].drawingUrl||''),
-    drawingVersion: document.getElementById('edit-category').value === '外协加工' ? document.getElementById('edit-drawing-version').value.trim() : (bom[idx].drawingVersion||'')
+    drawingVersion: document.getElementById('edit-category').value === '外协加工' ? document.getElementById('edit-drawing-version').value.trim() : (bom[idx].drawingVersion||''),
+    drawingAttachmentId: document.getElementById('edit-category').value === '外协加工' ? (document.getElementById('edit-drawing-attachment-id').value.trim()||'') : (bom[idx].drawingAttachmentId||'')
   });
   store.projects[store.currentProject].bom = bom;
   // 根据勾选状态决定是否同步到零件库
@@ -4778,12 +4873,6 @@ function openLibModal(id) {
   var l = id ? source.find(function(x){return x.id===id;}) : null;
   var titleSuffix = isLocal ? '（本项目）' : '（通用库）';
   document.getElementById('libModalTitle').textContent = (id ? '编辑零件' : '添加零件到库') + titleSuffix;
-  // 填充供应商 datalist（汇总所有已有供应商，去重排序）
-  var allSupSet = new Set();
-  (store.library||[]).forEach(function(x){ (x.supplier||'').split(',').forEach(function(s){ var t=s.trim(); if(t) allSupSet.add(t); }); });
-  (getLocalLib()||[]).forEach(function(x){ (x.supplier||'').split(',').forEach(function(s){ var t=s.trim(); if(t) allSupSet.add(t); }); });
-  var dlSup = document.getElementById('lib-supplier-datalist');
-  if (dlSup) dlSup.innerHTML = Array.from(allSupSet).sort(function(a,b){ return a.localeCompare(b,'zh',{numeric:true,sensitivity:'base'}); }).map(function(s){ return '<option value="'+escAttr(s)+'">'; }).join('');
   document.getElementById('lib-name').value = l ? l.name : '';
   document.getElementById('lib-supplier').value = l ? (l.supplier||'') : '';
   document.getElementById('lib-model').value = l ? (l.model||'') : '';
@@ -4792,6 +4881,8 @@ function openLibModal(id) {
   document.getElementById('lib-partCode').value = l ? (l.partCode||'') : '';
   document.getElementById('lib-taobao').value = l ? (l.taobaoLink||'') : '';
   document.getElementById('lib-remark').value = l ? (l.remark||'') : '';
+  // 根据当前分类填充供应商 datalist
+  refreshLibSupplierDatalist(document.getElementById('lib-category').value);
   // Set checkbox defaults based on source tab
   document.getElementById('lib-save-global').checked = id ? !isLocal : true;
   document.getElementById('lib-save-local').checked = isLocal;
@@ -4801,6 +4892,19 @@ function openLibModal(id) {
   var updateBtn = document.getElementById('libUpdateBtn');
   if (updateBtn) updateBtn.style.display = (id && l) ? '' : 'none';
   document.getElementById('modal-lib').classList.add('show');
+}
+
+function refreshLibSupplierDatalist(category) {
+  // 根据分类过滤供应商：category 为空时显示全部
+  var allSupSet = new Set();
+  var libs = [].concat(store.library||[]).concat(getLocalLib()||[]);
+  libs.forEach(function(x) {
+    if (!category || x.category === category) {
+      (x.supplier||'').split(',').forEach(function(s){ var t=s.trim(); if(t) allSupSet.add(t); });
+    }
+  });
+  var dlSup = document.getElementById('lib-supplier-datalist');
+  if (dlSup) dlSup.innerHTML = Array.from(allSupSet).sort(function(a,b){ return a.localeCompare(b,'zh',{numeric:true,sensitivity:'base'}); }).map(function(s){ return '<option value="'+escAttr(s)+'">'; }).join('');
 }
 
 function editLib(id) { openLibModal(id); }
