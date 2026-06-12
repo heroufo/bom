@@ -1051,7 +1051,7 @@ body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0
   <div class="modal-title" id="libModalTitle">添加零件到库</div>
   <div class="form-row">
     <div class="form-group"><label>名称 *</label><input class="form-control" id="lib-name" placeholder="零件名称"></div>
-    <div class="form-group"><label>供应商</label><input class="form-control" id="lib-supplier" placeholder="品牌或供应商（多个用逗号分隔）"></div>
+    <div class="form-group"><label>供应商</label><input class="form-control" id="lib-supplier" list="lib-supplier-datalist" placeholder="品牌或供应商（多个用逗号分隔）" autocomplete="off"><datalist id="lib-supplier-datalist"></datalist></div>
   </div>
   <div class="form-group" style="margin-bottom:10px;"><label>名称型号</label><input class="form-control" id="lib-model" placeholder="详细型号规格"></div>
   <div class="form-row">
@@ -1099,6 +1099,14 @@ body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0
   <div class="form-row">
     <div class="form-group"><label>备注</label><input class="form-control" id="edit-remark" placeholder="零件独有信息..."></div>
     <div class="form-group"><label>淘宝链接</label><input class="form-control" id="edit-taobao"></div>
+  </div>
+  <!-- 外协加工专属字段（仅分类=外协加工时显示） -->
+  <div id="edit-outsource-section" style="display:none;border:1px solid var(--primary,#3b82f6);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(59,130,246,0.04);">
+    <div style="font-size:12px;font-weight:600;color:var(--primary,#3b82f6);margin-bottom:8px;">🔧 外协加工信息</div>
+    <div class="form-row">
+      <div class="form-group"><label>加工图纸链接</label><input class="form-control" id="edit-drawing-url" placeholder="粘贴图纸链接（如腾讯文档/云盘地址）"></div>
+      <div class="form-group" style="max-width:160px;"><label>加工版本号</label><input class="form-control" id="edit-drawing-version" placeholder="如 v1.0、Rev.A"></div>
+    </div>
   </div>
   <div class="modal-actions">
     <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--primary);margin-right:auto;">
@@ -1211,7 +1219,7 @@ body.dark .bom-row-dup{background:linear-gradient(90deg,rgba(248,113,113,0.18) 0
 // ============================================================
 // DATA STORE v4.1 — brand merged into supplier
 // ============================================================
-const DEFAULT_CATEGORIES = ['标准件','传感器仪表','气动元件','管路附件','机械部件','电气元件','结构件','其他部件'];
+const DEFAULT_CATEGORIES = ['标准件','传感器仪表','气动元件','管路附件','机械部件','电气元件','结构件','外协加工','其他部件'];
 const DEFAULT_UNITS = ['台','个','套','根','米','批','组','件','只','对','副','卷'];
 
 // 物料编码前缀规则：分类 → 前缀（用户可在设置中自定义扩展）
@@ -3004,7 +3012,7 @@ function renderProjectsTable() {
   var years = Object.keys(yearGroups).sort(function(a, b) {
     if (a === '其他') return 1;
     if (b === '其他') return -1;
-    return b.localeCompare(a);
+    return b.localeCompare(a, 'zh', {numeric: true, sensitivity: 'base'});
   });
 
   var rows = '';
@@ -3205,7 +3213,7 @@ function renderBomTable() {
     if (groupBy === 'category') {
       keys.sort(function(a,b){
         var ai=catOrder.indexOf(a), bi=catOrder.indexOf(b);
-        if (ai>=0 && bi>=0) return ai-bi; if (ai>=0) return -1; if (bi>=0) return 1; return a.localeCompare(b);
+        if (ai>=0 && bi>=0) return ai-bi; if (ai>=0) return -1; if (bi>=0) return 1; return a.localeCompare(b, 'zh', {numeric: true, sensitivity: 'base'});
       });
     }
     keys.forEach(function(key) {
@@ -3399,7 +3407,7 @@ function bomRowHtml(item, seq, dupIds) {
     }
   }
 
-  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+dupBadge+'</b></td>';
+  var nameHtml = '<td class="bom-name-cell"><b>'+esc(item.name)+localBadge+staleBadge+dupBadge+'</b>'+(item.category==='外协加工' && (item.drawingUrl||item.drawingVersion) ? '<div style="margin-top:3px;font-size:11px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+(item.drawingVersion ? '<span style="background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 5px;font-weight:600;">'+esc(item.drawingVersion)+'</span>' : '')+(item.drawingUrl ? '<a href="'+esc(item.drawingUrl)+'" target="_blank" style="color:var(--primary);text-decoration:underline;" title="'+esc(item.drawingUrl)+'">📄 图纸</a>' : '')+'</div>' : '')+'</td>';
 
   // 物料编码：优先读 BOM 条目本身（同步后写入），否则从库引用读取
   var partCode = item.partCode || (libItem ? libItem.partCode : '') || '';
@@ -3803,7 +3811,7 @@ function sortBomByCategory() {
     var ai=catOrder.indexOf(a.category||''), bi=catOrder.indexOf(b.category||'');
     var aIdx=ai>=0?ai:99, bIdx=bi>=0?bi:99;
     if (aIdx!==bIdx) return aIdx-bIdx;
-    return (a.name||'').localeCompare(b.name||'');
+    return (a.name||'').localeCompare(b.name||'', 'zh', {numeric: true, sensitivity: 'base'});
   });
   store.projects[store.currentProject].bom = bom;
   saveStoreDebounced(true); // 立即写磁盘，防止 renderBomTable 从旧快照读数据
@@ -3814,9 +3822,9 @@ function sortBomBySupplier() {
   if (!store.currentProject) return;
   var bom = currentBom();
   bom.sort(function(a,b) {
-    var cmp = (a.supplier||'').localeCompare(b.supplier||'');
+    var cmp = (a.supplier||'').localeCompare(b.supplier||'', 'zh', {numeric: true, sensitivity: 'base'});
     if (cmp !== 0) return cmp;
-    return (a.name||'').localeCompare(b.name||'');
+    return (a.name||'').localeCompare(b.name||'', 'zh', {numeric: true, sensitivity: 'base'});
   });
   store.projects[store.currentProject].bom = bom;
   saveStoreDebounced(true);
@@ -3832,7 +3840,7 @@ function sortBomByArrival() {
     var ai = arrivalOrder[a.arrived || ''] !== undefined ? arrivalOrder[a.arrived || ''] : 3;
     var bi = arrivalOrder[b.arrived || ''] !== undefined ? arrivalOrder[b.arrived || ''] : 3;
     if (ai !== bi) return ai - bi;
-    return (a.name||'').localeCompare(b.name||'');
+    return (a.name||'').localeCompare(b.name||'', 'zh', {numeric: true, sensitivity: 'base'});
   });
   store.projects[store.currentProject].bom = bom;
   saveStoreDebounced(true);
@@ -4245,6 +4253,15 @@ function openEditModal(id) {
     document.getElementById('edit-save-lib-global').checked = true;
     document.getElementById('edit-save-lib-local').checked = false;
   }
+  // 外协加工字段
+  document.getElementById('edit-drawing-url').value = item.drawingUrl||'';
+  document.getElementById('edit-drawing-version').value = item.drawingVersion||'';
+  var outsourceSection = document.getElementById('edit-outsource-section');
+  outsourceSection.style.display = (item.category === '外协加工') ? '' : 'none';
+  // 分类切换时动态显示/隐藏外协区域
+  document.getElementById('edit-category').onchange = function() {
+    outsourceSection.style.display = (this.value === '外协加工') ? '' : 'none';
+  };
   document.getElementById('modal-edit').classList.add('show');
 }
 
@@ -4271,7 +4288,9 @@ function saveEditEntry() {
     qty: qty, unit: document.getElementById('edit-unit').value, stock: stock, status: status, actualPurchase: actualPurchase,
     arrived: document.getElementById('edit-arrived').value,
     taobaoLink: document.getElementById('edit-taobao').value.trim(),
-    remark: document.getElementById('edit-remark').value.trim()
+    remark: document.getElementById('edit-remark').value.trim(),
+    drawingUrl: document.getElementById('edit-category').value === '外协加工' ? document.getElementById('edit-drawing-url').value.trim() : (bom[idx].drawingUrl||''),
+    drawingVersion: document.getElementById('edit-category').value === '外协加工' ? document.getElementById('edit-drawing-version').value.trim() : (bom[idx].drawingVersion||'')
   });
   store.projects[store.currentProject].bom = bom;
   // 根据勾选状态决定是否同步到零件库
@@ -4688,8 +4707,8 @@ function renderLibrary() {
     filtered.sort(function(a,b){
       var va = (a[sortField]||'').toLowerCase();
       var vb = (b[sortField]||'').toLowerCase();
-      if (sortDir === 'asc') return va < vb ? -1 : va > vb ? 1 : 0;
-      else return va > vb ? -1 : va < vb ? 1 : 0;
+      var cmp = va.localeCompare(vb, 'zh', {numeric: true, sensitivity: 'base'});
+      return sortDir === 'asc' ? cmp : -cmp;
     });
   }
 
@@ -4759,6 +4778,12 @@ function openLibModal(id) {
   var l = id ? source.find(function(x){return x.id===id;}) : null;
   var titleSuffix = isLocal ? '（本项目）' : '（通用库）';
   document.getElementById('libModalTitle').textContent = (id ? '编辑零件' : '添加零件到库') + titleSuffix;
+  // 填充供应商 datalist（汇总所有已有供应商，去重排序）
+  var allSupSet = new Set();
+  (store.library||[]).forEach(function(x){ (x.supplier||'').split(',').forEach(function(s){ var t=s.trim(); if(t) allSupSet.add(t); }); });
+  (getLocalLib()||[]).forEach(function(x){ (x.supplier||'').split(',').forEach(function(s){ var t=s.trim(); if(t) allSupSet.add(t); }); });
+  var dlSup = document.getElementById('lib-supplier-datalist');
+  if (dlSup) dlSup.innerHTML = Array.from(allSupSet).sort(function(a,b){ return a.localeCompare(b,'zh',{numeric:true,sensitivity:'base'}); }).map(function(s){ return '<option value="'+escAttr(s)+'">'; }).join('');
   document.getElementById('lib-name').value = l ? l.name : '';
   document.getElementById('lib-supplier').value = l ? (l.supplier||'') : '';
   document.getElementById('lib-model').value = l ? (l.model||'') : '';
@@ -5670,7 +5695,7 @@ function exportBomToTencentDocs() {
     var ai=catOrder.indexOf(a), bi=catOrder.indexOf(b);
     if (ai>=0 && bi>=0) return ai-bi;
     if (ai>=0) return -1; if (bi>=0) return 1;
-    return a.localeCompare(b);
+    return a.localeCompare(b, 'zh', {numeric: true, sensitivity: 'base'});
   });
 
   var seq = 1;
